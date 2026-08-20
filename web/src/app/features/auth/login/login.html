@@ -1,0 +1,113 @@
+<situr-auth-layout>
+  <h2 class="font-heading text-title text-2xl font-bold">Bienvenido de vuelta</h2>
+  <p class="text-text-secondary mt-1 mb-6 text-sm">Ingresa tus credenciales para continuar</p>
+
+  <!-- Recuadro demo: SOLO para pruebas, eliminar al conectar el backend real -->
+  <div
+    class="bg-demo-bg border-demo-border text-accent-dark mb-6 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm"
+  >
+    <svg lucideCircleAlert class="h-4 w-4 shrink-0" [strokeWidth]="2"></svg>
+    <span>Demo: <strong class="font-semibold">admin&#64;situr.smart / Admin1234</strong></span>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="animate-fade-in-up mb-6 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+      <svg lucideCircleAlert class="text-error mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2"></svg>
+      <div class="text-sm">
+        <p class="text-error font-semibold">Credenciales incorrectas</p>
+        <p class="text-error/80">Verifica tu correo y contraseña e intenta de nuevo.</p>
+      </div>
+    </div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5" novalidate>
+    <div>
+      <label for="email" class="text-label mb-1.5 block text-sm font-medium">Correo electrónico</label>
+      <div class="relative">
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          placeholder="admin@situr.smart"
+          autocomplete="email"
+          class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+          [class.border-input-border-error]="form.controls.email.invalid && form.controls.email.touched"
+          [attr.aria-invalid]="form.controls.email.invalid && form.controls.email.touched"
+        />
+        <svg lucideMail class="text-text-secondary absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+      </div>
+      @if (form.controls.email.invalid && form.controls.email.touched) {
+        <p class="text-error mt-1.5 text-xs">
+          @if (form.controls.email.hasError('required')) {
+            El correo es obligatorio.
+          } @else {
+            Ingresa un correo electrónico válido.
+          }
+        </p>
+      }
+    </div>
+
+    <div>
+      <label for="password" class="text-label mb-1.5 block text-sm font-medium">Contraseña</label>
+      <div class="relative">
+        <input
+          id="password"
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+          [class.border-input-border-error]="form.controls.password.invalid && form.controls.password.touched"
+          [attr.aria-invalid]="form.controls.password.invalid && form.controls.password.touched"
+        />
+        <button
+          type="button"
+          (click)="togglePassword()"
+          [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          class="text-text-secondary hover:text-title absolute top-1/2 right-3.5 -translate-y-1/2"
+        >
+          @if (showPassword()) {
+            <svg lucideEyeOff class="h-4 w-4" [strokeWidth]="2"></svg>
+          } @else {
+            <svg lucideEye class="h-4 w-4" [strokeWidth]="2"></svg>
+          }
+        </button>
+      </div>
+      @if (form.controls.password.invalid && form.controls.password.touched) {
+        <p class="text-error mt-1.5 text-xs">
+          @if (form.controls.password.hasError('required')) {
+            La contraseña es obligatoria.
+          } @else {
+            Debe tener al menos 8 caracteres.
+          }
+        </p>
+      }
+    </div>
+
+    <div class="flex items-center justify-between text-sm">
+      <label class="text-label flex items-center gap-2">
+        <input type="checkbox" formControlName="remember" class="text-accent focus:ring-accent/30 h-4 w-4 rounded border-input-border" />
+        Recordarme
+      </label>
+      <a routerLink="/recuperar" class="text-accent-dark font-medium hover:underline">¿Olvidaste tu contraseña?</a>
+    </div>
+
+    <button
+      type="submit"
+      [disabled]="loading()"
+      class="btn-accent flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-70"
+    >
+      @if (loading()) {
+        <svg lucideLoaderCircle class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+        Verificando...
+      } @else {
+        Iniciar sesión
+      }
+    </button>
+  </form>
+
+  <p class="text-text-secondary mt-6 text-center text-sm">
+    ¿No tienes una cuenta?
+    <a routerLink="/registro" class="text-accent-dark font-medium hover:underline">Regístrate</a>
+  </p>
+</situr-auth-layout>
