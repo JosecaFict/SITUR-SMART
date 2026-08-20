@@ -1,0 +1,9 @@
+<div class="border-input-border rounded-xl border bg-white p-6">
+  <h1 class="font-heading text-title text-xl font-semibold">
+    Bienvenido{{ session()?.user?.nombre ? ', ' + session()!.user.nombre : '' }}
+  </h1>
+  <p class="text-text-secondary mt-1 text-sm">
+    Este es el punto de partida del dashboard. El contenido real se construye en una siguiente
+    etapa.
+  </p>
+</div>

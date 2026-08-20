@@ -1,0 +1,161 @@
+<situr-auth-layout>
+  @if (!success()) {
+    <a routerLink="/login" class="text-accent-dark mb-6 inline-block text-sm font-medium hover:underline">
+      ← Volver al inicio de sesión
+    </a>
+
+    <h2 class="font-heading text-title text-2xl font-bold">Crear cuenta</h2>
+    <p class="text-text-secondary mt-1 mb-6 text-sm">
+      Completa el formulario para registrarte en SITUR-SMART
+    </p>
+
+    @if (errorMessage()) {
+      <div class="animate-fade-in-up mb-6 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+        <p class="text-error text-sm">{{ errorMessage() }}</p>
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5" novalidate>
+      <div>
+        <label for="nombre" class="text-label mb-1.5 block text-sm font-medium">Nombre completo</label>
+        <div class="relative">
+          <input
+            id="nombre"
+            type="text"
+            formControlName="nombre"
+            placeholder="Juan García"
+            autocomplete="name"
+            class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+            [class.border-input-border-error]="form.controls.nombre.invalid && form.controls.nombre.touched"
+          />
+          <svg lucideUser class="text-text-secondary absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+        </div>
+        @if (form.controls.nombre.invalid && form.controls.nombre.touched) {
+          <p class="text-error mt-1.5 text-xs">El nombre completo es obligatorio.</p>
+        }
+      </div>
+
+      <div>
+        <label for="reg-email" class="text-label mb-1.5 block text-sm font-medium">Correo electrónico</label>
+        <div class="relative">
+          <input
+            id="reg-email"
+            type="email"
+            formControlName="email"
+            placeholder="juan@ejemplo.com"
+            autocomplete="email"
+            class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+            [class.border-input-border-error]="form.controls.email.invalid && form.controls.email.touched"
+          />
+          <svg lucideMail class="text-text-secondary absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+        </div>
+        @if (form.controls.email.invalid && form.controls.email.touched) {
+          <p class="text-error mt-1.5 text-xs">Ingresa un correo electrónico válido.</p>
+        }
+      </div>
+
+      <div>
+        <label for="reg-password" class="text-label mb-1.5 block text-sm font-medium">Contraseña</label>
+        <div class="relative">
+          <input
+            id="reg-password"
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="password"
+            placeholder="Mínimo 8 caracteres"
+            autocomplete="new-password"
+            (input)="onPasswordInput($any($event.target).value)"
+            class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+            [class.border-input-border-error]="form.controls.password.invalid && form.controls.password.touched"
+          />
+          <button
+            type="button"
+            (click)="togglePassword()"
+            [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            class="text-text-secondary hover:text-title absolute top-1/2 right-3.5 -translate-y-1/2"
+          >
+            @if (showPassword()) {
+              <svg lucideEyeOff class="h-4 w-4" [strokeWidth]="2"></svg>
+            } @else {
+              <svg lucideEye class="h-4 w-4" [strokeWidth]="2"></svg>
+            }
+          </button>
+        </div>
+
+        @if (passwordValue()) {
+          <div class="mt-2 flex gap-1.5">
+            @for (segment of [1, 2, 3, 4]; track segment) {
+              <span
+                class="h-1.5 flex-1 rounded-full transition-colors"
+                [class]="segment <= strengthScore() ? strengthColor() : 'bg-input-border'"
+              ></span>
+            }
+          </div>
+          <p class="text-text-secondary mt-1 text-xs">{{ strengthLabel() }}</p>
+        }
+
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <p class="text-error mt-1.5 text-xs">Debe tener al menos 8 caracteres.</p>
+        }
+      </div>
+
+      <div>
+        <label for="confirm-password" class="text-label mb-1.5 block text-sm font-medium">Confirmar contraseña</label>
+        <div class="relative">
+          <input
+            id="confirm-password"
+            [type]="showConfirmPassword() ? 'text' : 'password'"
+            formControlName="confirmPassword"
+            placeholder="Repite tu contraseña"
+            autocomplete="new-password"
+            class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+            [class.border-input-border-error]="form.hasError('mismatch') && form.controls.confirmPassword.touched"
+          />
+          <button
+            type="button"
+            (click)="toggleConfirmPassword()"
+            [attr.aria-label]="showConfirmPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            class="text-text-secondary hover:text-title absolute top-1/2 right-3.5 -translate-y-1/2"
+          >
+            @if (showConfirmPassword()) {
+              <svg lucideEyeOff class="h-4 w-4" [strokeWidth]="2"></svg>
+            } @else {
+              <svg lucideEye class="h-4 w-4" [strokeWidth]="2"></svg>
+            }
+          </button>
+        </div>
+        @if (form.hasError('mismatch') && form.controls.confirmPassword.touched) {
+          <p class="text-error mt-1.5 text-xs">Las contraseñas no coinciden.</p>
+        }
+      </div>
+
+      <button
+        type="submit"
+        [disabled]="loading()"
+        class="btn-accent mt-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-70"
+      >
+        @if (loading()) {
+          <svg lucideLoaderCircle class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+          Creando cuenta...
+        } @else {
+          Crear cuenta
+        }
+      </button>
+    </form>
+  } @else {
+    <div class="flex flex-col items-center text-center">
+      <span class="animate-fade-in-scale flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+        <svg lucideCircleCheck class="h-7 w-7 text-emerald-600" [strokeWidth]="2"></svg>
+      </span>
+      <h2 class="animate-fade-in-up-delay font-heading text-title mt-4 text-2xl font-bold">¡Registro exitoso!</h2>
+      <p class="animate-fade-in-up-delay text-text-secondary mt-2 text-sm">
+        Tu cuenta ha sido creada correctamente. Ahora puedes iniciar sesión.
+      </p>
+      <a
+        routerLink="/login"
+        class="animate-fade-in-up-delay btn-accent mt-6 w-full rounded-xl py-2.5 text-center text-sm font-semibold text-white"
+      >
+        Ir al inicio de sesión
+      </a>
+    </div>
+  }
+</situr-auth-layout>

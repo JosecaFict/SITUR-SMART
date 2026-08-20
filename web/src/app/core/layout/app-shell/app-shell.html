@@ -1,0 +1,47 @@
+<div class="bg-input-bg flex min-h-screen flex-col">
+  <header class="border-input-border flex items-center justify-between border-b bg-white px-4 py-3 sm:px-6">
+    <div class="flex items-center gap-2">
+      <span class="bg-panel-bg flex h-9 w-9 items-center justify-center rounded-xl">
+        <svg lucideCompass class="text-accent h-5 w-5" [strokeWidth]="2"></svg>
+      </span>
+      <span class="font-heading text-title text-lg font-bold">
+        SITUR<span class="text-accent-dark">-SMART</span>
+      </span>
+    </div>
+
+    <div class="flex items-center gap-4">
+      @if (session(); as s) {
+        <div class="hidden text-right sm:block">
+          <p class="text-title text-sm font-medium">{{ s.user.nombre }}</p>
+          <p class="text-text-secondary text-xs capitalize">{{ s.user.role }}</p>
+        </div>
+      }
+      <button
+        type="button"
+        (click)="logout()"
+        class="text-label hover:bg-input-bg flex items-center gap-1.5 rounded-xl border border-input-border px-3 py-1.5 text-sm"
+      >
+        <svg lucideLogOut class="h-4 w-4" [strokeWidth]="2"></svg>
+        Salir
+      </button>
+    </div>
+  </header>
+
+  <div class="flex flex-1 flex-col lg:flex-row">
+    <nav class="border-input-border flex gap-1 overflow-x-auto border-b bg-white px-4 py-2 lg:w-56 lg:flex-col lg:border-b-0 lg:border-r lg:px-3 lg:py-6">
+      @for (item of navItems; track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="bg-demo-bg text-accent-dark"
+          class="text-label hover:bg-input-bg shrink-0 rounded-xl px-3 py-2 text-sm font-medium"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+
+    <main class="flex-1 p-4 sm:p-6">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>
