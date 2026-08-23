@@ -1,0 +1,350 @@
+openapi: 3.0.3
+info:
+  title: SITUR-SMART API
+  version: 0.1.0
+  description: API compartida para Angular y Flutter.
+paths:
+  /api/v1/auth/login/:
+    post:
+      operationId: api_v1_auth_login_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: api_v1_auth_logout_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/me/:
+    get:
+      operationId: api_v1_auth_me_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserContext'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: api_v1_auth_refresh_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/v1/health/:
+    get:
+      operationId: api_v1_health_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: ''
+  /api/v1/permissions/:
+    get:
+      operationId: api_v1_permissions_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Permission'
+          description: ''
+  /api/v1/roles/:
+    get:
+      operationId: api_v1_roles_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+          description: ''
+    post:
+      operationId: api_v1_roles_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+components:
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserContext'
+      required:
+      - access
+      - refresh
+      - user
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        database:
+          type: string
+      required:
+      - database
+      - status
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    Permission:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          maxLength: 100
+        module:
+          type: string
+          maxLength: 80
+        name:
+          type: string
+          maxLength: 150
+      required:
+      - code
+      - id
+      - module
+      - name
+    Refresh:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+      required:
+      - refresh
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        tenant_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        code:
+          type: string
+          maxLength: 60
+        name:
+          type: string
+          maxLength: 120
+        scope:
+          $ref: '#/components/schemas/ScopeEnum'
+        is_system:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - code
+      - id
+      - is_system
+      - name
+      - permissions
+      - scope
+      - tenant_id
+    RoleCreate:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: ^[A-Za-z][A-Za-z0-9_]{2,59}$
+        name:
+          type: string
+          maxLength: 120
+        permissions:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+      required:
+      - code
+      - name
+    ScopeEnum:
+      enum:
+      - GLOBAL
+      - TENANT
+      type: string
+      description: |-
+        * `GLOBAL` - Global
+        * `TENANT` - Tenant
+    TenantContext:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        subdomain:
+          type: string
+      required:
+      - id
+      - name
+      - subdomain
+    UserContext:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        nombres:
+          type: string
+        apellidos:
+          type: string
+        estado:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        permisos:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        tenants:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantContext'
+          readOnly: true
+      required:
+      - apellidos
+      - email
+      - estado
+      - id
+      - nombres
+      - permisos
+      - roles
+      - tenants
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

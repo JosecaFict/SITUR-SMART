@@ -11,14 +11,11 @@ export const routes: Routes = [
   },
   {
     path: 'registro',
-    canActivate: [guestGuard],
-    loadComponent: () => import('./features/auth/register/register').then((m) => m.Register),
+    redirectTo: 'login',
   },
   {
     path: 'recuperar',
-    canActivate: [guestGuard],
-    loadComponent: () =>
-      import('./features/auth/forgot-password/forgot-password').then((m) => m.ForgotPassword),
+    redirectTo: 'login',
   },
   {
     path: '',

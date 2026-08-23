@@ -1,1 +1,75 @@
-<situr-placeholder-section title="Roles" />
+<section class="space-y-5">
+  <header class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="font-heading text-title text-2xl font-bold">Roles</h1>
+      <p class="text-text-secondary mt-1 text-sm">
+        Roles globales obtenidos directamente del backend de SITUR-SMART.
+      </p>
+    </div>
+    <button
+      type="button"
+      (click)="loadRoles()"
+      [disabled]="loading()"
+      class="text-accent-dark border-demo-border hover:bg-demo-bg rounded-xl border bg-white px-4 py-2 text-sm font-medium disabled:opacity-60"
+    >
+      Actualizar
+    </button>
+  </header>
+
+  @if (errorMessage(); as message) {
+    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ message }}
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="border-input-border rounded-xl border bg-white p-8 text-center">
+      <p class="text-text-secondary text-sm">Consultando roles...</p>
+    </div>
+  } @else if (roles().length === 0) {
+    <div class="border-input-border rounded-xl border bg-white p-8 text-center">
+      <p class="text-text-secondary text-sm">No existen roles globales registrados.</p>
+    </div>
+  } @else {
+    <div class="border-input-border overflow-hidden rounded-xl border bg-white">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-input-bg text-label border-input-border border-b">
+            <tr>
+              <th class="px-5 py-3 font-semibold">Código</th>
+              <th class="px-5 py-3 font-semibold">Nombre</th>
+              <th class="px-5 py-3 font-semibold">Ámbito</th>
+              <th class="px-5 py-3 font-semibold">Permisos</th>
+            </tr>
+          </thead>
+          <tbody class="divide-input-border divide-y">
+            @for (role of roles(); track role.id) {
+              <tr class="hover:bg-input-bg/60">
+                <td class="text-title px-5 py-4 font-medium">{{ role.code }}</td>
+                <td class="text-label px-5 py-4">{{ role.name }}</td>
+                <td class="px-5 py-4">
+                  <span class="bg-demo-bg text-accent-dark rounded-full px-2.5 py-1 text-xs font-medium">
+                    {{ role.scope === 'GLOBAL' ? 'Global' : 'Empresa' }}
+                  </span>
+                </td>
+                <td class="px-5 py-4">
+                  @if (role.permissions.length) {
+                    <div class="flex max-w-xl flex-wrap gap-1.5">
+                      @for (permission of role.permissions; track permission) {
+                        <span class="bg-input-bg text-label rounded-md px-2 py-1 text-xs">
+                          {{ permission }}
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="text-text-secondary text-xs">Sin permisos asignados</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</section>

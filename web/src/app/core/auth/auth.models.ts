@@ -1,15 +1,23 @@
-export type UserRole = 'superadmin' | 'dueno' | 'trabajador' | 'cliente';
+export interface TenantContext {
+  id: number;
+  name: string;
+  subdomain: string;
+}
 
 export interface AuthUser {
-  id: string;
-  nombre: string;
+  id: number;
   email: string;
-  role: UserRole;
-  tenantId: string | null;
+  nombres: string;
+  apellidos: string;
+  estado: string;
+  roles: string[];
+  permisos: string[];
+  tenants: TenantContext[];
 }
 
 export interface AuthSession {
-  token: string;
+  access: string;
+  refresh: string;
   user: AuthUser;
 }
 
@@ -23,4 +31,12 @@ export interface RegisterPayload {
   nombre: string;
   email: string;
   password: string;
+}
+
+export interface ApiErrorResponse {
+  error?: {
+    status?: number;
+    message?: string;
+    details?: unknown;
+  };
 }
