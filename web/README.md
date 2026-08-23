@@ -1,4 +1,33 @@
-# Web
+# Web SITUR-SMART
+
+Aplicación Angular conectada a la API compartida de Django.
+
+## Ejecución local
+
+Primero iniciar el backend en `http://127.0.0.1:8000` y después, desde esta carpeta:
+
+```powershell
+npm ci
+npm start
+```
+
+Abrir `http://localhost:4200` e ingresar con una cuenta creada mediante
+`python manage.py createsituradmin`. En desarrollo, la dirección del backend se encuentra en
+`src/environments/environment.development.ts`.
+
+## Configuración para producción
+
+La compilación de producción utiliza `/api/v1` como dirección relativa. Esto supone que el
+servidor web redirigirá esa ruta hacia Django. Si Angular y Django se publican en dominios
+distintos, se debe reemplazar `apiUrl` en `src/environments/environment.ts` por la URL pública del
+backend antes de ejecutar:
+
+```powershell
+npm run build
+```
+
+El Sprint 0 consume realmente los endpoints de login, renovación, logout, usuario actual y roles.
+Registro y recuperación están deshabilitados hasta implementar sus endpoints en Django.
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.34.
 

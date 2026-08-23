@@ -2,20 +2,12 @@
   <h2 class="font-heading text-title text-2xl font-bold">Bienvenido de vuelta</h2>
   <p class="text-text-secondary mt-1 mb-6 text-sm">Ingresa tus credenciales para continuar</p>
 
-  <!-- Recuadro demo: SOLO para pruebas, eliminar al conectar el backend real -->
-  <div
-    class="bg-demo-bg border-demo-border text-accent-dark mb-6 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm"
-  >
-    <svg lucideCircleAlert class="h-4 w-4 shrink-0" [strokeWidth]="2"></svg>
-    <span>Demo: <strong class="font-semibold">admin&#64;situr.smart / Admin1234</strong></span>
-  </div>
-
   @if (errorMessage()) {
     <div class="animate-fade-in-up mb-6 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
       <svg lucideCircleAlert class="text-error mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2"></svg>
       <div class="text-sm">
-        <p class="text-error font-semibold">Credenciales incorrectas</p>
-        <p class="text-error/80">Verifica tu correo y contraseña e intenta de nuevo.</p>
+        <p class="text-error font-semibold">No se pudo iniciar sesión</p>
+        <p class="text-error/80">{{ errorMessage() }}</p>
       </div>
     </div>
   }
@@ -28,7 +20,7 @@
           id="email"
           type="email"
           formControlName="email"
-          placeholder="admin@situr.smart"
+          placeholder="correo@empresa.com"
           autocomplete="email"
           class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
           [class.border-input-border-error]="form.controls.email.invalid && form.controls.email.touched"
@@ -89,7 +81,7 @@
         <input type="checkbox" formControlName="remember" class="text-accent focus:ring-accent/30 h-4 w-4 rounded border-input-border" />
         Recordarme
       </label>
-      <a routerLink="/recuperar" class="text-accent-dark font-medium hover:underline">¿Olvidaste tu contraseña?</a>
+      <span class="text-text-secondary text-xs">Recuperación próximamente</span>
     </div>
 
     <button
@@ -106,8 +98,4 @@
     </button>
   </form>
 
-  <p class="text-text-secondary mt-6 text-center text-sm">
-    ¿No tienes una cuenta?
-    <a routerLink="/registro" class="text-accent-dark font-medium hover:underline">Regístrate</a>
-  </p>
 </situr-auth-layout>

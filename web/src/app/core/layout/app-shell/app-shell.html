@@ -12,8 +12,8 @@
     <div class="flex items-center gap-4">
       @if (session(); as s) {
         <div class="hidden text-right sm:block">
-          <p class="text-title text-sm font-medium">{{ s.user.nombre }}</p>
-          <p class="text-text-secondary text-xs capitalize">{{ s.user.role }}</p>
+          <p class="text-title text-sm font-medium">{{ s.user.nombres }} {{ s.user.apellidos }}</p>
+          <p class="text-text-secondary text-xs">{{ s.user.roles.join(', ') }}</p>
         </div>
       }
       <button
