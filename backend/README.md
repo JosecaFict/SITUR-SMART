@@ -62,6 +62,17 @@ El panel interno estará disponible en `http://127.0.0.1:8000/admin/`. Se ingres
 la contraseña registrados mediante `createsituradmin`. Este panel es una herramienta interna del
 backend y no sustituye las pantallas administrativas que tendrá la aplicación web Angular.
 
+## Despliegue en Railway
+
+Configurar el servicio con el directorio raíz `/backend`. Railpack detecta `requirements.txt`,
+instala las dependencias de producción y utiliza Python 3.12 según `.python-version`.
+
+```text
+Pre-Deploy: python manage.py migrate --noinput
+Start:      gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+Health:     /api/v1/health/
+```
+
 ## Endpoints iniciales
 
 ```text
