@@ -1,75 +1,228 @@
-<section class="space-y-5">
-  <header class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+<section class="mx-auto max-w-7xl space-y-6">
+  <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div>
-      <h1 class="font-heading text-title text-2xl font-bold">Roles</h1>
-      <p class="text-text-secondary mt-1 text-sm">
-        Roles globales obtenidos directamente del backend de SITUR-SMART.
+      <h1 class="font-heading text-title text-3xl font-bold tracking-tight">Roles y permisos</h1>
+      <p class="text-text-secondary mt-1 text-sm sm:text-base">
+        Administra los niveles de acceso de la plataforma.
       </p>
     </div>
     <button
       type="button"
       (click)="loadRoles()"
       [disabled]="loading()"
-      class="text-accent-dark border-demo-border hover:bg-demo-bg rounded-xl border bg-white px-4 py-2 text-sm font-medium disabled:opacity-60"
+      class="text-accent-dark border-demo-border hover:bg-demo-bg flex w-fit items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-60"
     >
+      <svg
+        lucideRefreshCw
+        class="h-4 w-4"
+        [class.animate-spin]="loading()"
+        [strokeWidth]="2"
+      ></svg>
       Actualizar
     </button>
   </header>
 
-  @if (errorMessage(); as message) {
-    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ message }}
-    </div>
-  }
-
-  @if (loading()) {
-    <div class="border-input-border rounded-xl border bg-white p-8 text-center">
-      <p class="text-text-secondary text-sm">Consultando roles...</p>
-    </div>
-  } @else if (roles().length === 0) {
-    <div class="border-input-border rounded-xl border bg-white p-8 text-center">
-      <p class="text-text-secondary text-sm">No existen roles globales registrados.</p>
-    </div>
-  } @else {
-    <div class="border-input-border overflow-hidden rounded-xl border bg-white">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-input-bg text-label border-input-border border-b">
-            <tr>
-              <th class="px-5 py-3 font-semibold">Código</th>
-              <th class="px-5 py-3 font-semibold">Nombre</th>
-              <th class="px-5 py-3 font-semibold">Ámbito</th>
-              <th class="px-5 py-3 font-semibold">Permisos</th>
-            </tr>
-          </thead>
-          <tbody class="divide-input-border divide-y">
-            @for (role of roles(); track role.id) {
-              <tr class="hover:bg-input-bg/60">
-                <td class="text-title px-5 py-4 font-medium">{{ role.code }}</td>
-                <td class="text-label px-5 py-4">{{ role.name }}</td>
-                <td class="px-5 py-4">
-                  <span class="bg-demo-bg text-accent-dark rounded-full px-2.5 py-1 text-xs font-medium">
-                    {{ role.scope === 'GLOBAL' ? 'Global' : 'Empresa' }}
-                  </span>
-                </td>
-                <td class="px-5 py-4">
-                  @if (role.permissions.length) {
-                    <div class="flex max-w-xl flex-wrap gap-1.5">
-                      @for (permission of role.permissions; track permission) {
-                        <span class="bg-input-bg text-label rounded-md px-2 py-1 text-xs">
-                          {{ permission }}
-                        </span>
-                      }
-                    </div>
-                  } @else {
-                    <span class="text-text-secondary text-xs">Sin permisos asignados</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+  <div class="grid gap-4 sm:grid-cols-3">
+    <article class="border-input-border flex items-center gap-4 rounded-2xl border bg-white p-5 shadow-sm">
+      <span class="bg-demo-bg text-accent-dark flex h-12 w-12 items-center justify-center rounded-2xl">
+        <svg lucideShieldCheck class="h-6 w-6" [strokeWidth]="2"></svg>
+      </span>
+      <div>
+        <p class="text-title text-3xl font-bold">{{ roles().length }}</p>
+        <p class="text-text-secondary text-sm">Roles disponibles</p>
       </div>
+    </article>
+
+    <article class="border-input-border flex items-center gap-4 rounded-2xl border bg-white p-5 shadow-sm">
+      <span class="bg-demo-bg text-accent-dark flex h-12 w-12 items-center justify-center rounded-2xl">
+        <svg lucideGlobe2 class="h-6 w-6" [strokeWidth]="2"></svg>
+      </span>
+      <div>
+        <p class="text-title text-3xl font-bold">{{ globalRoleCount() }}</p>
+        <p class="text-text-secondary text-sm">Roles globales</p>
+      </div>
+    </article>
+
+    <article class="border-input-border flex items-center gap-4 rounded-2xl border bg-white p-5 shadow-sm">
+      <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+        <svg lucideBuilding2 class="h-6 w-6" [strokeWidth]="2"></svg>
+      </span>
+      <div>
+        <p class="text-title text-3xl font-bold">{{ tenantRoleCount() }}</p>
+        <p class="text-text-secondary text-sm">Roles de empresa</p>
+      </div>
+    </article>
+  </div>
+
+  <div class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm">
+    <div class="border-input-border flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
+      <label class="relative block w-full lg:max-w-xs">
+        <span class="sr-only">Buscar rol</span>
+        <svg
+          lucideSearch
+          class="text-text-secondary pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+          [strokeWidth]="2"
+        ></svg>
+        <input
+          type="search"
+          [value]="searchTerm()"
+          (input)="updateSearch($event)"
+          placeholder="Buscar rol"
+          class="border-input-border text-label focus:border-accent-dark focus:ring-accent/20 w-full rounded-xl border bg-white py-2.5 pr-3 pl-10 text-sm outline-none transition focus:ring-4"
+        />
+      </label>
+
+      <div class="border-input-border flex w-fit rounded-xl border bg-white p-1">
+        <button
+          type="button"
+          (click)="setScopeFilter('ALL')"
+          [class.bg-panel-bg]="scopeFilter() === 'ALL'"
+          [class.text-white]="scopeFilter() === 'ALL'"
+          class="text-label rounded-lg px-3.5 py-2 text-sm font-medium transition hover:bg-gray-50"
+        >
+          Todos
+        </button>
+        <button
+          type="button"
+          (click)="setScopeFilter('GLOBAL')"
+          [class.bg-panel-bg]="scopeFilter() === 'GLOBAL'"
+          [class.text-white]="scopeFilter() === 'GLOBAL'"
+          class="text-label rounded-lg px-3.5 py-2 text-sm font-medium transition hover:bg-gray-50"
+        >
+          Globales
+        </button>
+        <button
+          type="button"
+          (click)="setScopeFilter('TENANT')"
+          [class.bg-panel-bg]="scopeFilter() === 'TENANT'"
+          [class.text-white]="scopeFilter() === 'TENANT'"
+          class="text-label rounded-lg px-3.5 py-2 text-sm font-medium transition hover:bg-gray-50"
+        >
+          De empresa
+        </button>
+      </div>
+
+      <button
+        type="button"
+        disabled
+        title="Disponible cuando se implemente la gestión de tenants"
+        class="border-input-border text-text-secondary flex w-fit cursor-not-allowed items-center gap-2 rounded-xl border bg-gray-50 px-4 py-2.5 text-sm font-medium opacity-70"
+      >
+        <svg lucidePlus class="h-4 w-4" [strokeWidth]="2"></svg>
+        Nuevo rol de empresa
+      </button>
     </div>
-  }
+
+    @if (errorMessage(); as message) {
+      <div class="m-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2"></svg>
+        <span>{{ message }}</span>
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="p-12 text-center">
+        <svg lucideRefreshCw class="text-accent-dark mx-auto h-6 w-6 animate-spin" [strokeWidth]="2"></svg>
+        <p class="text-text-secondary mt-3 text-sm">Consultando roles del backend...</p>
+      </div>
+    } @else if (filteredRoles().length === 0) {
+      <div class="p-12 text-center">
+        <span class="bg-input-bg text-text-secondary mx-auto flex h-12 w-12 items-center justify-center rounded-full">
+          <svg lucideSearch class="h-5 w-5" [strokeWidth]="2"></svg>
+        </span>
+        <p class="text-title mt-3 text-sm font-semibold">No encontramos roles</p>
+        <p class="text-text-secondary mt-1 text-xs">Cambia el filtro o el término de búsqueda.</p>
+      </div>
+    } @else {
+      <div class="space-y-3 bg-gray-50/70 p-4">
+        @for (role of filteredRoles(); track role.id) {
+          <article class="border-input-border overflow-hidden rounded-2xl border bg-white transition hover:border-gray-300 hover:shadow-sm">
+            <div class="grid gap-4 p-4 md:grid-cols-[minmax(260px,0.9fr)_minmax(320px,1.2fr)_auto] md:items-center md:p-5">
+              <div class="flex min-w-0 items-center gap-4">
+                <span class="bg-demo-bg text-accent-dark flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
+                  @switch (role.code) {
+                    @case ('SUPER_ADMIN') {
+                      <svg lucideCrown class="h-6 w-6" [strokeWidth]="2"></svg>
+                    }
+                    @case ('CLIENTE') {
+                      <svg lucideUserRound class="h-6 w-6" [strokeWidth]="2"></svg>
+                    }
+                    @case ('TENANT_ADMIN') {
+                      <svg lucideBuilding2 class="h-6 w-6" [strokeWidth]="2"></svg>
+                    }
+                    @default {
+                      <svg lucideBriefcaseBusiness class="h-6 w-6" [strokeWidth]="2"></svg>
+                    }
+                  }
+                </span>
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h2 class="text-title font-heading truncate text-base font-semibold">{{ role.name }}</h2>
+                    <span
+                      class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                      [class.bg-demo-bg]="role.scope === 'GLOBAL'"
+                      [class.text-accent-dark]="role.scope === 'GLOBAL'"
+                      [class.bg-blue-50]="role.scope === 'TENANT'"
+                      [class.text-blue-700]="role.scope === 'TENANT'"
+                    >
+                      {{ role.scope === 'GLOBAL' ? 'Global' : 'Empresa' }}
+                    </span>
+                  </div>
+                  <code
+                    class="notranslate text-text-secondary mt-1 block w-fit rounded-md bg-gray-100 px-2 py-0.5 text-xs"
+                    translate="no"
+                  >{{ role.code }}</code>
+                  <p class="text-text-secondary mt-1.5 text-sm">{{ roleDescription(role) }}</p>
+                </div>
+              </div>
+
+              <div class="md:border-input-border md:border-l md:pl-6">
+                <p class="text-label mb-2 text-xs font-semibold uppercase tracking-wide">Permisos agrupados</p>
+                @if (permissionGroups(role).length) {
+                  <div class="flex flex-wrap gap-2">
+                    @for (permission of permissionGroups(role); track permission) {
+                      <span class="bg-demo-bg text-accent-dark rounded-lg px-2.5 py-1.5 text-xs font-medium">
+                        {{ permission }}
+                      </span>
+                    }
+                  </div>
+                } @else {
+                  <span class="text-text-secondary text-sm">Sin permisos asignados</span>
+                }
+              </div>
+
+              <button
+                type="button"
+                (click)="toggleRole(role.id)"
+                [disabled]="role.permissions.length === 0"
+                class="text-text-secondary hover:bg-input-bg justify-self-end rounded-lg p-2 transition disabled:cursor-default disabled:opacity-30"
+                [attr.aria-expanded]="isExpanded(role.id)"
+                [attr.aria-label]="isExpanded(role.id) ? 'Ocultar códigos de permisos' : 'Mostrar códigos de permisos'"
+              >
+                <svg
+                  lucideChevronDown
+                  class="h-5 w-5 transition-transform"
+                  [class.rotate-180]="isExpanded(role.id)"
+                  [strokeWidth]="2"
+                ></svg>
+              </button>
+            </div>
+
+            @if (isExpanded(role.id)) {
+              <div class="border-input-border border-t bg-gray-50 px-5 py-4 md:pl-[5.75rem]">
+                <p class="text-label mb-2 text-xs font-semibold">Códigos técnicos de permisos</p>
+                <div class="flex flex-wrap gap-2" translate="no">
+                  @for (permission of role.permissions; track permission) {
+                    <code class="notranslate border-input-border text-label rounded-md border bg-white px-2 py-1 text-xs">
+                      {{ permission }}
+                    </code>
+                  }
+                </div>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    }
+  </div>
 </section>

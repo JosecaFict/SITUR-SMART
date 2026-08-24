@@ -51,7 +51,10 @@ class RoleListCreateView(APIView):
         if tenant_id is None:
             if not is_superadmin(request.user):
                 raise PermissionDenied("Se requiere un contexto de tenant.")
-            queryset = Role.objects.filter(scope=Role.Scope.GLOBAL)
+            queryset = Role.objects.filter(
+                Q(scope=Role.Scope.GLOBAL)
+                | Q(scope=Role.Scope.TENANT, tenant__isnull=True)
+            ).order_by("scope", "code")
         else:
             require_tenant_access(request.user, tenant_id)
             require_permission(request.user, "ROLES_GESTIONAR", tenant_id)
