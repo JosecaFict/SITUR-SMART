@@ -1,1 +1,211 @@
-<situr-placeholder-section title="Usuarios" />
+<section class="space-y-5">
+  <header class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="font-heading text-title text-2xl font-bold">Usuarios</h1>
+      <p class="text-text-secondary mt-1 text-sm">
+        Gestión de usuarios por empresa (tenant), conectada al backend de SITUR-SMART.
+      </p>
+    </div>
+    <button
+      type="button"
+      (click)="showForm() ? cancelForm() : startCreate()"
+      class="bg-accent hover:bg-accent-dark rounded-xl px-4 py-2 text-sm font-medium text-white"
+    >
+      {{ showForm() ? 'Cancelar' : 'Nuevo usuario' }}
+    </button>
+  </header>
+
+  <form
+    [formGroup]="tenantForm"
+    (ngSubmit)="loadUsers()"
+    class="border-input-border flex flex-wrap items-end gap-3 rounded-xl border bg-white p-4"
+  >
+    <div class="flex flex-col gap-1">
+      <label class="text-label text-xs font-semibold" for="tenantId">ID de la empresa (tenant)</label>
+      <input
+        id="tenantId"
+        type="number"
+        formControlName="tenantId"
+        placeholder="Ej. 1"
+        class="border-input-border w-40 rounded-lg border px-3 py-2 text-sm"
+      />
+    </div>
+    <button
+      type="submit"
+      [disabled]="loading()"
+      class="text-accent-dark border-demo-border hover:bg-demo-bg rounded-xl border bg-white px-4 py-2 text-sm font-medium disabled:opacity-60"
+    >
+      Cargar
+    </button>
+  </form>
+
+  @if (showForm()) {
+    <form
+      [formGroup]="userForm"
+      (ngSubmit)="submitUser()"
+      class="border-input-border grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-2"
+    >
+      <h2 class="text-title text-base font-semibold sm:col-span-2">
+        {{ editingUser() ? 'Editar usuario: ' + editingUser()!.email : 'Nuevo usuario' }}
+      </h2>
+
+      @if (formError(); as message) {
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:col-span-2">
+          {{ message }}
+        </div>
+      }
+
+      <div class="flex flex-col gap-1">
+        <label class="text-label text-xs font-semibold" for="email">Correo</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          class="border-input-border disabled:bg-input-bg disabled:text-text-secondary rounded-lg border px-3 py-2 text-sm"
+        />
+        @if (editingUser()) {
+          <span class="text-text-secondary text-xs">El correo no se puede modificar.</span>
+        }
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-label text-xs font-semibold" for="role_code">Rol</label>
+        <select
+          id="role_code"
+          formControlName="role_code"
+          class="border-input-border rounded-lg border px-3 py-2 text-sm"
+        >
+          @for (role of roleOptions(); track role) {
+            <option [value]="role">{{ role }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-label text-xs font-semibold" for="first_names">Nombres</label>
+        <input
+          id="first_names"
+          type="text"
+          formControlName="first_names"
+          class="border-input-border rounded-lg border px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-label text-xs font-semibold" for="last_names">Apellidos</label>
+        <input
+          id="last_names"
+          type="text"
+          formControlName="last_names"
+          class="border-input-border rounded-lg border px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-label text-xs font-semibold" for="phone">Teléfono (opcional)</label>
+        <input
+          id="phone"
+          type="text"
+          formControlName="phone"
+          class="border-input-border rounded-lg border px-3 py-2 text-sm"
+        />
+      </div>
+
+      @if (!editingUser()) {
+        <div class="flex flex-col gap-1">
+          <label class="text-label text-xs font-semibold" for="password">
+            Contraseña (solo si el correo es nuevo)
+          </label>
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            class="border-input-border rounded-lg border px-3 py-2 text-sm"
+          />
+        </div>
+      }
+
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          [disabled]="saving()"
+          class="bg-accent hover:bg-accent-dark rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {{ saving() ? 'Guardando...' : editingUser() ? 'Guardar cambios' : 'Guardar usuario' }}
+        </button>
+      </div>
+    </form>
+  }
+
+  @if (errorMessage(); as message) {
+    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ message }}
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="border-input-border rounded-xl border bg-white p-8 text-center">
+      <p class="text-text-secondary text-sm">Consultando usuarios...</p>
+    </div>
+  } @else if (users().length === 0) {
+    <div class="border-input-border rounded-xl border bg-white p-8 text-center">
+      <p class="text-text-secondary text-sm">
+        No hay usuarios cargados. Ingresa un tenant y presiona "Cargar".
+      </p>
+    </div>
+  } @else {
+    <div class="border-input-border overflow-hidden rounded-xl border bg-white">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-input-bg text-label border-input-border border-b">
+            <tr>
+              <th class="px-5 py-3 font-semibold">Correo</th>
+              <th class="px-5 py-3 font-semibold">Nombre</th>
+              <th class="px-5 py-3 font-semibold">Teléfono</th>
+              <th class="px-5 py-3 font-semibold">Estado</th>
+              <th class="px-5 py-3 font-semibold">Rol(es)</th>
+              <th class="px-5 py-3 font-semibold"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-input-border divide-y">
+            @for (user of users(); track user.id) {
+              <tr class="hover:bg-input-bg/60">
+                <td class="text-title px-5 py-4 font-medium">{{ user.email }}</td>
+                <td class="text-label px-5 py-4">{{ user.nombres }} {{ user.apellidos }}</td>
+                <td class="text-label px-5 py-4">{{ user.telefono || '—' }}</td>
+                <td class="px-5 py-4">
+                  <span class="bg-demo-bg text-accent-dark rounded-full px-2.5 py-1 text-xs font-medium">
+                    {{ user.estado }}
+                  </span>
+                </td>
+                <td class="px-5 py-4">
+                  <div class="flex max-w-xs flex-wrap gap-1.5">
+                    @for (role of user.roles; track role) {
+                      <span class="bg-input-bg text-label rounded-md px-2 py-1 text-xs">{{ role }}</span>
+                    }
+                  </div>
+                </td>
+                <td class="px-5 py-4 text-right whitespace-nowrap">
+                  <button
+                    type="button"
+                    (click)="startEdit(user)"
+                    class="text-accent-dark mr-3 text-xs font-medium hover:underline"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    (click)="deactivateUser(user)"
+                    class="text-xs font-medium text-red-600 hover:underline"
+                  >
+                    Desactivar
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</section>

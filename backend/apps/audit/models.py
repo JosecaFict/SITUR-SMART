@@ -11,7 +11,7 @@ class AuditLog(models.Model):
     )
     action = models.CharField(db_column="accion", max_length=50)
     entity = models.CharField(db_column="entidad", max_length=100)
-    entity_id = models.CharField(max_length=100, null=True, blank=True)
+    entity_id = models.CharField(db_column="entidad_id", max_length=100, null=True, blank=True)
     previous_data = models.JSONField(db_column="datos_anteriores", null=True, blank=True)
     new_data = models.JSONField(db_column="datos_nuevos", null=True, blank=True)
     ip = models.GenericIPAddressField(null=True, blank=True)
