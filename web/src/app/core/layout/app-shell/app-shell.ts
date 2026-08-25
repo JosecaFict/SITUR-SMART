@@ -1,7 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
-  LucideCompass,
   LucideLayoutDashboard,
   LucideLogOut,
   LucideScrollText,
@@ -22,7 +21,6 @@ interface NavItem {
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
-    LucideCompass,
     LucideLayoutDashboard,
     LucideLogOut,
     LucideScrollText,

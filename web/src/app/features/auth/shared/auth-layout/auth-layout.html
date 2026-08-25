@@ -2,37 +2,45 @@
   <!-- Panel izquierdo: oculto hasta lg (1024px), idéntico en las 3 pantallas de auth -->
   <aside
     class="relative hidden overflow-hidden lg:flex lg:w-[55%] lg:flex-col lg:justify-between lg:p-12 xl:p-16"
+    (mouseenter)="pauseCarousel()"
+    (mouseleave)="resumeCarousel()"
+    (focusin)="pauseCarousel()"
+    (focusout)="resumeCarousel()"
   >
-    <!-- Gradiente placeholder mientras no exista una foto de marca licenciada; sustituir por
-         una imagen real (bahía tropical) en `background-image` cuando esté disponible. -->
     <div
       class="absolute inset-0 bg-panel-bg"
       style="background-image: radial-gradient(120% 100% at 15% 0%, #1a7a6c 0%, #0d4f47 45%, #082e29 100%)"
     ></div>
-    <div class="auth-panel-overlay absolute inset-0"></div>
-    <div class="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/40 to-transparent"></div>
 
-    <!-- Logo -->
-    <div class="relative z-10 flex items-center gap-3">
-      <span
-        class="flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 backdrop-blur"
-      >
-        <svg lucideCompass class="h-6 w-6 text-accent" [strokeWidth]="2"></svg>
-      </span>
-      <span class="font-heading text-xl font-bold tracking-tight">
-        <span class="text-white">SITUR</span><span class="text-accent">-SMART</span>
-      </span>
+    <!-- Las imágenes se superponen al degradado y cambian cada cinco segundos. -->
+    @for (slide of slides; track slide.src; let index = $index) {
+      <img
+        [src]="slide.src"
+        [alt]="slide.label"
+        (error)="hideBrokenImage($event)"
+        [attr.loading]="index === 0 ? 'eager' : 'lazy'"
+        decoding="async"
+        class="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000"
+        [class.opacity-100]="activeSlide() === index"
+        [class.opacity-0]="activeSlide() !== index"
+        [attr.aria-hidden]="activeSlide() !== index"
+      />
+    }
+
+    <div class="auth-panel-overlay absolute inset-0"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/20"></div>
+
+    <!-- Identidad oficial -->
+    <div class="relative z-10">
+      <img
+        src="/branding/situr-smart-logo.png"
+        alt="SITUR-SMART"
+        class="h-16 w-auto max-w-[19rem] object-contain object-left xl:h-20 xl:max-w-[23rem]"
+      />
     </div>
 
     <!-- Contenido inferior -->
     <div class="relative z-10 flex flex-col gap-6 text-white">
-      <span
-        class="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm backdrop-blur"
-      >
-        <svg lucideMapPin class="h-4 w-4 text-accent" [strokeWidth]="2"></svg>
-        Sistema Inteligente de Turismo
-      </span>
-
       <h1 class="font-heading text-4xl leading-tight font-extrabold xl:text-5xl">
         Gestiona el turismo
         <span class="block text-accent">de forma inteligente</span>
@@ -52,13 +60,19 @@
         }
       </div>
 
-      <div class="flex gap-2">
-        @for (dot of [0, 1, 2, 3, 4]; track dot) {
-          <span
-            class="h-1.5 w-1.5 rounded-full"
-            [class.bg-accent]="dot === 0"
-            [class.bg-white/30]="dot !== 0"
-          ></span>
+      <div class="flex gap-2" aria-label="Seleccionar imagen del carrusel">
+        @for (slide of slides; track slide.src; let index = $index) {
+          <button
+            type="button"
+            class="h-2 rounded-full transition-all duration-300"
+            [class.w-7]="activeSlide() === index"
+            [class.w-2]="activeSlide() !== index"
+            [class.bg-accent]="activeSlide() === index"
+            [class.bg-white/40]="activeSlide() !== index"
+            [attr.aria-label]="'Mostrar imagen ' + (index + 1) + ': ' + slide.label"
+            [attr.aria-current]="activeSlide() === index ? 'true' : null"
+            (click)="selectSlide(index)"
+          ></button>
         }
       </div>
     </div>
@@ -67,13 +81,12 @@
   <!-- Panel derecho: formulario (contenido inyectado por cada pantalla) -->
   <main class="flex w-full flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-8 sm:px-8 sm:py-12">
     <!-- Logo móvil: visible solo cuando el panel izquierdo está oculto -->
-    <div class="mb-8 flex items-center gap-2 lg:hidden">
-      <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-panel-bg">
-        <svg lucideCompass class="h-5 w-5 text-accent" [strokeWidth]="2"></svg>
-      </span>
-      <span class="font-heading text-lg font-bold tracking-tight">
-        <span class="text-title">SITUR</span><span class="text-accent-dark">-SMART</span>
-      </span>
+    <div class="mb-8 flex justify-center lg:hidden">
+      <img
+        src="/branding/situr-smart-logo.png"
+        alt="SITUR-SMART"
+        class="h-14 w-auto max-w-[17rem] object-contain"
+      />
     </div>
 
     <div class="w-full max-w-sm">

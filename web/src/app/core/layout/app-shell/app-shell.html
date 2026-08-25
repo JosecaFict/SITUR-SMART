@@ -1,14 +1,11 @@
 <div class="bg-input-bg min-h-screen lg:flex">
   <aside class="bg-panel-bg flex flex-col text-white lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0">
     <div class="flex items-center justify-between px-5 py-5 lg:py-7">
-      <div class="flex items-center gap-2.5">
-        <span class="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10">
-          <svg lucideCompass class="text-accent h-6 w-6" [strokeWidth]="2.2"></svg>
-        </span>
-        <span class="font-heading text-lg font-bold">
-          SITUR<span class="text-accent">-SMART</span>
-        </span>
-      </div>
+      <img
+        src="/branding/situr-smart-logo.png"
+        alt="SITUR-SMART"
+        class="h-12 w-auto max-w-[11rem] object-contain object-left"
+      />
       <button
         type="button"
         (click)="logout()"
