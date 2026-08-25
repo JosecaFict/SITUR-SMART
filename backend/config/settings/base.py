@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -123,6 +124,7 @@ CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS", "http://localhost:4200,http://localhost:8080"
 )
 CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
