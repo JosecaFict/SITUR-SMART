@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 
@@ -110,6 +112,9 @@ class UserService {
   }) async {
 
 
+    debugPrint("CREANDO USUARIO");
+    debugPrint("ROLE ID: $roleId");
+    debugPrint("TENANT ID: $tenantId");
 
     final response =
 

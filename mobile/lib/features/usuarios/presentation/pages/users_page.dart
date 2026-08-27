@@ -140,18 +140,22 @@ class _UsersPageState extends State<UsersPage> {
 
     if(created == true){
 
+  if(mounted){
 
-      setState(() {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Usuario creado correctamente',
+            ),
+          ),
+        );
 
-        _loading = true;
+  }
 
-      });
+  _loadUsers();
 
-
-      _loadUsers();
-
-
-    }
+}
 
 
   }

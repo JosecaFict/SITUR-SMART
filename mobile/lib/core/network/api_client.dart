@@ -9,7 +9,7 @@ import '../storage/token_storage.dart';
 class ApiClient {
 
   static const String baseUrl =
-      'http://192.168.0.23:8000/api/v1/';
+      'http://192.168.137.1:8000/api/v1/';
 
 
   final TokenStorage _storage = TokenStorage();
@@ -20,6 +20,9 @@ class ApiClient {
     String endpoint,
     Map<String, dynamic> body,
   ) async {
+
+    debugPrint("POST URL: ${baseUrl + endpoint}");
+debugPrint("BODY: ${jsonEncode(body)}");
 
     final response = await http.post(
 
@@ -63,13 +66,14 @@ class ApiClient {
     );
 
 
-    debugPrint(
-      'STATUS: ${response.statusCode}',
-    );
+    debugPrint('URL: ${response.request?.url}');
+debugPrint('STATUS: ${response.statusCode}');
 
-    debugPrint(
-      'BODY: ${response.body}',
-    );
+final bodyPreview = response.body.length > 300
+    ? response.body.substring(0, 300)
+    : response.body;
+
+debugPrint('BODY: $bodyPreview');
 
 
     if(response.statusCode == 200){
@@ -108,14 +112,14 @@ Future<Map<String, dynamic>> getMap(
 
 
 
-  debugPrint(
-    'STATUS: ${response.statusCode}',
-  );
+  debugPrint('URL: ${response.request?.url}');
+debugPrint('STATUS: ${response.statusCode}');
 
+final bodyPreview = response.body.length > 300
+    ? response.body.substring(0, 300)
+    : response.body;
 
-  debugPrint(
-    'BODY: ${response.body}',
-  );
+debugPrint('BODY: $bodyPreview');
 
 
 
@@ -252,11 +256,21 @@ Future<Map<String, dynamic>> getMap(
 
 
 
+  
   Map<String,dynamic> _handleResponse(
     http.Response response,
   ) {
 
+    debugPrint("STATUS: ${response.statusCode}");
 
+    final bodyPreview = response.body.length > 1000
+        ? response.body.substring(0,1000)
+        : response.body;
+
+    debugPrint("RESPONSE:");
+    debugPrint(bodyPreview);
+
+    
     final data = jsonDecode(
       response.body,
     );

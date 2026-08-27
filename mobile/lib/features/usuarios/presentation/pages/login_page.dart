@@ -64,7 +64,7 @@ if (!mounted) return;
 
 debugPrint(response.toString());
 
-context.go('/home');
+context.go('/dashboard');
 
     } catch (e) {
       if (!mounted) return;

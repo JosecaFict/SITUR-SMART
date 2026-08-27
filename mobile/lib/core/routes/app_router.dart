@@ -1,10 +1,11 @@
 import 'package:go_router/go_router.dart';
 
 import '../../features/usuarios/presentation/pages/forgot_password_page.dart';
-import '../../features/usuarios/presentation/pages/home_page.dart';
+
 import '../../features/usuarios/presentation/pages/login_page.dart';
 import '../../features/usuarios/presentation/pages/register_page.dart';
 import '../../features/usuarios/presentation/pages/users_page.dart';
+import '../../features/main/presentation/main_shell_page.dart';
 
 class AppRouter {
 	AppRouter._();
@@ -28,9 +29,9 @@ class AppRouter {
 				builder: (context, state) => const ForgotPasswordPage(),
 			),
 			GoRoute(
-				path: '/home',
-				name: 'home',
-				builder: (context, state) => const HomePage(),
+				path: '/dashboard',
+				name: 'dashboard',
+				builder: (context, state) => const MainShellPage(),
 			),
 			GoRoute(
   path: '/users',

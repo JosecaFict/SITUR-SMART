@@ -261,16 +261,16 @@ class _UserFormPageState extends State<UserFormPage> {
           widget.user!.id,
 
           email:
-              _emailController.text,
+              _emailController.text.trim(),
 
           nombres:
-              _nombresController.text,
+              _nombresController.text.trim(),
 
           apellidos:
-              _apellidosController.text,
+              _apellidosController.text.trim(),
 
           telefono:
-              _telefonoController.text,
+              _telefonoController.text.trim(),
 
           estado:
               _estado,
@@ -703,9 +703,7 @@ class _UserFormPageState extends State<UserFormPage> {
 
 
                   items:
-
                   _roles.map((role){
-
 
                     return DropdownMenuItem(
 
