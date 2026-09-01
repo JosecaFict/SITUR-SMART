@@ -2,11 +2,10 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/auth/auth.service';
+import { RbacService } from '../../../core/rbac/rbac.service';
+import { Role } from '../../../core/rbac/rbac.models';
 import { UsersService } from '../../../core/users/users.service';
 import { TenantUser } from '../../../core/users/users.models';
-
-const SUPERADMIN_ROLE_OPTIONS = ['TENANT_ADMIN', 'TENANT_EMPLOYEE', 'GUIA'];
-const TENANT_ADMIN_ROLE_OPTIONS = ['TENANT_EMPLOYEE', 'GUIA'];
 
 @Component({
   selector: 'situr-usuarios',
@@ -16,6 +15,7 @@ const TENANT_ADMIN_ROLE_OPTIONS = ['TENANT_EMPLOYEE', 'GUIA'];
 })
 export class Usuarios implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly rbac = inject(RbacService);
   private readonly usersService = inject(UsersService);
   private readonly fb = inject(FormBuilder);
 
@@ -26,13 +26,17 @@ export class Usuarios implements OnInit {
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
   protected readonly editingUser = signal<TenantUser | null>(null);
+  protected readonly availableRoles = signal<Role[]>([]);
 
   protected readonly isSuperAdmin = computed(
     () => this.auth.session()?.user.roles.includes('SUPER_ADMIN') ?? false,
   );
-  protected readonly roleOptions = computed(() =>
-    this.isSuperAdmin() ? SUPERADMIN_ROLE_OPTIONS : TENANT_ADMIN_ROLE_OPTIONS,
-  );
+  protected readonly roleOptions = computed(() => {
+    const tenantRoles = this.availableRoles().filter((role) => role.scope === 'TENANT');
+    return this.isSuperAdmin()
+      ? tenantRoles
+      : tenantRoles.filter((role) => role.code !== 'TENANT_ADMIN');
+  });
 
   protected readonly tenantForm = this.fb.nonNullable.group({
     tenantId: [this.auth.session()?.user.tenants[0]?.id ?? null, Validators.required],
@@ -75,11 +79,16 @@ export class Usuarios implements OnInit {
         );
       },
     });
+
+    this.rbac.listRoles(tenantId).subscribe({
+      next: (roles) => this.availableRoles.set(roles),
+      error: () => undefined,
+    });
   }
 
   protected startCreate(): void {
     this.editingUser.set(null);
-    this.userForm.reset({ role_code: 'TENANT_EMPLOYEE' });
+    this.userForm.reset({ role_code: this.roleOptions()[0]?.code ?? 'TENANT_EMPLOYEE' });
     this.userForm.controls.email.enable();
     this.formError.set(null);
     this.showForm.set(true);
@@ -93,7 +102,7 @@ export class Usuarios implements OnInit {
       last_names: user.apellidos,
       phone: user.telefono ?? '',
       password: '',
-      role_code: user.roles[0] ?? this.roleOptions()[0],
+      role_code: user.roles[0] ?? this.roleOptions()[0]?.code ?? 'TENANT_EMPLOYEE',
     });
     this.userForm.controls.email.disable();
     this.formError.set(null);

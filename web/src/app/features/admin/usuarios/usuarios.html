@@ -75,8 +75,8 @@
           formControlName="role_code"
           class="border-input-border rounded-lg border px-3 py-2 text-sm"
         >
-          @for (role of roleOptions(); track role) {
-            <option [value]="role">{{ role }}</option>
+          @for (role of roleOptions(); track role.code) {
+            <option [value]="role.code">{{ role.name }}</option>
           }
         </select>
       </div>

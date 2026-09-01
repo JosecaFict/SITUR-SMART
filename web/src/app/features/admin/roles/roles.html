@@ -6,20 +6,30 @@
         Administra los niveles de acceso de la plataforma.
       </p>
     </div>
-    <button
-      type="button"
-      (click)="loadRoles()"
-      [disabled]="loading()"
-      class="text-accent-dark border-demo-border hover:bg-demo-bg flex w-fit items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-60"
-    >
-      <svg
-        lucideRefreshCw
-        class="h-4 w-4"
-        [class.animate-spin]="loading()"
-        [strokeWidth]="2"
-      ></svg>
-      Actualizar
-    </button>
+    <form [formGroup]="tenantForm" (ngSubmit)="loadRoles()" class="flex items-end gap-2">
+      <label class="flex flex-col gap-1">
+        <span class="text-label text-xs font-semibold">ID de empresa (tenant)</span>
+        <input
+          type="number"
+          formControlName="tenantId"
+          placeholder="Ej. 1"
+          class="border-input-border w-32 rounded-xl border px-3 py-2.5 text-sm"
+        />
+      </label>
+      <button
+        type="submit"
+        [disabled]="loading()"
+        class="text-accent-dark border-demo-border hover:bg-demo-bg flex w-fit items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-60"
+      >
+        <svg
+          lucideRefreshCw
+          class="h-4 w-4"
+          [class.animate-spin]="loading()"
+          [strokeWidth]="2"
+        ></svg>
+        {{ loadedTenantId() ? 'Actualizar' : 'Cargar' }}
+      </button>
+    </form>
   </header>
 
   <div class="grid gap-4 sm:grid-cols-3">
@@ -104,14 +114,90 @@
 
       <button
         type="button"
-        disabled
-        title="Disponible cuando se implemente la gestión de tenants"
-        class="border-input-border text-text-secondary flex w-fit cursor-not-allowed items-center gap-2 rounded-xl border bg-gray-50 px-4 py-2.5 text-sm font-medium opacity-70"
+        (click)="showForm() ? cancelRoleForm() : startCreateRole()"
+        [disabled]="!loadedTenantId()"
+        [title]="loadedTenantId() ? '' : 'Primero carga un tenant para poder crear roles'"
+        class="border-input-border text-accent-dark hover:bg-demo-bg flex w-fit items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-text-secondary disabled:opacity-70"
       >
         <svg lucidePlus class="h-4 w-4" [strokeWidth]="2"></svg>
-        Nuevo rol de empresa
+        {{ showForm() ? 'Cancelar' : 'Nuevo rol de empresa' }}
       </button>
     </div>
+
+    @if (showForm()) {
+      <form
+        [formGroup]="roleForm"
+        (ngSubmit)="submitRole()"
+        class="border-input-border border-b bg-gray-50/70 p-4"
+      >
+        <h3 class="text-title font-heading mb-3 text-sm font-semibold">
+          {{ editingRole() ? 'Editar rol: ' + editingRole()!.name : 'Nuevo rol de empresa' }}
+        </h3>
+
+        @if (formError(); as message) {
+          <div class="mb-3 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2"></svg>
+            <span>{{ message }}</span>
+          </div>
+        }
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="flex flex-col gap-1">
+            <span class="text-label text-xs font-semibold">Código</span>
+            <input
+              type="text"
+              formControlName="code"
+              placeholder="Ej. SOPORTE"
+              class="border-input-border disabled:bg-input-bg disabled:text-text-secondary rounded-xl border bg-white px-3 py-2.5 text-sm"
+            />
+          </label>
+          <label class="flex flex-col gap-1">
+            <span class="text-label text-xs font-semibold">Nombre</span>
+            <input
+              type="text"
+              formControlName="name"
+              placeholder="Ej. Soporte al cliente"
+              class="border-input-border rounded-xl border bg-white px-3 py-2.5 text-sm"
+            />
+          </label>
+        </div>
+
+        <div class="mt-4">
+          <p class="text-label mb-2 text-xs font-semibold">Permisos</p>
+          <div class="flex flex-wrap gap-2">
+            @for (permission of permissionsCatalog(); track permission.code) {
+              <label
+                class="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium"
+                [class.border-accent]="selectedPermissions().has(permission.code)"
+                [class.bg-demo-bg]="selectedPermissions().has(permission.code)"
+                [class.text-accent-dark]="selectedPermissions().has(permission.code)"
+                [class.border-input-border]="!selectedPermissions().has(permission.code)"
+                [class.bg-white]="!selectedPermissions().has(permission.code)"
+                [class.text-label]="!selectedPermissions().has(permission.code)"
+              >
+                <input
+                  type="checkbox"
+                  class="hidden"
+                  [checked]="selectedPermissions().has(permission.code)"
+                  (change)="togglePermission(permission.code)"
+                />
+                {{ permission.name }}
+              </label>
+            }
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <button
+            type="submit"
+            [disabled]="saving()"
+            class="btn-accent rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {{ saving() ? 'Guardando...' : editingRole() ? 'Guardar cambios' : 'Crear rol' }}
+          </button>
+        </div>
+      </form>
+    }
 
     @if (errorMessage(); as message) {
       <div class="m-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -191,21 +277,43 @@
                 }
               </div>
 
-              <button
-                type="button"
-                (click)="toggleRole(role.id)"
-                [disabled]="role.permissions.length === 0"
-                class="text-text-secondary hover:bg-input-bg justify-self-end rounded-lg p-2 transition disabled:cursor-default disabled:opacity-30"
-                [attr.aria-expanded]="isExpanded(role.id)"
-                [attr.aria-label]="isExpanded(role.id) ? 'Ocultar códigos de permisos' : 'Mostrar códigos de permisos'"
-              >
-                <svg
-                  lucideChevronDown
-                  class="h-5 w-5 transition-transform"
-                  [class.rotate-180]="isExpanded(role.id)"
-                  [strokeWidth]="2"
-                ></svg>
-              </button>
+              <div class="flex items-center justify-self-end gap-1">
+                @if (isEditable(role)) {
+                  <button
+                    type="button"
+                    (click)="startEditRole(role)"
+                    class="text-accent-dark hover:bg-demo-bg rounded-lg p-2 transition"
+                    aria-label="Editar rol"
+                    title="Editar rol"
+                  >
+                    <svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="deleteRole(role)"
+                    class="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
+                    aria-label="Eliminar rol"
+                    title="Eliminar rol"
+                  >
+                    <svg lucideTrash2 class="h-4 w-4" [strokeWidth]="2"></svg>
+                  </button>
+                }
+                <button
+                  type="button"
+                  (click)="toggleRole(role.id)"
+                  [disabled]="role.permissions.length === 0"
+                  class="text-text-secondary hover:bg-input-bg rounded-lg p-2 transition disabled:cursor-default disabled:opacity-30"
+                  [attr.aria-expanded]="isExpanded(role.id)"
+                  [attr.aria-label]="isExpanded(role.id) ? 'Ocultar códigos de permisos' : 'Mostrar códigos de permisos'"
+                >
+                  <svg
+                    lucideChevronDown
+                    class="h-5 w-5 transition-transform"
+                    [class.rotate-180]="isExpanded(role.id)"
+                    [strokeWidth]="2"
+                  ></svg>
+                </button>
+              </div>
             </div>
 
             @if (isExpanded(role.id)) {
