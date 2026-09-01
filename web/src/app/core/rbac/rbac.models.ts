@@ -14,3 +14,14 @@ export interface Permission {
   module: string;
   name: string;
 }
+
+export interface RoleCreatePayload {
+  code: string;
+  name: string;
+  permissions: string[];
+}
+
+export interface RoleUpdatePayload {
+  name?: string;
+  permissions?: string[];
+}

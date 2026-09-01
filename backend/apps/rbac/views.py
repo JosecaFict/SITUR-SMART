@@ -1,18 +1,25 @@
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Permission, Role
-from .serializers import PermissionSerializer, RoleCreateSerializer, RoleSerializer
+from .serializers import (
+    PermissionSerializer,
+    RoleCreateSerializer,
+    RoleSerializer,
+    RoleUpdateSerializer,
+)
 from .services import (
     create_tenant_role,
+    delete_tenant_role,
     is_superadmin,
     require_permission,
     require_tenant_access,
+    update_tenant_role,
 )
 
 
@@ -77,3 +84,50 @@ class RoleListCreateView(APIView):
             request=request,
         )
         return Response(RoleSerializer(role).data, status=status.HTTP_201_CREATED)
+
+
+class RoleDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=RoleSerializer)
+    def get(self, request, pk):
+        tenant_id = tenant_id_from_request(request)
+        if tenant_id is None:
+            if not is_superadmin(request.user):
+                raise PermissionDenied("Se requiere un contexto de tenant.")
+            role = (
+                Role.objects.filter(pk=pk)
+                .filter(Q(scope=Role.Scope.GLOBAL) | Q(scope=Role.Scope.TENANT, tenant__isnull=True))
+                .first()
+            )
+        else:
+            require_tenant_access(request.user, tenant_id)
+            require_permission(request.user, "ROLES_GESTIONAR", tenant_id)
+            role = (
+                Role.objects.filter(pk=pk, scope=Role.Scope.TENANT)
+                .filter(Q(tenant_id=tenant_id) | Q(tenant__isnull=True))
+                .first()
+            )
+        if role is None:
+            raise NotFound("Rol no encontrado.")
+        return Response(RoleSerializer(role).data)
+
+    @extend_schema(request=RoleUpdateSerializer, responses=RoleSerializer)
+    def patch(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = RoleUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        role = update_tenant_role(
+            actor=request.user,
+            tenant_id=tenant_id,
+            role_id=pk,
+            request=request,
+            **serializer.validated_data,
+        )
+        return Response(RoleSerializer(role).data)
+
+    @extend_schema(responses={204: None})
+    def delete(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        delete_tenant_role(actor=request.user, tenant_id=tenant_id, role_id=pk, request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
