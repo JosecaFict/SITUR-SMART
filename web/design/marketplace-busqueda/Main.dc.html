@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .situr-page { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; color: #111827; background: #ffffff; }
+    .situr-page h1, .situr-page h2, .situr-page h3, .situr-page .font-heading { font-family: "Poppins", ui-sans-serif, system-ui, sans-serif; }
+    .situr-page a { color: #0f766e; text-decoration: none; }
+    .situr-page a:hover { color: #0d4f47; text-decoration: underline; }
+    .situr-nav-link:hover { color: #111827 !important; }
+    .situr-btn-accent { transition: box-shadow 0.15s ease, transform 0.15s ease; }
+    .situr-btn-accent:hover { box-shadow: 0 6px 20px rgba(45,212,191,0.35); transform: translateY(-1px); }
+    .situr-card:hover { box-shadow: 0 12px 28px rgba(17,24,39,0.12); transform: translateY(-3px); }
+    .situr-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
+    .situr-chip { transition: background 0.15s ease, color 0.15s ease; cursor: pointer; }
+    .situr-select { appearance: none; -webkit-appearance: none; background-repeat: no-repeat; background-position: right 14px center; }
+  </style>
+</helmet>
+
+<div class="situr-page" style="width:100%; min-height:1680px; display:flex; flex-direction:column;">
+
+  <!-- HEADER -->
+  <header style="position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 40px; background:#ffffff; border-bottom:1px solid #e5e7eb;">
+    <img src="situr-smart-logo.png" alt="SITUR-SMART" style="height:34px; width:auto; object-fit:contain;" />
+    <nav style="display:flex; align-items:center; gap:20px;">
+      <a href="#" class="situr-nav-link" style="font-size:14px; font-weight:500; color:#374151;">¿Tienes un negocio turístico?</a>
+      <a href="#" class="situr-nav-link" style="font-size:14px; font-weight:600; color:#374151;">Iniciar sesión</a>
+      <a href="#" class="situr-btn-accent" style="display:inline-flex; align-items:center; padding:9px 20px; border-radius:12px; font-size:14px; font-weight:600; color:#ffffff; background-image:linear-gradient(135deg, #2dd4bf 0%, #22b5a0 100%); box-shadow:0 4px 16px rgba(45,212,191,0.25);">Registrarse</a>
+    </nav>
+  </header>
+
+  <!-- HERO + BUSCADOR -->
+  <section style="position:relative; padding:64px 40px 96px; overflow:hidden;">
+    <div style="position:absolute; inset:0; background-image:radial-gradient(120% 100% at 15% 0%, #1a7a6c 0%, #0d4f47 45%, #082e29 100%);"></div>
+
+    <div style="position:relative; max-width:760px; margin:0 auto; text-align:center; display:flex; flex-direction:column; align-items:center; gap:16px;">
+      <h1 class="font-heading" style="margin:0; font-size:42px; font-weight:800; line-height:1.15; color:#ffffff;">
+        Vive Bolivia,
+        <span style="color:{{accent}};">sin intermediarios</span>
+      </h1>
+      <p style="margin:0; max-width:520px; font-size:16px; line-height:1.6; color:rgba(255,255,255,0.78);">
+        Compara y reserva hoteles, tours y experiencias directamente con operadores turísticos verificados de todo el país.
+      </p>
+    </div>
+
+    <!-- Tarjeta de búsqueda -->
+    <div style="position:relative; max-width:920px; margin:36px auto 0; background:#ffffff; border-radius:18px; padding:22px; box-shadow:0 24px 48px -12px rgba(8,46,41,0.45);">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; align-items:end;">
+
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label class="font-heading" style="font-size:12px; font-weight:600; color:#374151;">Ciudad</label>
+          <div style="position:relative;">
+            <select class="situr-select" style="width:100%; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; padding:11px 36px 11px 14px; font-size:14px; color:#111827; font-family:'Inter',sans-serif;">
+              <option>Todas las ciudades</option>
+              <option>La Paz</option>
+              <option>Santa Cruz de la Sierra</option>
+              <option>Sucre</option>
+              <option>Samaipata</option>
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; pointer-events:none;">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label class="font-heading" style="font-size:12px; font-weight:600; color:#374151;">¿Cuándo viajas?</label>
+          <div style="position:relative;">
+            <input type="text" placeholder="Selecciona una fecha" style="width:100%; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; padding:11px 14px 11px 38px; font-size:14px; color:#111827; font-family:'Inter',sans-serif;" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px;">
+              <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label class="font-heading" style="font-size:12px; font-weight:600; color:#374151;">Tipo de experiencia</label>
+          <div style="position:relative;">
+            <select class="situr-select" style="width:100%; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; padding:11px 36px 11px 14px; font-size:14px; color:#111827; font-family:'Inter',sans-serif;">
+              <option>Todos los tipos</option>
+              <option>Hoteles</option>
+              <option>Tours</option>
+              <option>Experiencias</option>
+              <option>Atracciones</option>
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; pointer-events:none;">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        </div>
+
+        <button type="button" class="situr-btn-accent font-heading" style="display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 20px; border:none; border-radius:12px; font-size:14px; font-weight:700; color:#ffffff; background-image:linear-gradient(135deg, #2dd4bf 0%, #22b5a0 100%); box-shadow:0 4px 16px rgba(45,212,191,0.25); cursor:pointer;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px;">
+            <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+          </svg>
+          Buscar
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FILTROS RÁPIDOS -->
+  <section style="padding:28px 40px 0;">
+    <div style="display:flex; flex-wrap:wrap; gap:10px;">
+      <sc-for list="{{chips}}" as="chip" hint-placeholder-count="5">
+        <span class="situr-chip font-heading" style="padding:8px 18px; border-radius:999px; font-size:13px; font-weight:600; border:1px solid {{chip.border}}; background:{{chip.bg}}; color:{{chip.color}};">{{chip.label}}</span>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- RESULTADOS -->
+  <section style="padding:24px 40px 64px; flex:1;">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:20px;">
+      <h2 class="font-heading" style="margin:0; font-size:20px; font-weight:700; color:#111827;">6 experiencias y alojamientos destacados</h2>
+      <span style="font-size:13px; color:#6b7280;">Bolivia</span>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:24px;">
+      <sc-for list="{{productos}}" as="p" hint-placeholder-count="6">
+        <article class="situr-card" style="display:flex; flex-direction:column; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; background:#ffffff;">
+          <div style="position:relative; height:170px; overflow:hidden;">
+            <img src="{{p.img}}" alt="{{p.titulo}}" style="width:100%; height:100%; object-fit:cover; display:block;" />
+            <span class="font-heading" style="position:absolute; top:12px; left:12px; padding:4px 11px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:0.02em; background:#f0fdfb; color:{{accent}}; border:1px solid #99f6e4;">{{p.tipo}}</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; padding:16px 18px 18px;">
+            <h3 class="font-heading" style="margin:0; font-size:16px; font-weight:700; color:#111827; line-height:1.3;">{{p.titulo}}</h3>
+            <div style="display:flex; align-items:center; gap:6px; color:#6b7280; font-size:13px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; flex-shrink:0;">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
+              </svg>
+              {{p.ciudad}}
+            </div>
+            <div style="font-size:12px; color:#6b7280;">Por {{p.operador}}</div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between; margin-top:6px; padding-top:12px; border-top:1px solid #f3f4f6;">
+              <div>
+                <span style="font-size:11px; color:#6b7280;">Desde</span>
+                <div style="display:flex; align-items:baseline; gap:4px;">
+                  <span class="font-heading" style="font-size:18px; font-weight:700; color:{{accent}};">{{p.precio}}</span>
+                  <span style="font-size:12px; color:#6b7280;">{{p.unidad}}</span>
+                </div>
+              </div>
+              <span style="font-size:13px; font-weight:600; color:#0f766e;">Ver detalles →</span>
+            </div>
+          </div>
+        </article>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="background:#0d4f47; padding:32px 40px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <img src="situr-smart-logo-dark-v2.png" alt="SITUR-SMART" style="height:24px; width:auto; object-fit:contain;" />
+      <span style="font-size:12px; color:rgba(255,255,255,0.55);">© 2026 · Marketplace turístico de Bolivia</span>
+    </div>
+    <a href="#" style="font-size:13px; font-weight:600; color:#ffffff;">¿Tienes un negocio turístico? Únete a SITUR-SMART →</a>
+  </footer>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2dd4bf","options":["#2dd4bf","#0f766e","#0ea5e9","#f59e0b"]}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#2dd4bf';
+    const chips = [
+      { label: 'Todos', bg: accent, color: '#ffffff', border: accent },
+      { label: 'Hoteles', bg: '#ffffff', color: '#374151', border: '#e5e7eb' },
+      { label: 'Tours', bg: '#ffffff', color: '#374151', border: '#e5e7eb' },
+      { label: 'Experiencias', bg: '#ffffff', color: '#374151', border: '#e5e7eb' },
+      { label: 'Atracciones', bg: '#ffffff', color: '#374151', border: '#e5e7eb' },
+    ];
+    const productos = [
+      { img: 'product2.jpg', tipo: 'HOTEL', titulo: 'Hotel Kachi Wasi', ciudad: 'La Paz, Bolivia', operador: 'Andes Boutique Hotels', precio: 'Bs 450', unidad: '/ noche' },
+      { img: 'product1.jpg', tipo: 'HOTEL', titulo: 'Resort Laguna Urubó', ciudad: 'Santa Cruz de la Sierra, Bolivia', operador: 'Cruceña Hospitality', precio: 'Bs 620', unidad: '/ noche' },
+      { img: 'product3.jpg', tipo: 'TOUR', titulo: 'Teleférico y Miradores de La Paz', ciudad: 'La Paz, Bolivia', operador: 'Kanata Turismo', precio: 'Bs 120', unidad: '/ persona' },
+      { img: 'product4.jpg', tipo: 'EXPERIENCIA', titulo: 'Catedral y Casco Viejo al Atardecer', ciudad: 'Santa Cruz de la Sierra, Bolivia', operador: 'Raíces Cruceñas', precio: 'Bs 80', unidad: '/ persona' },
+      { img: 'product5.jpg', tipo: 'TOUR', titulo: 'Centro Histórico de Sucre', ciudad: 'Sucre, Bolivia', operador: 'Valle Alto Tours', precio: 'Bs 90', unidad: '/ persona' },
+      { img: 'product6.jpg', tipo: 'ATRACCIÓN', titulo: 'Fuerte de Samaipata (Sitio UNESCO)', ciudad: 'Samaipata, Bolivia', operador: 'Raíces Cruceñas', precio: 'Bs 60', unidad: '/ persona' },
+    ];
+    return { accent, chips, productos };
+  }
+}
+</script>
+</body>
+</html>
