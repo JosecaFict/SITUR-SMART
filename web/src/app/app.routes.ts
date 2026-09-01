@@ -3,7 +3,12 @@ import { authGuard, guestGuard } from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell/app-shell';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'login' },
+  {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./features/marketplace/busqueda/busqueda').then((m) => m.Busqueda),
+  },
   {
     path: 'login',
     canActivate: [guestGuard],
@@ -40,5 +45,5 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: '**', redirectTo: 'login' },
+  { path: '**', redirectTo: '' },
 ];
