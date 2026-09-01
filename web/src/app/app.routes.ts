@@ -3,11 +3,20 @@ import { authGuard, guestGuard } from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell/app-shell';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'login' },
+  {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./features/marketplace/busqueda/busqueda').then((m) => m.Busqueda),
+  },
   {
     path: 'login',
     canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
+  },
+  {
+    path: 'planes',
+    loadComponent: () => import('./features/marketplace/planes/planes').then((m) => m.Planes),
   },
   {
     path: 'registro',
@@ -40,5 +49,5 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: '**', redirectTo: 'login' },
+  { path: '**', redirectTo: '' },
 ];
