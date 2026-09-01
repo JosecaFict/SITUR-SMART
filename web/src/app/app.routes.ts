@@ -15,6 +15,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
   },
   {
+    path: 'planes',
+    loadComponent: () => import('./features/marketplace/planes/planes').then((m) => m.Planes),
+  },
+  {
     path: 'registro',
     redirectTo: 'login',
   },

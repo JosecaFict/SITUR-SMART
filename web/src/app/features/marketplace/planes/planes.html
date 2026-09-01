@@ -1,0 +1,117 @@
+<div class="flex min-h-screen flex-col bg-white">
+  <!-- Header -->
+  <header class="border-input-border sticky top-0 z-20 flex items-center justify-between gap-4 border-b bg-white px-6 py-3.5 sm:px-10">
+    <img src="/branding/situr-smart-logo.png" alt="SITUR-SMART" class="h-8 w-auto object-contain" />
+    <nav class="flex items-center gap-5">
+      <a routerLink="/" class="text-label hidden text-sm font-medium sm:inline hover:text-title">Marketplace</a>
+      <a routerLink="/login" class="text-label text-sm font-semibold hover:text-title">Iniciar sesión</a>
+      <a routerLink="/login" class="btn-accent rounded-xl px-5 py-2.5 text-sm font-semibold text-white">
+        Crear mi cuenta
+      </a>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <section
+    class="relative overflow-hidden px-6 pt-16 pb-10 sm:px-10 sm:pt-20"
+    style="background-image: radial-gradient(120% 100% at 15% 0%, #1a7a6c 0%, #0d4f47 45%, #082e29 100%)"
+  >
+    <div class="relative mx-auto flex max-w-xl flex-col items-center gap-3.5 text-center">
+      <span class="font-heading text-accent rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-xs font-bold tracking-wide">
+        PARA EMPRESAS TURÍSTICAS
+      </span>
+      <h1 class="font-heading text-4xl leading-tight font-extrabold text-white">
+        Lleva tu negocio a más viajeros,
+        <span class="text-accent">un plan a la vez</span>
+      </h1>
+      <p class="max-w-md text-[15px] text-white/78">
+        Publica tu catálogo, gestiona reservas y cobra en línea. Sin costos ocultos: pagas tu plan
+        mensual más una comisión solo cuando vendes.
+      </p>
+    </div>
+  </section>
+
+  <!-- Planes -->
+  <section class="-mt-2 px-6 pb-2 sm:px-10">
+    <div class="mx-auto grid max-w-5xl items-start gap-6 sm:grid-cols-3">
+      @for (plan of planes; track plan.nombre) {
+        <article
+          class="flex flex-col rounded-[20px] bg-white transition duration-200 hover:-translate-y-0.5"
+          [class]="plan.destacado
+            ? 'border-accent shadow-2xl border-2'
+            : 'border-input-border border shadow-none'"
+          [style.margin-top]="plan.destacado ? '-12px' : '0px'"
+        >
+          @if (plan.destacado) {
+            <div class="btn-accent font-heading rounded-t-[18px] py-2 text-center text-xs font-bold tracking-wide text-white">
+              MÁS ELEGIDO
+            </div>
+          }
+
+          <div class="flex flex-col gap-5 p-8">
+            <div class="flex flex-col gap-1.5">
+              <h3 class="font-heading text-title text-lg font-bold">{{ plan.nombre }}</h3>
+              <p class="text-text-secondary min-h-[34px] text-[13px]">{{ plan.descripcion }}</p>
+            </div>
+
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-title text-base font-semibold">Bs</span>
+              <span class="font-heading text-title text-4xl font-extrabold">{{ plan.precio }}</span>
+              <span class="text-text-secondary text-sm">/ mes</span>
+            </div>
+
+            <a
+              routerLink="/login"
+              class="flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
+              [class]="plan.destacado
+                ? 'btn-accent text-white'
+                : 'border-input-border text-accent-dark border bg-white hover:bg-demo-bg hover:border-accent'"
+            >
+              {{ plan.cta }}
+            </a>
+
+            <div class="h-px bg-gray-100"></div>
+
+            <ul class="flex flex-col gap-3">
+              @for (caracteristica of plan.caracteristicas; track caracteristica) {
+                <li class="text-label flex items-start gap-2.5 text-[13px] leading-snug">
+                  <svg lucideCheck class="text-accent mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2.5"></svg>
+                  {{ caracteristica }}
+                </li>
+              }
+            </ul>
+          </div>
+        </article>
+      }
+    </div>
+  </section>
+
+  <!-- Franja de confianza -->
+  <section class="px-6 pt-9 pb-14 sm:px-10">
+    <div class="bg-demo-bg border-demo-border mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-9 rounded-2xl border px-6 py-5">
+      <div class="flex items-center gap-2.5">
+        <svg lucideCheck class="text-accent-dark h-[18px] w-[18px]" [strokeWidth]="2"></svg>
+        <span class="text-accent-dark text-[13px] font-semibold">Cambia de plan cuando quieras</span>
+      </div>
+      <div class="flex items-center gap-2.5">
+        <svg lucideCheck class="text-accent-dark h-[18px] w-[18px]" [strokeWidth]="2"></svg>
+        <span class="text-accent-dark text-[13px] font-semibold">Sin permanencia mínima</span>
+      </div>
+      <div class="flex items-center gap-2.5">
+        <svg lucideCheck class="text-accent-dark h-[18px] w-[18px]" [strokeWidth]="2"></svg>
+        <span class="text-accent-dark text-[13px] font-semibold">
+          Cobro de comisión solo por reserva confirmada
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-panel-bg mt-auto flex flex-wrap items-center justify-between gap-4 px-6 py-7 sm:px-10">
+    <div class="flex items-center gap-2.5">
+      <img src="/branding/situr-smart-logo-dark-v2.png" alt="SITUR-SMART" class="h-6 w-auto object-contain" />
+      <span class="text-xs text-white/55">© 2026 · Marketplace turístico de Bolivia</span>
+    </div>
+    <a routerLink="/" class="text-sm font-semibold text-white hover:underline">Ver el marketplace →</a>
+  </footer>
+</div>
