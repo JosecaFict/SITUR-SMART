@@ -1,0 +1,300 @@
+<section class="mx-auto max-w-7xl space-y-6">
+  <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <h1 class="font-heading text-title text-3xl font-bold tracking-tight">Empresas</h1>
+      <p class="text-text-secondary mt-1 max-w-2xl text-sm sm:text-base">
+        Registra empresas turísticas y asigna la cuenta de su propietario.
+      </p>
+    </div>
+    <button
+      type="button"
+      (click)="formMode() === 'create' ? closeForm() : startCreate()"
+      class="btn-accent flex min-h-11 w-fit items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-95 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none"
+    >
+      @if (formMode() === 'create') {
+        <svg lucideX class="h-4 w-4" [strokeWidth]="2"></svg>
+        Cerrar formulario
+      } @else {
+        <svg lucideCirclePlus class="h-4 w-4" [strokeWidth]="2"></svg>
+        Nueva empresa
+      }
+    </button>
+  </header>
+
+  @if (successMessage(); as message) {
+    <div
+      role="status"
+      class="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+    >
+      <svg lucideCheck class="mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2.2"></svg>
+      <span>{{ message }}</span>
+    </div>
+  }
+
+  @if (errorMessage(); as message) {
+    <div
+      role="alert"
+      class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+    >
+      <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2.2"></svg>
+      <span>{{ message }}</span>
+    </div>
+  }
+
+  @if (formMode(); as mode) {
+    <form
+      [formGroup]="companyForm"
+      (ngSubmit)="submit()"
+      class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm"
+    >
+      <div class="border-input-border flex items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
+        <div>
+          <h2 class="text-title font-heading text-lg font-semibold">
+            @if (mode === 'create') {
+              Registrar empresa
+            } @else if (mode === 'edit') {
+              Editar {{ selectedCompany()?.nombre_comercial }}
+            } @else {
+              Asignar propietario
+            }
+          </h2>
+          <p class="text-text-secondary mt-1 text-sm">
+            @if (mode === 'owner') {
+              Si el correo ya existe, se vinculará esa cuenta sin cambiar su contraseña.
+            } @else if (mode === 'create') {
+              La empresa y su propietario se crearán en una sola operación.
+            } @else {
+              El subdominio técnico se conserva para proteger sus relaciones internas.
+            }
+          </p>
+        </div>
+        <button
+          type="button"
+          (click)="closeForm()"
+          class="text-text-secondary hover:bg-input-bg hover:text-title flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none"
+          aria-label="Cerrar formulario"
+        >
+          <svg lucideX class="h-5 w-5" [strokeWidth]="2"></svg>
+        </button>
+      </div>
+
+      <div class="grid gap-7 p-5 sm:p-6 lg:grid-cols-2">
+        @if (mode !== 'owner') {
+          <fieldset class="space-y-4">
+            <legend class="text-label mb-4 text-sm font-semibold">Datos de la empresa</legend>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="sm:col-span-2">
+                <span class="text-label mb-1.5 block text-xs font-semibold">Nombre comercial</span>
+                <input
+                  type="text"
+                  formControlName="nombre_comercial"
+                  placeholder="Ej. SCZ Tours"
+                  class="field-control"
+                />
+              </label>
+              <label class="sm:col-span-2">
+                <span class="text-label mb-1.5 block text-xs font-semibold">Razón social</span>
+                <input
+                  type="text"
+                  formControlName="razon_social"
+                  placeholder="Razón social registrada"
+                  class="field-control"
+                />
+              </label>
+              <label>
+                <span class="text-label mb-1.5 block text-xs font-semibold">NIT</span>
+                <input type="text" formControlName="nit" placeholder="Opcional" class="field-control" />
+              </label>
+              <label>
+                <span class="text-label mb-1.5 block text-xs font-semibold">Ciudad</span>
+                <select formControlName="ciudad_id" class="field-control">
+                  <option value="">Sin especificar</option>
+                  @for (city of cities(); track city.id) {
+                    <option [value]="city.id">{{ city.nombre }}, {{ city.pais }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span class="text-label mb-1.5 block text-xs font-semibold">Correo de contacto</span>
+                <input type="email" formControlName="email_contacto" placeholder="contacto@empresa.com" class="field-control" />
+              </label>
+              <label>
+                <span class="text-label mb-1.5 block text-xs font-semibold">Teléfono</span>
+                <input type="tel" formControlName="telefono" placeholder="Opcional" class="field-control" />
+              </label>
+              @if (mode === 'create') {
+                <label class="sm:col-span-2">
+                  <span class="text-label mb-1.5 block text-xs font-semibold">Identificador web</span>
+                  <input type="text" formControlName="subdominio" placeholder="Se genera automáticamente" class="field-control" />
+                  <span class="text-text-secondary mt-1 block text-xs">Solo letras minúsculas, números y guiones.</span>
+                </label>
+              }
+            </div>
+          </fieldset>
+        }
+
+        @if (mode !== 'edit') {
+          <fieldset class="space-y-4" [class.lg:col-span-2]="mode === 'owner'">
+            <legend class="text-label mb-4 text-sm font-semibold">Cuenta del propietario</legend>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <label class="sm:col-span-2">
+                <span class="text-label mb-1.5 block text-xs font-semibold">Correo electrónico</span>
+                <input type="email" formControlName="owner_email" placeholder="propietario@empresa.com" class="field-control" />
+              </label>
+              <label>
+                <span class="text-label mb-1.5 block text-xs font-semibold">Nombres</span>
+                <input type="text" formControlName="owner_nombres" class="field-control" />
+              </label>
+              <label>
+                <span class="text-label mb-1.5 block text-xs font-semibold">Apellidos</span>
+                <input type="text" formControlName="owner_apellidos" class="field-control" />
+              </label>
+              <label>
+                <span class="text-label mb-1.5 block text-xs font-semibold">Teléfono</span>
+                <input type="tel" formControlName="owner_telefono" placeholder="Opcional" class="field-control" />
+              </label>
+              <label>
+                <span class="text-label mb-1.5 block text-xs font-semibold">Contraseña temporal</span>
+                <input type="password" formControlName="owner_password" autocomplete="new-password" class="field-control" />
+                <span class="text-text-secondary mt-1 block text-xs">Obligatoria si el correo aún no existe.</span>
+              </label>
+            </div>
+          </fieldset>
+        }
+      </div>
+
+      <div class="border-input-border flex flex-col-reverse gap-3 border-t bg-gray-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+        <button type="button" (click)="closeForm()" class="secondary-button">Cancelar</button>
+        <button type="submit" [disabled]="saving()" class="primary-button">
+          @if (saving()) {
+            <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+            Guardando
+          } @else {
+            <svg lucideCheck class="h-4 w-4" [strokeWidth]="2"></svg>
+            {{ mode === 'create' ? 'Crear empresa' : mode === 'owner' ? 'Asignar propietario' : 'Guardar cambios' }}
+          }
+        </button>
+      </div>
+    </form>
+  }
+
+  <div class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm">
+    <div class="border-input-border flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex flex-1 flex-col gap-3 sm:flex-row">
+        <label class="relative block w-full sm:max-w-sm">
+          <span class="sr-only">Buscar empresa</span>
+          <svg lucideSearch class="text-text-secondary pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+          <input
+            type="search"
+            [value]="searchTerm()"
+            (input)="updateSearch($event)"
+            (keyup.enter)="loadCompanies()"
+            placeholder="Buscar por nombre, razón social o NIT"
+            class="field-control pl-10"
+          />
+        </label>
+        <select
+          [value]="statusFilter()"
+          (change)="updateStatusFilter($event)"
+          class="field-control w-full sm:w-44"
+          aria-label="Filtrar por estado"
+        >
+          <option value="">Todos los estados</option>
+          <option value="ACTIVO">Activas</option>
+          <option value="PENDIENTE">Pendientes</option>
+          <option value="INACTIVO">Inactivas</option>
+          <option value="SUSPENDIDO">Suspendidas</option>
+        </select>
+        <button type="button" (click)="loadCompanies()" [disabled]="loading()" class="secondary-button w-fit">
+          <svg lucideSearch class="h-4 w-4" [strokeWidth]="2"></svg>
+          Buscar
+        </button>
+      </div>
+      <p class="text-text-secondary text-sm">
+        <strong class="text-title tabular-nums">{{ activeCount() }}</strong> activas de
+        <strong class="text-title tabular-nums">{{ companies().length }}</strong> mostradas
+      </p>
+    </div>
+
+    @if (loading()) {
+      <div class="space-y-3 p-4 sm:p-6" aria-label="Cargando empresas">
+        @for (row of [1, 2, 3]; track row) {
+          <div class="animate-pulse rounded-xl bg-gray-100 p-5">
+            <div class="h-4 w-48 rounded bg-gray-200"></div>
+            <div class="mt-3 h-3 w-72 max-w-full rounded bg-gray-200"></div>
+          </div>
+        }
+      </div>
+    } @else if (companies().length === 0) {
+      <div class="px-5 py-16 text-center">
+        <span class="bg-demo-bg text-accent-dark mx-auto flex h-12 w-12 items-center justify-center rounded-full">
+          <svg lucideBuilding2 class="h-6 w-6" [strokeWidth]="2"></svg>
+        </span>
+        <h2 class="text-title mt-4 font-semibold">No hay empresas para mostrar</h2>
+        <p class="text-text-secondary mx-auto mt-1 max-w-md text-sm">
+          Cambia los filtros o registra la primera empresa junto con su propietario.
+        </p>
+        <button type="button" (click)="startCreate()" class="primary-button mx-auto mt-5">
+          <svg lucideCirclePlus class="h-4 w-4" [strokeWidth]="2"></svg>
+          Registrar empresa
+        </button>
+      </div>
+    } @else {
+      <div class="divide-input-border divide-y">
+        @for (company of companies(); track company.id) {
+          <article class="grid gap-4 px-4 py-5 transition hover:bg-gray-50/70 sm:px-6 lg:grid-cols-[minmax(250px,1.2fr)_minmax(230px,1fr)_auto] lg:items-center">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="text-title font-heading truncate text-base font-semibold">{{ company.nombre_comercial }}</h2>
+                <span class="status-badge" [attr.data-status]="company.estado">{{ statusLabel(company.estado) }}</span>
+              </div>
+              <p class="text-text-secondary mt-1 truncate text-sm">{{ company.razon_social }}</p>
+              <div class="text-text-secondary mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <span>NIT: {{ company.nit || 'Sin registrar' }}</span>
+                @if (company.ciudad) {
+                  <span class="flex items-center gap-1">
+                    <svg lucideMapPin class="h-3.5 w-3.5" [strokeWidth]="2"></svg>
+                    {{ company.ciudad.nombre }}, {{ company.ciudad.pais }}
+                  </span>
+                }
+              </div>
+            </div>
+
+            <div class="min-w-0">
+              <p class="text-text-secondary text-xs font-medium uppercase tracking-wide">Propietario</p>
+              @if (company.propietario; as owner) {
+                <p class="text-title mt-1 truncate text-sm font-medium">{{ owner.nombres }} {{ owner.apellidos }}</p>
+                <p class="text-text-secondary truncate text-xs">{{ owner.email }}</p>
+              } @else {
+                <p class="mt-1 text-sm font-medium text-amber-700">Sin propietario asignado</p>
+              }
+            </div>
+
+            <div class="flex flex-wrap gap-2 lg:justify-end">
+              <button type="button" (click)="startEdit(company)" class="row-action">
+                <svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>
+                Editar
+              </button>
+              <button type="button" (click)="startOwnerChange(company)" class="row-action">
+                <svg lucideUserRoundCog class="h-4 w-4" [strokeWidth]="2"></svg>
+                Propietario
+              </button>
+              <button
+                type="button"
+                (click)="toggleStatus(company)"
+                [disabled]="actionCompanyId() === company.id"
+                class="row-action"
+                [class.text-red-700]="company.estado === 'ACTIVO'"
+              >
+                @if (actionCompanyId() === company.id) {
+                  <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+                }
+                {{ company.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </div>
+</section>

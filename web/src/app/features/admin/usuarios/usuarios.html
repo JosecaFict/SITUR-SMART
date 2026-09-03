@@ -1,211 +1,44 @@
-<section class="space-y-5">
-  <header class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-    <div>
-      <h1 class="font-heading text-title text-2xl font-bold">Usuarios</h1>
-      <p class="text-text-secondary mt-1 text-sm">
-        Gestión de usuarios por empresa (tenant), conectada al backend de SITUR-SMART.
-      </p>
+<section class="mx-auto max-w-7xl space-y-6">
+  <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div><h1 class="font-heading text-title text-3xl font-bold tracking-tight">Empleados</h1><p class="text-text-secondary mt-1 max-w-2xl text-sm sm:text-base">Crea accesos para el equipo y asigna las responsabilidades definidas en Roles y permisos.</p></div>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      @if (companies().length > 1) { <label class="flex flex-col gap-1 text-xs font-semibold text-label">Empresa<select [value]="selectedCompanyId()" (change)="changeCompany($event)" class="border-input-border min-w-56 rounded-xl border bg-white px-3 py-2.5 text-sm font-medium text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">@for (company of companies(); track company.id) { <option [value]="company.id">{{ company.name }}</option> }</select></label> }
+      <button type="button" (click)="showForm() ? cancelForm() : startCreate()" [disabled]="!selectedCompanyId() || roleOptions().length === 0" class="bg-accent hover:bg-accent-dark flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50">@if (showForm()) { <svg lucideX class="h-4 w-4"></svg>Cancelar } @else { <svg lucidePlus class="h-4 w-4"></svg>Nuevo empleado }</button>
     </div>
-    <button
-      type="button"
-      (click)="showForm() ? cancelForm() : startCreate()"
-      class="bg-accent hover:bg-accent-dark rounded-xl px-4 py-2 text-sm font-medium text-white"
-    >
-      {{ showForm() ? 'Cancelar' : 'Nuevo usuario' }}
-    </button>
   </header>
 
-  <form
-    [formGroup]="tenantForm"
-    (ngSubmit)="loadUsers()"
-    class="border-input-border flex flex-wrap items-end gap-3 rounded-xl border bg-white p-4"
-  >
-    <div class="flex flex-col gap-1">
-      <label class="text-label text-xs font-semibold" for="tenantId">ID de la empresa (tenant)</label>
-      <input
-        id="tenantId"
-        type="number"
-        formControlName="tenantId"
-        placeholder="Ej. 1"
-        class="border-input-border w-40 rounded-lg border px-3 py-2 text-sm"
-      />
-    </div>
-    <button
-      type="submit"
-      [disabled]="loading()"
-      class="text-accent-dark border-demo-border hover:bg-demo-bg rounded-xl border bg-white px-4 py-2 text-sm font-medium disabled:opacity-60"
-    >
-      Cargar
-    </button>
-  </form>
+  @if (selectedCompany(); as company) { <div class="border-input-border flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white px-5 py-4 shadow-sm"><div class="flex items-center gap-3"><span class="bg-demo-bg text-accent-dark flex h-10 w-10 items-center justify-center rounded-xl"><svg lucideBuilding2 class="h-5 w-5"></svg></span><div><p class="text-xs font-medium text-text-secondary">Equipo de</p><p class="font-semibold text-title">{{ company.name }}</p></div></div><p class="text-sm text-text-secondary"><strong class="text-title">{{ users().length }}</strong> personas activas</p></div> }
+  @if (successMessage(); as message) { <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><span>{{ message }}</span><button type="button" (click)="successMessage.set(null)" aria-label="Cerrar mensaje"><svg lucideX class="h-4 w-4"></svg></button></div> }
 
   @if (showForm()) {
-    <form
-      [formGroup]="userForm"
-      (ngSubmit)="submitUser()"
-      class="border-input-border grid gap-3 rounded-xl border bg-white p-5 sm:grid-cols-2"
-    >
-      <h2 class="text-title text-base font-semibold sm:col-span-2">
-        {{ editingUser() ? 'Editar usuario: ' + editingUser()!.email : 'Nuevo usuario' }}
-      </h2>
-
-      @if (formError(); as message) {
-        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:col-span-2">
-          {{ message }}
-        </div>
-      }
-
-      <div class="flex flex-col gap-1">
-        <label class="text-label text-xs font-semibold" for="email">Correo</label>
-        <input
-          id="email"
-          type="email"
-          formControlName="email"
-          class="border-input-border disabled:bg-input-bg disabled:text-text-secondary rounded-lg border px-3 py-2 text-sm"
-        />
-        @if (editingUser()) {
-          <span class="text-text-secondary text-xs">El correo no se puede modificar.</span>
-        }
+    <form [formGroup]="userForm" (ngSubmit)="submitUser()" class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+      <div><h2 class="text-xl font-bold text-title">{{ editingUser() ? 'Editar empleado' : 'Crear acceso de empleado' }}</h2><p class="mt-1 text-sm text-text-secondary">Los permisos se aplicarán según el rol seleccionado.</p></div>
+      @if (formError(); as message) { <div class="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ message }}</span></div> }
+      <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Nombres<input formControlName="first_names" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /></label>
+        <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Apellidos<input formControlName="last_names" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /></label>
+        <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Rol<select formControlName="role_code" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">@for (role of roleOptions(); track role.id) { <option [value]="role.code">{{ role.name }}</option> }</select></label>
+        <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Correo electrónico<input type="email" formControlName="email" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15 disabled:bg-input-bg" /></label>
+        <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Teléfono <span class="font-normal text-text-secondary">(opcional)</span><input formControlName="phone" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /></label>
+        @if (!editingUser()) { <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Contraseña temporal<input type="password" formControlName="password" autocomplete="new-password" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /><span class="text-xs font-normal text-text-secondary">Mínimo 8 caracteres para una cuenta nueva.</span></label> }
       </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="text-label text-xs font-semibold" for="role_code">Rol</label>
-        <select
-          id="role_code"
-          formControlName="role_code"
-          class="border-input-border rounded-lg border px-3 py-2 text-sm"
-        >
-          @for (role of roleOptions(); track role.code) {
-            <option [value]="role.code">{{ role.name }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="text-label text-xs font-semibold" for="first_names">Nombres</label>
-        <input
-          id="first_names"
-          type="text"
-          formControlName="first_names"
-          class="border-input-border rounded-lg border px-3 py-2 text-sm"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="text-label text-xs font-semibold" for="last_names">Apellidos</label>
-        <input
-          id="last_names"
-          type="text"
-          formControlName="last_names"
-          class="border-input-border rounded-lg border px-3 py-2 text-sm"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="text-label text-xs font-semibold" for="phone">Teléfono (opcional)</label>
-        <input
-          id="phone"
-          type="text"
-          formControlName="phone"
-          class="border-input-border rounded-lg border px-3 py-2 text-sm"
-        />
-      </div>
-
-      @if (!editingUser()) {
-        <div class="flex flex-col gap-1">
-          <label class="text-label text-xs font-semibold" for="password">
-            Contraseña (solo si el correo es nuevo)
-          </label>
-          <input
-            id="password"
-            type="password"
-            formControlName="password"
-            class="border-input-border rounded-lg border px-3 py-2 text-sm"
-          />
-        </div>
-      }
-
-      <div class="sm:col-span-2">
-        <button
-          type="submit"
-          [disabled]="saving()"
-          class="bg-accent hover:bg-accent-dark rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {{ saving() ? 'Guardando...' : editingUser() ? 'Guardar cambios' : 'Guardar usuario' }}
-        </button>
-      </div>
+      <div class="mt-6 flex justify-end gap-3 border-t border-input-border pt-5"><button type="button" (click)="cancelForm()" class="rounded-xl border border-input-border px-4 py-2.5 text-sm font-semibold text-label hover:bg-input-bg">Cancelar</button><button type="submit" [disabled]="saving()" class="bg-accent hover:bg-accent-dark rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{{ saving() ? 'Guardando…' : 'Guardar empleado' }}</button></div>
     </form>
   }
 
-  @if (errorMessage(); as message) {
-    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ message }}
-    </div>
-  }
-
-  @if (loading()) {
-    <div class="border-input-border rounded-xl border bg-white p-8 text-center">
-      <p class="text-text-secondary text-sm">Consultando usuarios...</p>
-    </div>
-  } @else if (users().length === 0) {
-    <div class="border-input-border rounded-xl border bg-white p-8 text-center">
-      <p class="text-text-secondary text-sm">
-        No hay usuarios cargados. Ingresa un tenant y presiona "Cargar".
-      </p>
-    </div>
-  } @else {
-    <div class="border-input-border overflow-hidden rounded-xl border bg-white">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-input-bg text-label border-input-border border-b">
-            <tr>
-              <th class="px-5 py-3 font-semibold">Correo</th>
-              <th class="px-5 py-3 font-semibold">Nombre</th>
-              <th class="px-5 py-3 font-semibold">Teléfono</th>
-              <th class="px-5 py-3 font-semibold">Estado</th>
-              <th class="px-5 py-3 font-semibold">Rol(es)</th>
-              <th class="px-5 py-3 font-semibold"></th>
-            </tr>
-          </thead>
-          <tbody class="divide-input-border divide-y">
-            @for (user of users(); track user.id) {
-              <tr class="hover:bg-input-bg/60">
-                <td class="text-title px-5 py-4 font-medium">{{ user.email }}</td>
-                <td class="text-label px-5 py-4">{{ user.nombres }} {{ user.apellidos }}</td>
-                <td class="text-label px-5 py-4">{{ user.telefono || '—' }}</td>
-                <td class="px-5 py-4">
-                  <span class="bg-demo-bg text-accent-dark rounded-full px-2.5 py-1 text-xs font-medium">
-                    {{ user.estado }}
-                  </span>
-                </td>
-                <td class="px-5 py-4">
-                  <div class="flex max-w-xs flex-wrap gap-1.5">
-                    @for (role of user.roles; track role) {
-                      <span class="bg-input-bg text-label rounded-md px-2 py-1 text-xs">{{ role }}</span>
-                    }
-                  </div>
-                </td>
-                <td class="px-5 py-4 text-right whitespace-nowrap">
-                  <button
-                    type="button"
-                    (click)="startEdit(user)"
-                    class="text-accent-dark mr-3 text-xs font-medium hover:underline"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    (click)="deactivateUser(user)"
-                    class="text-xs font-medium text-red-600 hover:underline"
-                  >
-                    Desactivar
-                  </button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+  <div class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm">
+    <div class="flex flex-col gap-3 border-b border-input-border p-4 sm:flex-row sm:items-center sm:justify-between"><label class="relative block w-full sm:max-w-sm"><span class="sr-only">Buscar empleado</span><svg lucideSearch class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg><input type="search" [value]="searchTerm()" (input)="updateSearch($event)" placeholder="Buscar por nombre, correo o rol" class="border-input-border w-full rounded-xl border py-2.5 pr-3 pl-10 text-sm outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /></label><button type="button" (click)="loadUsers()" [disabled]="loading()" class="flex items-center gap-2 rounded-xl border border-input-border px-4 py-2.5 text-sm font-semibold text-label hover:bg-input-bg disabled:opacity-60"><svg lucideRefreshCw class="h-4 w-4" [class.animate-spin]="loading()"></svg>Actualizar</button></div>
+    @if (errorMessage(); as message) { <div class="m-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ message }}</span></div> }
+    @if (loading()) { <div class="space-y-3 bg-gray-50/70 p-4">@for (_ of [1, 2, 3]; track _) { <div class="h-20 animate-pulse rounded-2xl bg-gray-200"></div> }</div> }
+    @else if (filteredUsers().length === 0) { <div class="p-12 text-center"><svg lucideUsers class="mx-auto h-9 w-9 text-text-secondary"></svg><p class="mt-3 font-semibold text-title">Todavía no hay empleados</p><p class="mt-1 text-sm text-text-secondary">Crea un acceso y asígnale un rol para comenzar.</p></div> }
+    @else {
+      <div class="divide-y divide-input-border">
+        @for (user of filteredUsers(); track user.id) {
+          <article class="grid gap-4 p-4 transition hover:bg-gray-50 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-5"><span class="bg-input-bg text-accent-dark flex h-11 w-11 items-center justify-center rounded-full"><svg lucideUserRound class="h-5 w-5"></svg></span><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-semibold text-title">{{ user.nombres }} {{ user.apellidos }}</h2>@if (user.roles.includes('TENANT_ADMIN')) { <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Propietario</span> }</div><p class="notranslate mt-0.5 truncate text-sm text-text-secondary">{{ user.email }}<span class="mx-2">·</span>{{ user.telefono || 'Sin teléfono' }}</p><div class="mt-2 flex flex-wrap gap-1.5">@for (role of user.roles; track role) { <span class="bg-demo-bg text-accent-dark rounded-lg px-2 py-1 text-xs font-medium">{{ roleName(role) }}</span> }</div></div>
+            @if (!user.roles.includes('TENANT_ADMIN')) { <div class="flex justify-end gap-1"><button type="button" (click)="startEdit(user)" class="rounded-lg p-2 text-text-secondary hover:bg-input-bg hover:text-title" aria-label="Editar empleado"><svg lucidePencil class="h-4 w-4"></svg></button><button type="button" (click)="deactivateUser(user)" class="rounded-lg p-2 text-text-secondary hover:bg-red-50 hover:text-red-600" aria-label="Retirar empleado"><svg lucideTrash2 class="h-4 w-4"></svg></button></div> }
+          </article>
+        }
       </div>
-    </div>
-  }
+    }
+  </div>
 </section>

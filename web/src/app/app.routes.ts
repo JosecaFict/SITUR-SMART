@@ -1,5 +1,11 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/auth/auth.guard';
+import {
+  authGuard,
+  companyPermissionGuard,
+  guestGuard,
+  permissionGuard,
+  superAdminGuard,
+} from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell/app-shell';
 
 export const routes: Routes = [
@@ -36,12 +42,26 @@ export const routes: Routes = [
         loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.Dashboard),
       },
       {
+        path: 'empresas',
+        canActivate: [superAdminGuard],
+        loadComponent: () =>
+          import('./features/admin/empresas/empresas').then((m) => m.Empresas),
+      },
+      {
         path: 'roles',
+        canActivate: [permissionGuard('ROLES_GESTIONAR')],
         loadComponent: () => import('./features/admin/roles/roles').then((m) => m.Roles),
       },
       {
         path: 'usuarios',
+        canActivate: [companyPermissionGuard('USUARIOS_GESTIONAR')],
         loadComponent: () => import('./features/admin/usuarios/usuarios').then((m) => m.Usuarios),
+      },
+      {
+        path: 'productos',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () =>
+          import('./features/admin/productos/productos').then((m) => m.Productos),
       },
       {
         path: 'bitacora',

@@ -1,165 +1,66 @@
-<div class="flex min-h-screen flex-col bg-white">
-  <!-- Header -->
-  <header class="border-input-border sticky top-0 z-20 flex items-center justify-between gap-4 border-b bg-white px-6 py-3.5 sm:px-10">
+<div class="flex min-h-screen flex-col bg-gray-50">
+  <header class="border-input-border sticky top-0 z-20 flex items-center justify-between gap-4 border-b bg-white/95 px-5 py-3.5 backdrop-blur sm:px-10">
     <img src="/branding/situr-smart-logo.png" alt="SITUR-SMART" class="h-8 w-auto object-contain" />
-    <nav class="flex items-center gap-5">
-      <a routerLink="/planes" class="text-label hidden text-sm font-medium sm:inline hover:text-title">
-        ¿Tienes un negocio turístico?
-      </a>
+    <nav class="flex items-center gap-3 sm:gap-5">
+      <a routerLink="/planes" class="text-label hidden text-sm font-medium hover:text-title md:inline">¿Tienes un negocio turístico?</a>
       <a routerLink="/login" class="text-label text-sm font-semibold hover:text-title">Iniciar sesión</a>
-      <a routerLink="/login" class="btn-accent rounded-xl px-5 py-2.5 text-sm font-semibold text-white">
-        Registrarse
-      </a>
+      <a routerLink="/login" class="btn-accent hidden rounded-xl px-5 py-2.5 text-sm font-semibold text-white sm:inline">Registrarse</a>
     </nav>
   </header>
 
-  <!-- Hero + buscador -->
-  <section
-    class="relative overflow-hidden px-6 py-16 sm:px-10 sm:py-20"
-    style="background-image: radial-gradient(120% 100% at 15% 0%, #1a7a6c 0%, #0d4f47 45%, #082e29 100%)"
-  >
-    <div class="relative mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-      <h1 class="font-heading text-4xl leading-tight font-extrabold text-white sm:text-5xl">
-        Vive Bolivia,
-        <span class="text-accent block">sin intermediarios</span>
-      </h1>
-      <p class="max-w-lg text-base text-white/78">
-        Compara y reserva hoteles, tours y experiencias directamente con operadores turísticos
-        verificados de todo el país.
-      </p>
-    </div>
-
-    <!-- Tarjeta de búsqueda -->
-    <div class="relative mx-auto mt-9 max-w-4xl rounded-2xl bg-white p-5 shadow-2xl">
-      <div class="grid items-end gap-3.5 sm:grid-cols-[1fr_1fr_1fr_auto]">
-        <div class="flex flex-col gap-1.5">
-          <label class="font-heading text-label text-xs font-semibold">Ciudad</label>
-          <div class="relative">
-            <select
-              class="bg-input-bg border-input-border text-title w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3.5 text-sm outline-none"
-            >
-              <option>Todas las ciudades</option>
-              <option>La Paz</option>
-              <option>Santa Cruz de la Sierra</option>
-              <option>Sucre</option>
-              <option>Samaipata</option>
-            </select>
-            <svg lucideChevronDown class="text-text-secondary pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="font-heading text-label text-xs font-semibold">¿Cuándo viajas?</label>
-          <div class="relative">
-            <input
-              type="text"
-              placeholder="Selecciona una fecha"
-              class="bg-input-bg border-input-border text-title w-full rounded-xl border py-2.5 pr-3.5 pl-9 text-sm outline-none placeholder:text-text-secondary"
-            />
-            <svg lucideCalendar class="text-text-secondary pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="font-heading text-label text-xs font-semibold">Tipo de experiencia</label>
-          <div class="relative">
-            <select
-              class="bg-input-bg border-input-border text-title w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3.5 text-sm outline-none"
-            >
-              <option>Todos los tipos</option>
-              <option>Hoteles</option>
-              <option>Tours</option>
-              <option>Experiencias</option>
-              <option>Atracciones</option>
-            </select>
-            <svg lucideChevronDown class="text-text-secondary pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          class="btn-accent font-heading flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white"
-        >
-          <svg lucideSearch class="h-4 w-4" [strokeWidth]="2"></svg>
-          Buscar
-        </button>
+  <main class="flex-1">
+    <section class="relative overflow-hidden px-5 py-14 sm:px-10 sm:py-20" style="background-image: radial-gradient(120% 100% at 15% 0%, #1a7a6c 0%, #0d4f47 45%, #082e29 100%)">
+      <div class="relative mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
+        <h1 class="font-heading text-4xl leading-tight font-extrabold text-white sm:text-5xl">Descubre Bolivia, <span class="text-accent block">a tu manera</span></h1>
+        <p class="max-w-xl text-base text-white/80">Encuentra hoteles, tours, paquetes, restaurantes y experiencias publicados directamente por empresas turísticas.</p>
       </div>
-    </div>
-  </section>
 
-  <!-- Filtros rápidos -->
-  <section class="px-6 pt-7 sm:px-10">
-    <div class="flex flex-wrap gap-2.5">
-      @for (filtro of filtros; track filtro; let first = $first) {
-        <span
-          class="font-heading rounded-full px-4.5 py-2 text-[13px] font-semibold"
-          [class.bg-accent]="first"
-          [class.text-white]="first"
-          [class]="first ? '' : 'border-input-border text-label border bg-white'"
-        >
-          {{ filtro }}
-        </span>
-      }
-    </div>
-  </section>
+      <form [formGroup]="filterForm" (ngSubmit)="search()" class="relative mx-auto mt-9 w-full rounded-2xl bg-white p-4 shadow-2xl sm:p-5">
+        <div class="grid items-end gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1.15fr_1.2fr_1.15fr_1fr_auto]">
+          <label class="flex flex-col gap-1.5 text-xs font-semibold text-label">País
+            <div class="relative"><select formControlName="pais" (change)="countryChanged()" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todos los países</option>@for (country of countries(); track country.id) { <option [value]="country.id">{{ country.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs font-semibold text-label">Ciudad
+            <div class="relative"><select formControlName="ciudad" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todas las ciudades</option>@for (city of filteredCities(); track city.id) { <option [value]="city.id">{{ city.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs font-semibold text-label">Localidad
+            <div class="relative"><svg lucideMapPin class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg><input formControlName="localidad" type="search" placeholder="Zona, barrio o localidad" class="bg-input-bg border-input-border w-full rounded-xl border py-2.5 pr-3 pl-9 text-sm font-normal text-title outline-none placeholder:text-text-secondary focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /></div>
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs font-semibold text-label">Categoría
+            <div class="relative"><select formControlName="tipo" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todas las categorías</option>@for (type of types(); track type.id) { <option [value]="type.codigo">{{ type.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs font-semibold text-label">Fecha
+            <div class="relative"><svg lucideCalendarDays class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg><input formControlName="fecha" type="date" [min]="today" class="bg-input-bg border-input-border w-full rounded-xl border py-2.5 pr-3 pl-9 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /></div>
+          </label>
+          <button type="submit" [disabled]="loading()" class="btn-accent font-heading flex min-h-10 items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white disabled:opacity-60 md:col-span-2 xl:col-span-1"><svg lucideSearch class="h-4 w-4"></svg>{{ loading() ? 'Buscando…' : 'Buscar' }}</button>
+        </div>
+      </form>
+    </section>
 
-  <!-- Resultados -->
-  <section class="flex-1 px-6 py-6 sm:px-10">
-    <div class="mb-5 flex items-baseline justify-between">
-      <h2 class="font-heading text-title text-xl font-bold">
-        {{ productos.length }} experiencias y alojamientos destacados
-      </h2>
-      <span class="text-text-secondary text-sm">Bolivia</span>
-    </div>
+    <section class="w-full px-5 pt-7 sm:px-10">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button type="button" (click)="selectType()" class="font-heading min-h-10 rounded-full px-4 py-2 text-[13px] font-semibold transition" [class.bg-accent]="selectedType() === ''" [class.text-white]="selectedType() === ''" [class.border]="selectedType() !== ''" [class.border-input-border]="selectedType() !== ''" [class.bg-white]="selectedType() !== ''">Todos</button>
+        @for (type of types(); track type.id) { <button type="button" (click)="selectType(type.codigo)" class="font-heading min-h-10 rounded-full px-4 py-2 text-[13px] font-semibold transition" [class.bg-accent]="selectedType() === type.codigo" [class.text-white]="selectedType() === type.codigo" [class.border]="selectedType() !== type.codigo" [class.border-input-border]="selectedType() !== type.codigo" [class.bg-white]="selectedType() !== type.codigo">{{ type.nombre }}</button> }
+      </div>
+    </section>
 
-    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      @for (producto of productos; track producto.titulo) {
-        <article
-          class="border-input-border group flex flex-col overflow-hidden rounded-2xl border bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-xl"
-        >
-          <div class="relative h-44 overflow-hidden">
-            <img
-              [src]="producto.imagen"
-              [alt]="producto.titulo"
-              class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            />
-            <span class="bg-demo-bg text-accent-dark border-demo-border font-heading absolute top-3 left-3 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide">
-              {{ producto.tipo }}
-            </span>
-          </div>
-          <div class="flex flex-col gap-2 px-4.5 py-4">
-            <h3 class="font-heading text-title text-base leading-tight font-bold">
-              {{ producto.titulo }}
-            </h3>
-            <div class="text-text-secondary flex items-center gap-1.5 text-[13px]">
-              <svg lucideMapPin class="h-3.5 w-3.5 shrink-0" [strokeWidth]="2"></svg>
-              {{ producto.ciudad }}
-            </div>
-            <div class="text-text-secondary text-xs">Por {{ producto.operador }}</div>
-            <div class="mt-1.5 flex items-baseline justify-between border-t border-gray-100 pt-3">
-              <div>
-                <span class="text-text-secondary text-[11px]">Desde</span>
-                <div class="flex items-baseline gap-1">
-                  <span class="font-heading text-accent-dark text-lg font-bold">{{ producto.precio }}</span>
-                  <span class="text-text-secondary text-xs">{{ producto.unidad }}</span>
-                </div>
-              </div>
-              <span class="text-accent-dark text-[13px] font-semibold">Ver detalles →</span>
-            </div>
+    <section class="w-full px-5 py-7 sm:px-10">
+      <div class="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-heading text-title text-xl font-bold">Experiencias y alojamientos disponibles</h2><p class="mt-1 text-sm text-text-secondary">{{ products().length }} {{ products().length === 1 ? 'resultado encontrado' : 'resultados encontrados' }}</p></div><button type="button" (click)="clearFilters()" class="flex min-h-10 items-center gap-1.5 text-sm font-semibold text-accent-dark hover:underline"><svg lucideX class="h-4 w-4"></svg>Limpiar filtros</button></div>
+
+      @if (errorMessage(); as message) { <div class="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><svg lucideCircleAlert class="mt-0.5 h-5 w-5 shrink-0"></svg><div><p class="font-semibold">No pudimos cargar el Marketplace</p><p>{{ message }}</p></div></div> }
+      @else if (loading()) { <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">@for (_ of [1,2,3,4,5,6]; track _) { <div class="h-80 animate-pulse rounded-2xl bg-gray-200"></div> }</div> }
+      @else if (products().length === 0) { <div class="rounded-2xl border border-dashed border-input-border bg-white px-6 py-16 text-center"><p class="font-heading text-lg font-bold text-title">No encontramos resultados</p><p class="mt-1 text-sm text-text-secondary">Prueba otra ubicación, categoría o fecha.</p><button type="button" (click)="clearFilters()" class="btn-accent mt-5 min-h-10 rounded-xl px-5 py-2.5 text-sm font-semibold text-white">Ver todo el catálogo</button></div> }
+      @else { <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">@for (product of products(); track product.id) {
+        <article class="border-input-border group flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-xl">
+          <div class="relative h-52 overflow-hidden bg-gray-100"><img [src]="productImage(product)" (error)="imageError($event)" [alt]="product.nombre" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" /><span class="bg-demo-bg text-accent-dark border-demo-border font-heading absolute top-3 left-3 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide">{{ product.tipo }}</span></div>
+          <div class="flex flex-1 flex-col gap-2 p-4.5"><h3 class="font-heading text-title text-base leading-tight font-bold">{{ product.nombre }}</h3><div class="flex items-start gap-1.5 text-[13px] text-text-secondary"><svg lucideMapPin class="mt-0.5 h-3.5 w-3.5 shrink-0"></svg><span>{{ product.localidad ? product.localidad + ' · ' : '' }}{{ product.ciudad }}, {{ product.pais }}</span></div><div class="text-xs text-text-secondary">Por {{ product.empresa }}</div>
+            @if (expandedProductId() === product.id) { <p class="mt-1 text-sm leading-relaxed text-label">{{ product.descripcion || 'La empresa todavía no agregó una descripción.' }}</p><p class="text-xs text-text-secondary">Capacidad máxima: {{ product.capacidad_maxima }}</p> }
+            <div class="mt-auto flex items-end justify-between border-t border-gray-100 pt-3"><div><span class="text-[11px] text-text-secondary">Desde</span><div class="font-heading text-accent-dark text-lg font-bold">{{ product.moneda_simbolo }} {{ product.precio_base }}</div></div><button type="button" (click)="toggleDetails(product.id)" class="min-h-10 text-[13px] font-semibold text-accent-dark hover:underline">{{ expandedProductId() === product.id ? 'Ocultar' : 'Ver detalles' }} →</button></div>
           </div>
         </article>
-      }
-    </div>
-  </section>
+      }</div> }
+    </section>
+  </main>
 
-  <!-- Footer -->
-  <footer class="bg-panel-bg flex flex-wrap items-center justify-between gap-4 px-6 py-7 sm:px-10">
-    <div class="flex items-center gap-2.5">
-      <img src="/branding/situr-smart-logo-dark-v2.png" alt="SITUR-SMART" class="h-6 w-auto object-contain" />
-      <span class="text-xs text-white/55">© 2026 · Marketplace turístico de Bolivia</span>
-    </div>
-    <a routerLink="/planes" class="text-sm font-semibold text-white hover:underline">
-      ¿Tienes un negocio turístico? Únete a SITUR-SMART →
-    </a>
-  </footer>
+  <footer class="bg-panel-bg flex flex-wrap items-center justify-between gap-4 px-5 py-7 sm:px-10"><div class="flex items-center gap-2.5"><img src="/branding/situr-smart-logo-dark-v2.png" alt="SITUR-SMART" class="h-6 w-auto object-contain" /><span class="text-xs text-white/55">© 2026 · Marketplace turístico</span></div><a routerLink="/planes" class="text-sm font-semibold text-white hover:underline">¿Tienes un negocio turístico? Únete a SITUR-SMART →</a></footer>
 </div>

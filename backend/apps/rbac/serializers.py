@@ -35,8 +35,5 @@ class RoleCreateSerializer(serializers.Serializer):
 class RoleUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=120, required=False)
     permissions = serializers.ListField(
-        child=serializers.CharField(max_length=100),
-        allow_empty=True,
-        required=False,
-        source="permission_codes",
+        child=serializers.CharField(max_length=100), allow_empty=True, required=False
     )

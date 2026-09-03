@@ -1,6 +1,47 @@
 <div class="bg-input-bg min-h-screen lg:flex">
-  <aside class="bg-panel-bg flex flex-col text-white lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0">
-    <div class="flex items-center justify-between px-5 py-5 lg:py-7">
+  <!-- Encabezado compacto para celular y tablet -->
+  <header
+    class="bg-panel-bg sticky top-0 z-30 flex h-18 items-center justify-between px-4 text-white shadow-lg lg:hidden"
+  >
+    <img
+      src="/branding/situr-smart-logo-dark-v2.png"
+      alt="SITUR-SMART"
+      class="h-11 w-auto max-w-[11rem] object-contain object-left"
+    />
+    <button
+      type="button"
+      (click)="toggleMenu()"
+      class="flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+      [attr.aria-expanded]="menuOpen()"
+      aria-controls="mobile-navigation"
+      [attr.aria-label]="menuOpen() ? 'Cerrar menú principal' : 'Abrir menú principal'"
+    >
+      @if (menuOpen()) {
+        <svg lucideX class="h-6 w-6" [strokeWidth]="2.2"></svg>
+      } @else {
+        <svg lucideMenu class="h-6 w-6" [strokeWidth]="2.2"></svg>
+      }
+    </button>
+  </header>
+
+  <!-- Fondo que bloquea el contenido cuando el menú móvil está abierto -->
+  @if (menuOpen()) {
+    <button
+      type="button"
+      (click)="closeMenu()"
+      class="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px] lg:hidden"
+      aria-label="Cerrar menú principal"
+    ></button>
+  }
+
+  <!-- Menú lateral: deslizable en móvil/tablet y fijo en escritorio -->
+  <aside
+    id="mobile-navigation"
+    class="bg-panel-bg fixed inset-y-0 left-0 z-50 flex h-dvh w-72 flex-col text-white shadow-2xl transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-64 lg:shrink-0 lg:translate-x-0 lg:shadow-none"
+    [class.-translate-x-full]="!menuOpen()"
+    [class.translate-x-0]="menuOpen()"
+  >
+    <div class="flex min-h-18 items-center justify-between px-5 py-4 lg:py-7">
       <img
         src="/branding/situr-smart-logo-dark-v2.png"
         alt="SITUR-SMART"
@@ -8,20 +49,21 @@
       />
       <button
         type="button"
-        (click)="logout()"
-        class="rounded-lg p-2 text-white/70 hover:bg-white/10 lg:hidden"
-        aria-label="Cerrar sesión"
+        (click)="closeMenu()"
+        class="flex h-10 w-10 items-center justify-center rounded-xl text-white/75 transition hover:bg-white/10 hover:text-white lg:hidden"
+        aria-label="Cerrar menú principal"
       >
-        <svg lucideLogOut class="h-5 w-5" [strokeWidth]="2"></svg>
+        <svg lucideX class="h-6 w-6" [strokeWidth]="2"></svg>
       </button>
     </div>
 
-    <nav class="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-1 lg:flex-col lg:overflow-visible lg:py-5">
-      @for (item of navItems; track item.path) {
+    <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-5" aria-label="Navegación principal">
+      @for (item of navItems(); track item.path) {
         <a
           [routerLink]="item.path"
-          routerLinkActive="bg-white/12 text-white border-accent"
-          class="flex shrink-0 items-center gap-3 rounded-xl border-l-4 border-transparent px-3 py-3 text-sm font-medium text-white/75 transition hover:bg-white/8 hover:text-white"
+          routerLinkActive="bg-white/12 text-white"
+          (click)="closeMenu()"
+          class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-white/75 transition hover:bg-white/8 hover:text-white"
         >
           @switch (item.icon) {
             @case ('dashboard') {
@@ -30,8 +72,14 @@
             @case ('users') {
               <svg lucideUsers class="h-5 w-5" [strokeWidth]="2"></svg>
             }
+            @case ('companies') {
+              <svg lucideBuilding2 class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
             @case ('roles') {
               <svg lucideShieldCheck class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
+            @case ('products') {
+              <svg lucidePackageOpen class="h-5 w-5" [strokeWidth]="2"></svg>
             }
             @case ('audit') {
               <svg lucideScrollText class="h-5 w-5" [strokeWidth]="2"></svg>
@@ -43,19 +91,23 @@
     </nav>
 
     @if (session(); as s) {
-      <div class="hidden border-t border-white/10 p-4 lg:block">
+      <div class="border-t border-white/10 p-4">
         <div class="flex items-center gap-3 rounded-xl bg-black/10 p-3">
-          <span class="bg-accent text-panel-bg flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+          <span
+            class="bg-accent text-panel-bg flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+          >
             {{ s.user.nombres.charAt(0) }}{{ s.user.apellidos.charAt(0) }}
           </span>
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-semibold">{{ s.user.nombres }} {{ s.user.apellidos }}</p>
-            <p class="truncate text-xs text-white/60 notranslate" translate="no">{{ s.user.roles.join(', ') }}</p>
+            <p class="truncate text-xs text-white/60 notranslate" translate="no">
+              {{ s.user.roles.join(', ') }}
+            </p>
           </div>
           <button
             type="button"
             (click)="logout()"
-            class="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white"
+            class="rounded-lg p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
           >

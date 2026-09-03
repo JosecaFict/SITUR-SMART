@@ -1,6 +1,21 @@
 from django.contrib import admin
 
-from .models import Tenant
+from .models import City, Country, Tenant
+
+
+@admin.register(Country)
+class CountryAdmin(admin.ModelAdmin):
+    list_display = ("iso_code", "name")
+    search_fields = ("iso_code", "name")
+    ordering = ("name",)
+
+
+@admin.register(City)
+class CityAdmin(admin.ModelAdmin):
+    list_display = ("name", "country", "timezone")
+    list_filter = ("country",)
+    search_fields = ("name", "country__name")
+    ordering = ("name",)
 
 
 @admin.register(Tenant)

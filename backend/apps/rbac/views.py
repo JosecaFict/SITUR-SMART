@@ -1,7 +1,7 @@
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,6 +16,7 @@ from .serializers import (
 from .services import (
     create_tenant_role,
     delete_tenant_role,
+    get_tenant_role,
     is_superadmin,
     require_permission,
     require_tenant_access,
@@ -91,25 +92,8 @@ class RoleDetailView(APIView):
 
     @extend_schema(responses=RoleSerializer)
     def get(self, request, pk):
-        tenant_id = tenant_id_from_request(request)
-        if tenant_id is None:
-            if not is_superadmin(request.user):
-                raise PermissionDenied("Se requiere un contexto de tenant.")
-            role = (
-                Role.objects.filter(pk=pk)
-                .filter(Q(scope=Role.Scope.GLOBAL) | Q(scope=Role.Scope.TENANT, tenant__isnull=True))
-                .first()
-            )
-        else:
-            require_tenant_access(request.user, tenant_id)
-            require_permission(request.user, "ROLES_GESTIONAR", tenant_id)
-            role = (
-                Role.objects.filter(pk=pk, scope=Role.Scope.TENANT)
-                .filter(Q(tenant_id=tenant_id) | Q(tenant__isnull=True))
-                .first()
-            )
-        if role is None:
-            raise NotFound("Rol no encontrado.")
+        tenant_id = tenant_id_from_request(request, required=True)
+        role = get_tenant_role(actor=request.user, tenant_id=tenant_id, role_id=pk)
         return Response(RoleSerializer(role).data)
 
     @extend_schema(request=RoleUpdateSerializer, responses=RoleSerializer)
@@ -121,8 +105,9 @@ class RoleDetailView(APIView):
             actor=request.user,
             tenant_id=tenant_id,
             role_id=pk,
+            name=serializer.validated_data.get("name"),
+            permission_codes=serializer.validated_data.get("permissions"),
             request=request,
-            **serializer.validated_data,
         )
         return Response(RoleSerializer(role).data)
 
