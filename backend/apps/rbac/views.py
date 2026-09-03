@@ -7,12 +7,20 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Permission, Role
-from .serializers import PermissionSerializer, RoleCreateSerializer, RoleSerializer
+from .serializers import (
+    PermissionSerializer,
+    RoleCreateSerializer,
+    RoleSerializer,
+    RoleUpdateSerializer,
+)
 from .services import (
     create_tenant_role,
+    delete_tenant_role,
+    get_tenant_role,
     is_superadmin,
     require_permission,
     require_tenant_access,
+    update_tenant_role,
 )
 
 
@@ -77,3 +85,34 @@ class RoleListCreateView(APIView):
             request=request,
         )
         return Response(RoleSerializer(role).data, status=status.HTTP_201_CREATED)
+
+
+class RoleDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=RoleSerializer)
+    def get(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        role = get_tenant_role(actor=request.user, tenant_id=tenant_id, role_id=pk)
+        return Response(RoleSerializer(role).data)
+
+    @extend_schema(request=RoleUpdateSerializer, responses=RoleSerializer)
+    def patch(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = RoleUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        role = update_tenant_role(
+            actor=request.user,
+            tenant_id=tenant_id,
+            role_id=pk,
+            name=serializer.validated_data.get("name"),
+            permission_codes=serializer.validated_data.get("permissions"),
+            request=request,
+        )
+        return Response(RoleSerializer(role).data)
+
+    @extend_schema(responses={204: None})
+    def delete(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        delete_tenant_role(actor=request.user, tenant_id=tenant_id, role_id=pk, request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)

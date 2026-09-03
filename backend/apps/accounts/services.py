@@ -5,7 +5,11 @@ from django.contrib.auth import authenticate
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, ValidationError
+from rest_framework.exceptions import (
+    AuthenticationFailed,
+    PermissionDenied,
+    ValidationError,
+)
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.audit.services import record_audit
@@ -14,8 +18,6 @@ from apps.rbac.services import is_superadmin, require_permission, require_tenant
 from apps.tenancy.models import UserTenant
 
 from .models import User, UserSession
-
-TENANT_ADMIN_ASSIGNABLE_ROLES = ("TENANT_EMPLOYEE", "GUIA")
 
 
 def token_hash(token: str) -> str:
@@ -97,19 +99,38 @@ def _resolve_tenant_role(role_code: str, tenant_id: int) -> Role:
     return role
 
 
+def _require_assignable_role(actor, role: Role) -> None:
+    if is_superadmin(actor):
+        return
+    if role.scope != Role.Scope.TENANT or role.code == "TENANT_ADMIN":
+        raise PermissionDenied("No puede asignar el rol de propietario.")
+
+
+def _protect_company_owner(actor, user_id: int, tenant_id: int) -> None:
+    if UserRole.objects.filter(
+        user_id=user_id,
+        tenant_id=tenant_id,
+        role__code="TENANT_ADMIN",
+        role__scope=Role.Scope.TENANT,
+    ).exists():
+        raise PermissionDenied("El propietario solo puede modificarse desde la gestión de empresas.")
+
+
+def _require_company_employee_management(actor) -> None:
+    if is_superadmin(actor):
+        raise PermissionDenied(
+            "El SuperAdministrador administra empresas, no los empleados internos."
+        )
+
+
 def list_tenant_users(*, actor, tenant_id: int):
+    _require_company_employee_management(actor)
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "USUARIOS_GESTIONAR", tenant_id)
     user_ids = UserTenant.objects.filter(
         tenant_id=tenant_id, status=UserTenant.Status.ACTIVE
     ).values_list("user_id", flat=True)
     return User.objects.filter(id__in=user_ids)
-
-
-def list_all_users(*, actor):
-    if not is_superadmin(actor):
-        raise PermissionDenied("Se requiere un contexto de tenant.")
-    return User.objects.all()
 
 
 @transaction.atomic
@@ -125,12 +146,12 @@ def create_or_link_tenant_user(
     password: str | None = None,
     request=None,
 ) -> User:
+    _require_company_employee_management(actor)
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "USUARIOS_GESTIONAR", tenant_id)
 
     role = _resolve_tenant_role(role_code, tenant_id)
-    if not is_superadmin(actor) and role.code not in TENANT_ADMIN_ASSIGNABLE_ROLES:
-        raise PermissionDenied("No puede asignar ese rol.")
+    _require_assignable_role(actor, role)
 
     user = User.objects.filter(email__iexact=email).first()
     created = False
@@ -146,6 +167,8 @@ def create_or_link_tenant_user(
             status=User.Status.ACTIVE,
         )
         created = True
+    else:
+        _protect_company_owner(actor, user.id, tenant_id)
 
     membership, _ = UserTenant.objects.get_or_create(
         user=user, tenant_id=tenant_id, defaults={"status": UserTenant.Status.ACTIVE}
@@ -154,7 +177,8 @@ def create_or_link_tenant_user(
         membership.status = UserTenant.Status.ACTIVE
         membership.save(update_fields=["status"])
 
-    UserRole.objects.get_or_create(user=user, role=role, tenant_id=tenant_id)
+    UserRole.objects.filter(user=user, tenant_id=tenant_id).delete()
+    UserRole.objects.create(user=user, role=role, tenant_id=tenant_id)
 
     record_audit(
         actor=actor,
@@ -180,8 +204,10 @@ def update_tenant_user(
     role_code: str | None = None,
     request=None,
 ) -> User:
+    _require_company_employee_management(actor)
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "USUARIOS_GESTIONAR", tenant_id)
+    _protect_company_owner(actor, user_id, tenant_id)
 
     if not UserTenant.objects.filter(
         user_id=user_id, tenant_id=tenant_id, status=UserTenant.Status.ACTIVE
@@ -204,8 +230,7 @@ def update_tenant_user(
 
     if role_code:
         role = _resolve_tenant_role(role_code, tenant_id)
-        if not is_superadmin(actor) and role.code not in TENANT_ADMIN_ASSIGNABLE_ROLES:
-            raise PermissionDenied("No puede asignar ese rol.")
+        _require_assignable_role(actor, role)
         UserRole.objects.filter(user=user, tenant_id=tenant_id).delete()
         UserRole.objects.get_or_create(user=user, role=role, tenant_id=tenant_id)
 
@@ -223,13 +248,16 @@ def update_tenant_user(
 
 @transaction.atomic
 def remove_tenant_user(*, actor, tenant_id: int, user_id: int, request=None) -> None:
+    _require_company_employee_management(actor)
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "USUARIOS_GESTIONAR", tenant_id)
+    _protect_company_owner(actor, user_id, tenant_id)
     updated = UserTenant.objects.filter(user_id=user_id, tenant_id=tenant_id).update(
         status=UserTenant.Status.INACTIVE
     )
     if not updated:
         raise ValidationError({"user": "El usuario no pertenece a esta empresa."})
+    UserRole.objects.filter(user_id=user_id, tenant_id=tenant_id).delete()
     record_audit(
         actor=actor,
         tenant_id=tenant_id,
@@ -238,21 +266,4 @@ def remove_tenant_user(*, actor, tenant_id: int, user_id: int, request=None) -> 
         entity_id=str(user_id),
         request=request,
     )
-
-
-@transaction.atomic
-def deactivate_user_globally(*, actor, user_id: int, request=None) -> User:
-    if not is_superadmin(actor):
-        raise PermissionDenied("Solo un SuperAdmin puede desactivar la cuenta global.")
-    user = User.objects.get(pk=user_id)
-    user.status = User.Status.INACTIVE
-    user.save(update_fields=["status"])
-    record_audit(
-        actor=actor,
-        action="DESACTIVAR_GLOBAL",
-        entity="usuario",
-        entity_id=str(user.id),
-        request=request,
-    )
-    return user
 

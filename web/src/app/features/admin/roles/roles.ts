@@ -1,111 +1,228 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   LucideBriefcaseBusiness,
   LucideBuilding2,
   LucideChevronDown,
   LucideCircleAlert,
-  LucideCrown,
-  LucideGlobe2,
+  LucidePencil,
   LucidePlus,
   LucideRefreshCw,
   LucideSearch,
   LucideShieldCheck,
-  LucideUserRound,
+  LucideTrash2,
+  LucideX,
 } from '@lucide/angular';
+import { forkJoin } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import { CompaniesService } from '../../../core/companies/companies.service';
+import { Permission, Role } from '../../../core/rbac/rbac.models';
 import { RbacService } from '../../../core/rbac/rbac.service';
-import { Role } from '../../../core/rbac/rbac.models';
 
-type ScopeFilter = 'ALL' | Role['scope'];
+interface CompanyChoice { id: number; name: string; }
+interface PermissionGroup { module: string; permissions: Permission[]; }
 
-const PERMISSION_GROUPS: Record<string, string> = {
-  TENANTS_LEER: 'Empresas',
-  TENANTS_GESTIONAR: 'Empresas',
-  SUSCRIPCIONES_GESTIONAR: 'Suscripciones',
-  USUARIOS_LEER: 'Usuarios',
-  USUARIOS_GESTIONAR: 'Usuarios',
-  ROLES_GESTIONAR: 'Roles',
-  PRODUCTOS_LEER: 'Productos',
-  PRODUCTOS_GESTIONAR: 'Productos',
-  DISPONIBILIDAD_GESTIONAR: 'Disponibilidad',
-  RESERVAS_LEER: 'Reservas',
-  RESERVAS_GESTIONAR: 'Reservas',
-  REPORTES_TENANT: 'Reportes',
-  REPORTES_GLOBALES: 'Reportes globales',
-  BITACORA_LEER: 'Bitácora',
-};
+const FORBIDDEN_COMPANY_PERMISSIONS = new Set([
+  'TENANTS_LEER', 'TENANTS_GESTIONAR', 'SUSCRIPCIONES_GESTIONAR', 'REPORTES_GLOBALES',
+]);
 
 @Component({
   selector: 'situr-roles',
   imports: [
-    LucideBriefcaseBusiness,
-    LucideBuilding2,
-    LucideChevronDown,
-    LucideCircleAlert,
-    LucideCrown,
-    LucideGlobe2,
-    LucidePlus,
-    LucideRefreshCw,
-    LucideSearch,
-    LucideShieldCheck,
-    LucideUserRound,
+    ReactiveFormsModule, LucideBriefcaseBusiness, LucideBuilding2, LucideChevronDown,
+    LucideCircleAlert, LucidePencil, LucidePlus, LucideRefreshCw, LucideSearch,
+    LucideShieldCheck, LucideTrash2, LucideX,
   ],
   templateUrl: './roles.html',
   styleUrl: './roles.css',
 })
 export class Roles implements OnInit {
+  private readonly auth = inject(AuthService);
+  private readonly companiesService = inject(CompaniesService);
   private readonly rbac = inject(RbacService);
+  private readonly fb = inject(FormBuilder);
 
+  protected readonly companies = signal<CompanyChoice[]>([]);
+  protected readonly selectedCompanyId = signal<number | null>(null);
   protected readonly roles = signal<Role[]>([]);
+  protected readonly permissions = signal<Permission[]>([]);
   protected readonly loading = signal(true);
+  protected readonly saving = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly successMessage = signal<string | null>(null);
+  protected readonly formError = signal<string | null>(null);
   protected readonly searchTerm = signal('');
-  protected readonly scopeFilter = signal<ScopeFilter>('ALL');
   protected readonly expandedRoleIds = signal<ReadonlySet<number>>(new Set<number>());
+  protected readonly showForm = signal(false);
+  protected readonly editingRole = signal<Role | null>(null);
+  protected readonly selectedPermissions = signal<ReadonlySet<string>>(new Set<string>());
 
-  protected readonly globalRoleCount = computed(
-    () => this.roles().filter((role) => role.scope === 'GLOBAL').length,
+  protected readonly isSuperAdmin = computed(
+    () => this.auth.session()?.user.roles.includes('SUPER_ADMIN') ?? false,
   );
-  protected readonly tenantRoleCount = computed(
-    () => this.roles().filter((role) => role.scope === 'TENANT').length,
+  protected readonly selectedCompany = computed(() =>
+    this.companies().find((company) => company.id === this.selectedCompanyId()),
   );
+  protected readonly customRoleCount = computed(
+    () => this.roles().filter((role) => !role.is_system).length,
+  );
+  protected readonly permissionGroups = computed<PermissionGroup[]>(() => {
+    const grouped = new Map<string, Permission[]>();
+    for (const permission of this.permissions()) {
+      if (FORBIDDEN_COMPANY_PERMISSIONS.has(permission.code)) continue;
+      const group = grouped.get(permission.module) ?? [];
+      group.push(permission);
+      grouped.set(permission.module, group);
+    }
+    return [...grouped.entries()].map(([module, permissions]) => ({ module, permissions }));
+  });
   protected readonly filteredRoles = computed(() => {
     const query = this.searchTerm().trim().toLocaleLowerCase('es');
-    const scope = this.scopeFilter();
+    return this.roles().filter((role) =>
+      [role.code, role.name, ...role.permissions].join(' ').toLocaleLowerCase('es').includes(query),
+    );
+  });
 
-    return this.roles().filter((role) => {
-      const matchesScope = scope === 'ALL' || role.scope === scope;
-      const searchable = [role.code, role.name, this.roleDescription(role), ...role.permissions]
-        .join(' ')
-        .toLocaleLowerCase('es');
-      return matchesScope && (!query || searchable.includes(query));
-    });
+  protected readonly roleForm = this.fb.nonNullable.group({
+    code: ['', [Validators.required, Validators.pattern(/^[A-Za-z][A-Za-z0-9_]{2,59}$/)]],
+    name: ['', [Validators.required, Validators.maxLength(120)]],
   });
 
   ngOnInit(): void {
+    const sessionCompanies =
+      this.auth.session()?.user.tenants.map((tenant) => ({ id: tenant.id, name: tenant.name })) ?? [];
+    if (this.isSuperAdmin()) {
+      this.companiesService.list('', 'ACTIVO').subscribe({
+        next: (companies) => {
+          const choices = companies.map((company) => ({ id: company.id, name: company.nombre_comercial }));
+          this.companies.set(choices);
+          this.selectInitialCompany(choices);
+        },
+        error: () => {
+          this.loading.set(false);
+          this.errorMessage.set('No fue posible cargar las empresas disponibles.');
+        },
+      });
+    } else {
+      this.companies.set(sessionCompanies);
+      this.selectInitialCompany(sessionCompanies);
+    }
+  }
+
+  private selectInitialCompany(companies: CompanyChoice[]): void {
+    if (!companies.length) {
+      this.loading.set(false);
+      this.errorMessage.set('Tu cuenta no tiene una empresa activa asignada.');
+      return;
+    }
+    this.selectedCompanyId.set(companies[0].id);
+    this.loadRoles();
+  }
+
+  protected changeCompany(event: Event): void {
+    this.selectedCompanyId.set(Number((event.target as HTMLSelectElement).value));
+    this.cancelForm();
     this.loadRoles();
   }
 
   protected loadRoles(): void {
+    const companyId = this.selectedCompanyId();
+    if (!companyId) return;
     this.loading.set(true);
     this.errorMessage.set(null);
-
-    this.rbac.listRoles().subscribe({
-      next: (roles) => {
+    forkJoin({
+      roles: this.rbac.listRoles(companyId),
+      permissions: this.rbac.listPermissions(companyId),
+    }).subscribe({
+      next: ({ roles, permissions }) => {
         this.roles.set(roles);
+        this.permissions.set(permissions);
         this.loading.set(false);
       },
       error: (error: HttpErrorResponse) => {
         this.loading.set(false);
-        this.errorMessage.set(
-          error.error?.error?.message ?? 'No fue posible cargar los roles desde el backend.',
-        );
+        this.errorMessage.set(this.apiMessage(error, 'No fue posible cargar los roles y permisos.'));
       },
     });
   }
 
-  protected setScopeFilter(scope: ScopeFilter): void {
-    this.scopeFilter.set(scope);
+  protected startCreate(): void {
+    this.editingRole.set(null);
+    this.roleForm.reset();
+    this.roleForm.controls.code.enable();
+    this.selectedPermissions.set(new Set());
+    this.formError.set(null);
+    this.showForm.set(true);
+  }
+
+  protected startEdit(role: Role): void {
+    if (role.is_system) return;
+    this.editingRole.set(role);
+    this.roleForm.setValue({ code: role.code, name: role.name });
+    this.roleForm.controls.code.disable();
+    this.selectedPermissions.set(new Set(role.permissions));
+    this.formError.set(null);
+    this.showForm.set(true);
+  }
+
+  protected cancelForm(): void {
+    this.showForm.set(false);
+    this.editingRole.set(null);
+    this.roleForm.controls.code.enable();
+    this.roleForm.reset();
+    this.selectedPermissions.set(new Set());
+  }
+
+  protected togglePermission(code: string): void {
+    const next = new Set(this.selectedPermissions());
+    next.has(code) ? next.delete(code) : next.add(code);
+    this.selectedPermissions.set(next);
+  }
+
+  protected submitRole(): void {
+    const companyId = this.selectedCompanyId();
+    if (!companyId || this.roleForm.invalid) {
+      this.roleForm.markAllAsTouched();
+      return;
+    }
+    const raw = this.roleForm.getRawValue();
+    const editing = this.editingRole();
+    const permissions = [...this.selectedPermissions()];
+    this.saving.set(true);
+    this.formError.set(null);
+    const request = editing
+      ? this.rbac.updateRole(companyId, editing.id, { name: raw.name.trim(), permissions })
+      : this.rbac.createRole(companyId, {
+          code: raw.code.trim().toUpperCase(), name: raw.name.trim(), permissions,
+        });
+    request.subscribe({
+      next: (role) => {
+        this.roles.update((roles) =>
+          editing ? roles.map((current) => (current.id === role.id ? role : current)) : [...roles, role],
+        );
+        this.successMessage.set(editing ? 'Rol actualizado correctamente.' : 'Rol creado correctamente.');
+        this.saving.set(false);
+        this.cancelForm();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.saving.set(false);
+        this.formError.set(this.apiMessage(error, 'No fue posible guardar el rol.'));
+      },
+    });
+  }
+
+  protected deleteRole(role: Role): void {
+    const companyId = this.selectedCompanyId();
+    if (!companyId || role.is_system || !confirm(`¿Eliminar el rol “${role.name}”?`)) return;
+    this.rbac.deleteRole(companyId, role.id).subscribe({
+      next: () => {
+        this.roles.update((roles) => roles.filter((current) => current.id !== role.id));
+        this.successMessage.set('Rol eliminado correctamente.');
+      },
+      error: (error: HttpErrorResponse) =>
+        this.errorMessage.set(this.apiMessage(error, 'No fue posible eliminar el rol.')),
+    });
   }
 
   protected updateSearch(event: Event): void {
@@ -114,38 +231,22 @@ export class Roles implements OnInit {
 
   protected toggleRole(roleId: number): void {
     const next = new Set(this.expandedRoleIds());
-    if (next.has(roleId)) {
-      next.delete(roleId);
-    } else {
-      next.add(roleId);
-    }
+    next.has(roleId) ? next.delete(roleId) : next.add(roleId);
     this.expandedRoleIds.set(next);
   }
 
-  protected isExpanded(roleId: number): boolean {
-    return this.expandedRoleIds().has(roleId);
+  protected isExpanded(roleId: number): boolean { return this.expandedRoleIds().has(roleId); }
+
+  protected permissionName(code: string): string {
+    return this.permissions().find((permission) => permission.code === code)?.name ?? code;
   }
 
-  protected permissionGroups(role: Role): string[] {
-    return [...new Set(role.permissions.map((code) => PERMISSION_GROUPS[code] ?? code))];
-  }
-
-  protected roleDescription(role: Role): string {
-    switch (role.code) {
-      case 'SUPER_ADMIN':
-        return 'Control total de la plataforma y sus empresas.';
-      case 'CLIENTE':
-        return 'Consulta y reserva servicios turísticos.';
-      case 'TENANT_ADMIN':
-        return 'Administra usuarios y operaciones de su empresa.';
-      case 'TENANT_EMPLOYEE':
-        return 'Gestiona las operaciones autorizadas de su empresa.';
-      case 'GUIA':
-        return 'Gestiona tours y servicios asignados dentro de su empresa.';
-      default:
-        return role.scope === 'GLOBAL'
-          ? 'Rol de acceso global de la plataforma.'
-          : 'Rol operativo configurable dentro de una empresa.';
+  private apiMessage(error: HttpErrorResponse, fallback: string): string {
+    const details = error.error?.error?.details;
+    if (details && typeof details === 'object') {
+      const first = Object.values(details).flat()[0];
+      if (typeof first === 'string') return first;
     }
+    return error.error?.error?.message ?? fallback;
   }
 }

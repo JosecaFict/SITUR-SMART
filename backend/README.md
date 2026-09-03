@@ -84,9 +84,38 @@ GET  /api/v1/auth/me/
 GET  /api/v1/permissions/
 GET  /api/v1/roles/
 POST /api/v1/roles/
+GET  /api/v1/roles/{id}/
+PATCH /api/v1/roles/{id}/
+DELETE /api/v1/roles/{id}/
+GET  /api/v1/usuarios/
+POST /api/v1/usuarios/
+GET  /api/v1/usuarios/{id}/
+PATCH /api/v1/usuarios/{id}/
+DELETE /api/v1/usuarios/{id}/
+GET  /api/v1/catalogos/paises/
+GET  /api/v1/catalogos/ciudades/
+GET  /api/v1/catalogos/tipos-producto/
+GET  /api/v1/catalogos/monedas/
+GET  /api/v1/empresas/
+POST /api/v1/empresas/
+GET  /api/v1/empresas/{id}/
+PATCH /api/v1/empresas/{id}/
+PUT  /api/v1/empresas/{id}/propietario/
+GET  /api/v1/productos/
+POST /api/v1/productos/
+GET  /api/v1/productos/{id}/
+PATCH /api/v1/productos/{id}/
+DELETE /api/v1/productos/{id}/
+GET  /api/v1/marketplace/productos/
+GET  /api/v1/marketplace/productos/{id}/
 GET  /api/schema/
 GET  /api/docs/
 ```
 
 Los endpoints de tenant requieren el encabezado `X-Tenant-ID`. Este valor nunca concede acceso por
 sí mismo: el backend valida la membresía activa y los permisos del usuario.
+
+El Marketplace es público y solo devuelve productos con estado `PUBLICADO` pertenecientes a
+empresas activas. Admite los filtros `pais`, `ciudad`, `localidad`, `tipo`, `fecha`, `buscar`,
+`precio_min` y `precio_max`. El filtro por fecha consulta los bloques abiertos registrados en
+`disponibilidad`.

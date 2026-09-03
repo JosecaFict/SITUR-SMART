@@ -4,6 +4,19 @@ info:
   version: 0.1.0
   description: API compartida para Angular y Flutter.
 paths:
+  /:
+    get:
+      operationId: root_retrieve
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiRootResponse'
+          description: ''
   /api/v1/auth/login/:
     post:
       operationId: api_v1_auth_login_create
@@ -95,6 +108,197 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
           description: ''
+  /api/v1/catalogos/ciudades/:
+    get:
+      operationId: api_v1_catalogos_ciudades_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/City'
+          description: ''
+  /api/v1/catalogos/monedas/:
+    get:
+      operationId: api_v1_catalogos_monedas_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Currency'
+          description: ''
+  /api/v1/catalogos/paises/:
+    get:
+      operationId: api_v1_catalogos_paises_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Country'
+          description: ''
+  /api/v1/catalogos/tipos-producto/:
+    get:
+      operationId: api_v1_catalogos_tipos_producto_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductType'
+          description: ''
+  /api/v1/empresas/:
+    get:
+      operationId: api_v1_empresas_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Company'
+          description: ''
+    post:
+      operationId: api_v1_empresas_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompanyCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompanyCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+          description: ''
+  /api/v1/empresas/{id}/:
+    get:
+      operationId: api_v1_empresas_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+          description: ''
+    patch:
+      operationId: api_v1_empresas_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCompanyUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCompanyUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCompanyUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+          description: ''
+  /api/v1/empresas/{id}/propietario/:
+    put:
+      operationId: api_v1_empresas_propietario_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerAssign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnerAssign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnerAssign'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+          description: ''
   /api/v1/health/:
     get:
       operationId: api_v1_health_retrieve
@@ -109,6 +313,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+          description: ''
+  /api/v1/marketplace/productos/:
+    get:
+      operationId: api_v1_marketplace_productos_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/marketplace/productos/{id}/:
+    get:
+      operationId: api_v1_marketplace_productos_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
           description: ''
   /api/v1/permissions/:
     get:
@@ -126,6 +368,111 @@ paths:
                 items:
                   $ref: '#/components/schemas/Permission'
           description: ''
+  /api/v1/productos/:
+    get:
+      operationId: api_v1_productos_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+          description: ''
+    post:
+      operationId: api_v1_productos_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductWrite'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/productos/{id}/:
+    get:
+      operationId: api_v1_productos_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+    patch:
+      operationId: api_v1_productos_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProductWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProductWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProductWrite'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+    delete:
+      operationId: api_v1_productos_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/roles/:
     get:
       operationId: api_v1_roles_list
@@ -167,8 +514,198 @@ paths:
               schema:
                 $ref: '#/components/schemas/Role'
           description: ''
+  /api/v1/roles/{id}/:
+    get:
+      operationId: api_v1_roles_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+    patch:
+      operationId: api_v1_roles_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+    delete:
+      operationId: api_v1_roles_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/usuarios/:
+    get:
+      operationId: api_v1_usuarios_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSummary'
+          description: ''
+    post:
+      operationId: api_v1_usuarios_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+          description: ''
+  /api/v1/usuarios/{id}/:
+    get:
+      operationId: api_v1_usuarios_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+          description: ''
+    patch:
+      operationId: api_v1_usuarios_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+          description: ''
+    delete:
+      operationId: api_v1_usuarios_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
 components:
   schemas:
+    ApiRootResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        health:
+          type: string
+        docs:
+          type: string
+        schema:
+          type: string
+      required:
+      - docs
+      - health
+      - name
+      - schema
+      - version
     AuthResponse:
       type: object
       properties:
@@ -182,6 +719,155 @@ components:
       - access
       - refresh
       - user
+    City:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nombre:
+          type: string
+        pais_id:
+          type: integer
+        pais:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - nombre
+      - pais
+      - pais_id
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        razon_social:
+          type: string
+        nombre_comercial:
+          type: string
+        ciudad_id:
+          type: integer
+          nullable: true
+        ciudad:
+          allOf:
+          - $ref: '#/components/schemas/City'
+          nullable: true
+          readOnly: true
+        subdominio:
+          type: string
+        nit:
+          type: string
+          nullable: true
+        email_contacto:
+          type: string
+          format: email
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        estado:
+          type: string
+        propietario:
+          allOf:
+          - $ref: '#/components/schemas/OwnerSummary'
+          nullable: true
+          readOnly: true
+        creado_en:
+          type: string
+          format: date-time
+        actualizado_en:
+          type: string
+          format: date-time
+      required:
+      - actualizado_en
+      - ciudad
+      - ciudad_id
+      - creado_en
+      - email_contacto
+      - estado
+      - id
+      - nit
+      - nombre_comercial
+      - propietario
+      - razon_social
+      - subdominio
+      - telefono
+    CompanyCreate:
+      type: object
+      properties:
+        razon_social:
+          type: string
+          maxLength: 180
+        nombre_comercial:
+          type: string
+          maxLength: 180
+        ciudad_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        subdominio:
+          type: string
+          pattern: ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$
+        nit:
+          type: string
+          maxLength: 30
+        email_contacto:
+          type: string
+          format: email
+        telefono:
+          type: string
+          maxLength: 30
+        propietario:
+          $ref: '#/components/schemas/OwnerInput'
+      required:
+      - nombre_comercial
+      - propietario
+      - razon_social
+    CompanyUpdateEstadoEnum:
+      enum:
+      - PENDIENTE
+      - ACTIVO
+      - INACTIVO
+      - SUSPENDIDO
+      type: string
+      description: |-
+        * `PENDIENTE` - Pendiente
+        * `ACTIVO` - Activo
+        * `INACTIVO` - Inactivo
+        * `SUSPENDIDO` - Suspendido
+    Country:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+        nombre:
+          type: string
+      required:
+      - codigo
+      - id
+      - nombre
+    Currency:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+        nombre:
+          type: string
+        simbolo:
+          type: string
+      required:
+      - codigo
+      - id
+      - nombre
+      - simbolo
     HealthResponse:
       type: object
       properties:
@@ -204,6 +890,148 @@ components:
       required:
       - email
       - password
+    OwnerAssign:
+      type: object
+      properties:
+        propietario:
+          $ref: '#/components/schemas/OwnerInput'
+      required:
+      - propietario
+    OwnerInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        nombres:
+          type: string
+          maxLength: 120
+        apellidos:
+          type: string
+          maxLength: 120
+        telefono:
+          type: string
+          maxLength: 30
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+      required:
+      - apellidos
+      - email
+      - nombres
+    OwnerSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        nombres:
+          type: string
+        apellidos:
+          type: string
+        telefono:
+          type: string
+          nullable: true
+      required:
+      - apellidos
+      - email
+      - id
+      - nombres
+      - telefono
+    PatchedCompanyUpdate:
+      type: object
+      properties:
+        razon_social:
+          type: string
+          maxLength: 180
+        nombre_comercial:
+          type: string
+          maxLength: 180
+        ciudad_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        nit:
+          type: string
+          maxLength: 30
+        email_contacto:
+          type: string
+          format: email
+        telefono:
+          type: string
+          maxLength: 30
+        estado:
+          $ref: '#/components/schemas/CompanyUpdateEstadoEnum'
+    PatchedProductWrite:
+      type: object
+      properties:
+        tipo_codigo:
+          type: string
+          maxLength: 50
+        ciudad_id:
+          type: integer
+          minimum: 1
+        moneda_codigo:
+          type: string
+          maxLength: 3
+        codigo:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9_-]{1,59}$
+        nombre:
+          type: string
+          maxLength: 180
+        descripcion:
+          type: string
+          nullable: true
+        localidad:
+          type: string
+          nullable: true
+          maxLength: 180
+        precio_base:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        capacidad_maxima:
+          type: integer
+          minimum: 1
+        estado:
+          $ref: '#/components/schemas/ProductWriteEstadoEnum'
+        imagen_url:
+          type: string
+          nullable: true
+          maxLength: 500
+    PatchedRoleUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        permissions:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+    PatchedUserUpdate:
+      type: object
+      properties:
+        first_names:
+          type: string
+          maxLength: 120
+        last_names:
+          type: string
+          maxLength: 120
+        phone:
+          type: string
+          nullable: true
+          maxLength: 30
+        role_code:
+          type: string
+          pattern: ^[A-Za-z][A-Za-z0-9_]{2,59}$
     Permission:
       type: object
       properties:
@@ -224,6 +1052,143 @@ components:
       - id
       - module
       - name
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        empresa_id:
+          type: integer
+        empresa:
+          type: string
+        tipo_codigo:
+          type: string
+        tipo:
+          type: string
+        ciudad_id:
+          type: integer
+        ciudad:
+          type: string
+        pais_id:
+          type: integer
+        pais:
+          type: string
+        moneda_codigo:
+          type: string
+        moneda_simbolo:
+          type: string
+        codigo:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+          nullable: true
+        localidad:
+          type: string
+          nullable: true
+        precio_base:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        capacidad_maxima:
+          type: integer
+        estado:
+          type: string
+        imagen_url:
+          type: string
+          nullable: true
+        creado_en:
+          type: string
+          format: date-time
+        actualizado_en:
+          type: string
+          format: date-time
+      required:
+      - actualizado_en
+      - capacidad_maxima
+      - ciudad
+      - ciudad_id
+      - codigo
+      - creado_en
+      - descripcion
+      - empresa
+      - empresa_id
+      - estado
+      - id
+      - imagen_url
+      - localidad
+      - moneda_codigo
+      - moneda_simbolo
+      - nombre
+      - pais
+      - pais_id
+      - precio_base
+      - tipo
+      - tipo_codigo
+    ProductType:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+        nombre:
+          type: string
+      required:
+      - codigo
+      - id
+      - nombre
+    ProductWrite:
+      type: object
+      properties:
+        tipo_codigo:
+          type: string
+          maxLength: 50
+        ciudad_id:
+          type: integer
+          minimum: 1
+        moneda_codigo:
+          type: string
+          maxLength: 3
+        codigo:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9_-]{1,59}$
+        nombre:
+          type: string
+          maxLength: 180
+        descripcion:
+          type: string
+          nullable: true
+        localidad:
+          type: string
+          nullable: true
+          maxLength: 180
+        precio_base:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        capacidad_maxima:
+          type: integer
+          minimum: 1
+        estado:
+          $ref: '#/components/schemas/ProductWriteEstadoEnum'
+        imagen_url:
+          type: string
+          nullable: true
+          maxLength: 500
+    ProductWriteEstadoEnum:
+      enum:
+      - BORRADOR
+      - PUBLICADO
+      - INACTIVO
+      type: string
+      description: |-
+        * `BORRADOR` - Borrador
+        * `PUBLICADO` - Publicado
+        * `INACTIVO` - Inactivo
     Refresh:
       type: object
       properties:
@@ -343,6 +1308,64 @@ components:
       - permisos
       - roles
       - tenants
+    UserCreate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        first_names:
+          type: string
+          maxLength: 120
+        last_names:
+          type: string
+          maxLength: 120
+        phone:
+          type: string
+          nullable: true
+          maxLength: 30
+        password:
+          type: string
+          writeOnly: true
+        role_code:
+          type: string
+          pattern: ^[A-Za-z][A-Za-z0-9_]{2,59}$
+      required:
+      - email
+      - first_names
+      - last_names
+      - role_code
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        nombres:
+          type: string
+        apellidos:
+          type: string
+        telefono:
+          type: string
+          nullable: true
+        estado:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - apellidos
+      - email
+      - estado
+      - id
+      - nombres
+      - roles
   securitySchemes:
     jwtAuth:
       type: http

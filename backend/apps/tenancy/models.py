@@ -1,6 +1,50 @@
 from django.db import models
 
 
+class Country(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    iso_code = models.CharField(db_column="codigo_iso", max_length=3, unique=True)
+    name = models.CharField(db_column="nombre", max_length=100, unique=True)
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = "pais"
+        ordering = ("name",)
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class City(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    country = models.ForeignKey(
+        Country,
+        db_column="id_pais",
+        on_delete=models.DO_NOTHING,
+        related_name="cities",
+    )
+    name = models.CharField(db_column="nombre", max_length=120)
+    latitude = models.DecimalField(
+        db_column="latitud", max_digits=9, decimal_places=6, null=True, blank=True
+    )
+    longitude = models.DecimalField(
+        db_column="longitud", max_digits=9, decimal_places=6, null=True, blank=True
+    )
+    timezone = models.CharField(
+        db_column="zona_horaria", max_length=80, null=True, blank=True
+    )
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = "ciudad"
+        ordering = ("name",)
+
+    def __str__(self) -> str:
+        return f"{self.name}, {self.country.name}"
+
+
 class Tenant(models.Model):
     class Status(models.TextChoices):
         PENDING = "PENDIENTE", "Pendiente"

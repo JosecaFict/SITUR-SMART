@@ -1,0 +1,107 @@
+:host {
+  display: block;
+}
+
+.field-control {
+  min-height: 2.75rem;
+  width: 100%;
+  border: 1px solid var(--color-input-border);
+  border-radius: 0.75rem;
+  background: white;
+  padding: 0.65rem 0.8rem;
+  color: var(--color-label);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.field-control::placeholder {
+  color: #6b7280;
+}
+
+.field-control:focus {
+  border-color: var(--color-accent-dark);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2);
+}
+
+.field-control.ng-invalid.ng-touched {
+  border-color: var(--color-input-border-error);
+}
+
+.primary-button,
+.secondary-button,
+.row-action {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.7rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease,
+    opacity 180ms ease;
+}
+
+.primary-button {
+  background: var(--color-accent-dark);
+  color: white;
+}
+
+.primary-button:hover {
+  background: var(--color-panel-bg);
+}
+
+.secondary-button,
+.row-action {
+  border: 1px solid var(--color-input-border);
+  background: white;
+  color: var(--color-label);
+}
+
+.secondary-button:hover,
+.row-action:hover {
+  border-color: #99a1af;
+  background: var(--color-input-bg);
+  color: var(--color-title);
+}
+
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.row-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.28);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.row-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.status-badge {
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge[data-status='ACTIVO'] {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge[data-status='PENDIENTE'] {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge[data-status='INACTIVO'],
+.status-badge[data-status='SUSPENDIDO'] {
+  background: #fee2e2;
+  color: #991b1b;
+}

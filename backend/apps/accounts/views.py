@@ -1,11 +1,10 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.rbac.services import is_superadmin
 from apps.rbac.views import tenant_id_from_request
 
 from .serializers import (
@@ -19,8 +18,6 @@ from .serializers import (
 )
 from .services import (
     create_or_link_tenant_user,
-    deactivate_user_globally,
-    list_all_users,
     list_tenant_users,
     login_user,
     remove_tenant_user,
@@ -78,10 +75,7 @@ class UserListCreateView(APIView):
 
     @extend_schema(responses=UserSummarySerializer(many=True))
     def get(self, request):
-        tenant_id = tenant_id_from_request(request)
-        if tenant_id is None:
-            users = list_all_users(actor=request.user)
-            return Response(UserSummarySerializer(users, many=True).data)
+        tenant_id = tenant_id_from_request(request, required=True)
         users = list_tenant_users(actor=request.user, tenant_id=tenant_id)
         return Response(
             UserSummarySerializer(users, many=True, context={"tenant_id": tenant_id}).data
@@ -128,11 +122,6 @@ class UserDetailView(APIView):
 
     @extend_schema(responses={204: None})
     def delete(self, request, pk):
-        tenant_id = tenant_id_from_request(request)
-        if tenant_id is None:
-            if not is_superadmin(request.user):
-                raise PermissionDenied("Se requiere un contexto de tenant.")
-            deactivate_user_globally(actor=request.user, user_id=pk, request=request)
-        else:
-            remove_tenant_user(actor=request.user, tenant_id=tenant_id, user_id=pk, request=request)
+        tenant_id = tenant_id_from_request(request, required=True)
+        remove_tenant_user(actor=request.user, tenant_id=tenant_id, user_id=pk, request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
