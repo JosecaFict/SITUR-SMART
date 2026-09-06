@@ -122,7 +122,8 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 CORS_ALLOWED_ORIGINS = env_list(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:4200,http://localhost:8080"
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:4200,http://localhost:8080,https://situr-smart-web.vercel.app",
 )
 CORS_ALLOW_CREDENTIALS = False
 CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id")
@@ -157,3 +158,11 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# Brevo (Sendinblue) Email & OTP Recovery
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "jcvillarroeld126@ficct.uagrm.edu.bo")
+BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "SITUR-SMART")
+PASSWORD_RESET_OTP_MINUTES = int(os.getenv("PASSWORD_RESET_OTP_MINUTES", "15"))
+PASSWORD_RESET_RATE_LIMIT_SECONDS = int(os.getenv("PASSWORD_RESET_RATE_LIMIT_SECONDS", "60"))
+

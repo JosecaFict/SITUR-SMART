@@ -10,6 +10,9 @@ from apps.rbac.views import tenant_id_from_request
 from .serializers import (
     AuthResponseSerializer,
     LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetVerifySerializer,
     RefreshSerializer,
     UserContextSerializer,
     UserCreateSerializer,
@@ -17,13 +20,16 @@ from .serializers import (
     UserUpdateSerializer,
 )
 from .services import (
+    confirm_password_reset,
     create_or_link_tenant_user,
     list_tenant_users,
     login_user,
     remove_tenant_user,
+    request_password_reset_otp,
     revoke_refresh_token,
     rotate_refresh_token,
     update_tenant_user,
+    verify_password_reset_otp,
 )
 
 
@@ -68,6 +74,69 @@ class MeView(APIView):
     @extend_schema(responses=UserContextSerializer)
     def get(self, request):
         return Response(UserContextSerializer(request.user).data)
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        request=PasswordResetRequestSerializer,
+        responses={200: dict},
+        description="Solicita el envío de un código OTP de 6 dígitos al correo electrónico para recuperación de contraseña.",
+    )
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = request_password_reset_otp(
+            email=serializer.validated_data["email"], request=request
+        )
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class PasswordResetVerifyView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        request=PasswordResetVerifySerializer,
+        responses={200: dict},
+        description="Verifica si el código OTP de 6 dígitos ingresado es válido y no ha expirado.",
+    )
+    def post(self, request):
+        serializer = PasswordResetVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        verify_password_reset_otp(
+            email=serializer.validated_data["email"],
+            code=serializer.validated_data["code"],
+        )
+        return Response(
+            {"valid": True, "detail": "Código verificado correctamente."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        request=PasswordResetConfirmSerializer,
+        responses={200: dict},
+        description="Establece la nueva contraseña utilizando el código OTP verificado.",
+    )
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        confirm_password_reset(
+            email=serializer.validated_data["email"],
+            code=serializer.validated_data["code"],
+            new_password=serializer.validated_data["new_password"],
+            request=request,
+        )
+        return Response(
+            {
+                "detail": "Tu contraseña ha sido restablecida exitosamente. Ya puedes iniciar sesión con tu nueva clave."
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class UserListCreateView(APIView):

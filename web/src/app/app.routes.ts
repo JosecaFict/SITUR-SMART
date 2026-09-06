@@ -30,7 +30,9 @@ export const routes: Routes = [
   },
   {
     path: 'recuperar',
-    redirectTo: 'login',
+    canActivate: [guestGuard],
+    loadComponent: () =>
+      import('./features/auth/forgot-password/forgot-password').then((m) => m.ForgotPassword),
   },
   {
     path: '',

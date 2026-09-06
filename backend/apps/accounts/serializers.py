@@ -113,3 +113,41 @@ class UserUpdateSerializer(serializers.Serializer):
     last_names = serializers.CharField(max_length=120, required=False)
     phone = serializers.CharField(max_length=30, required=False, allow_blank=True, allow_null=True)
     role_code = serializers.RegexField(r"^[A-Za-z][A-Za-z0-9_]{2,59}$", required=False)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.RegexField(
+        r"^\d{6}$",
+        error_messages={"invalid": "El código debe contener exactamente 6 dígitos numéricos."},
+    )
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.RegexField(
+        r"^\d{6}$",
+        error_messages={"invalid": "El código debe contener exactamente 6 dígitos numéricos."},
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        trim_whitespace=False,
+    )
+    new_password_confirm = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        trim_whitespace=False,
+    )
+
+    def validate(self, attrs):
+        if attrs["new_password"] != attrs["new_password_confirm"]:
+            raise serializers.ValidationError(
+                {"new_password_confirm": "Las contraseñas no coinciden."}
+            )
+        return attrs
+
