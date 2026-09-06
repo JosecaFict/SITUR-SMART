@@ -66,7 +66,6 @@ export const routes: Routes = [
       },
       {
         path: 'bitacora',
-        canActivate: [permissionGuard('BITACORA_LEER')],
         loadComponent: () => import('./features/admin/bitacora/bitacora').then((m) => m.Bitacora),
       },
     ],
