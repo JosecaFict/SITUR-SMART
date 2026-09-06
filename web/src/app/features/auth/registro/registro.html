@@ -1,0 +1,168 @@
+<situr-auth-layout>
+  <a
+    routerLink="/planes"
+    class="text-label hover:text-accent-dark focus-visible:ring-accent/30 mb-6 inline-flex min-h-10 items-center gap-2 rounded-lg pr-3 text-sm font-semibold transition focus-visible:ring-4 focus-visible:outline-none"
+    aria-label="Volver a los planes"
+  >
+    <svg lucideArrowLeft class="h-4 w-4" [strokeWidth]="2"></svg>
+    Volver a los planes
+  </a>
+
+  <h2 class="font-heading text-title text-2xl font-bold">Crea tu cuenta de empresa</h2>
+  <p class="text-text-secondary mt-1 mb-6 text-sm">
+    Publica tu catálogo y empieza a recibir reservas en minutos.
+  </p>
+
+  @if (errorMessage()) {
+    <div class="animate-fade-in-up mb-6 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+      <svg lucideCircleAlert class="text-error mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2"></svg>
+      <div class="text-sm">
+        <p class="text-error font-semibold">No se pudo completar el registro</p>
+        <p class="text-error/80">{{ errorMessage() }}</p>
+      </div>
+    </div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5" novalidate>
+    <div>
+      <label class="text-label mb-1.5 block text-sm font-medium">Plan</label>
+      @if (loadingPlanes()) {
+        <p class="text-text-secondary text-xs">Cargando planes...</p>
+      } @else {
+        <div class="grid grid-cols-3 gap-2">
+          @for (plan of planes(); track plan.id) {
+            <button
+              type="button"
+              (click)="selectPlan(plan.codigo)"
+              class="rounded-xl border px-2 py-2.5 text-center text-xs font-semibold transition"
+              [class]="form.controls.plan_codigo.value === plan.codigo
+                ? 'border-accent bg-demo-bg text-accent-dark'
+                : 'border-input-border text-label hover:border-accent'"
+            >
+              @if (form.controls.plan_codigo.value === plan.codigo) {
+                <svg lucideCheck class="text-accent mx-auto mb-1 h-3.5 w-3.5" [strokeWidth]="2.5"></svg>
+              }
+              {{ plan.nombre }}
+              <span class="text-text-secondary block font-normal">Bs {{ plan.precio_mensual }}/mes</span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <label for="razon_social" class="text-label mb-1.5 block text-sm font-medium">Razón social</label>
+        <input
+          id="razon_social"
+          type="text"
+          formControlName="razon_social"
+          placeholder="Turismo Seguro SRL"
+          class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 px-4 text-sm outline-none focus:ring-2"
+          [class.border-input-border-error]="form.controls.razon_social.invalid && form.controls.razon_social.touched"
+        />
+      </div>
+      <div>
+        <label for="nombre_comercial" class="text-label mb-1.5 block text-sm font-medium">Nombre comercial</label>
+        <input
+          id="nombre_comercial"
+          type="text"
+          formControlName="nombre_comercial"
+          placeholder="SCZ Tours"
+          class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 px-4 text-sm outline-none focus:ring-2"
+          [class.border-input-border-error]="form.controls.nombre_comercial.invalid && form.controls.nombre_comercial.touched"
+        />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <label for="owner_nombres" class="text-label mb-1.5 block text-sm font-medium">Nombres</label>
+        <input
+          id="owner_nombres"
+          type="text"
+          formControlName="owner_nombres"
+          placeholder="Ana"
+          class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 px-4 text-sm outline-none focus:ring-2"
+          [class.border-input-border-error]="form.controls.owner_nombres.invalid && form.controls.owner_nombres.touched"
+        />
+      </div>
+      <div>
+        <label for="owner_apellidos" class="text-label mb-1.5 block text-sm font-medium">Apellidos</label>
+        <input
+          id="owner_apellidos"
+          type="text"
+          formControlName="owner_apellidos"
+          placeholder="Rojas"
+          class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 px-4 text-sm outline-none focus:ring-2"
+          [class.border-input-border-error]="form.controls.owner_apellidos.invalid && form.controls.owner_apellidos.touched"
+        />
+      </div>
+    </div>
+
+    <div>
+      <label for="owner_email" class="text-label mb-1.5 block text-sm font-medium">Correo electrónico</label>
+      <input
+        id="owner_email"
+        type="email"
+        formControlName="owner_email"
+        placeholder="correo@empresa.com"
+        autocomplete="email"
+        class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 px-4 text-sm outline-none focus:ring-2"
+        [class.border-input-border-error]="form.controls.owner_email.invalid && form.controls.owner_email.touched"
+      />
+      @if (form.controls.owner_email.invalid && form.controls.owner_email.touched) {
+        <p class="text-error mt-1.5 text-xs">Ingresa un correo electrónico válido.</p>
+      }
+    </div>
+
+    <div>
+      <label for="owner_password" class="text-label mb-1.5 block text-sm font-medium">Contraseña</label>
+      <div class="relative">
+        <input
+          id="owner_password"
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="owner_password"
+          placeholder="Mínimo 8 caracteres"
+          autocomplete="new-password"
+          class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+          [class.border-input-border-error]="form.controls.owner_password.invalid && form.controls.owner_password.touched"
+        />
+        <button
+          type="button"
+          (click)="togglePassword()"
+          [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          class="text-text-secondary hover:text-title absolute top-1/2 right-3.5 -translate-y-1/2"
+        >
+          @if (showPassword()) {
+            <svg lucideEyeOff class="h-4 w-4" [strokeWidth]="2"></svg>
+          } @else {
+            <svg lucideEye class="h-4 w-4" [strokeWidth]="2"></svg>
+          }
+        </button>
+      </div>
+      @if (form.controls.owner_password.invalid && form.controls.owner_password.touched) {
+        <p class="text-error mt-1.5 text-xs">Debe tener al menos 8 caracteres.</p>
+      }
+    </div>
+
+    <button
+      type="submit"
+      [disabled]="loading()"
+      translate="no"
+      class="btn-accent flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-70"
+    >
+      @if (loading()) {
+        <svg lucideLoaderCircle class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+        Creando tu cuenta...
+      } @else {
+        Crear mi cuenta
+      }
+    </button>
+
+    <p class="text-text-secondary text-center text-xs">
+      ¿Ya tienes cuenta?
+      <a routerLink="/login" class="text-accent-dark font-semibold hover:underline">Inicia sesión</a>
+    </p>
+  </form>
+</situr-auth-layout>

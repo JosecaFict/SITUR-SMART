@@ -6,6 +6,7 @@ import {
   LucideCheck,
   LucideCircleAlert,
   LucideCirclePlus,
+  LucideCreditCard,
   LucideMapPin,
   LucidePencil,
   LucideRefreshCw,
@@ -16,12 +17,14 @@ import {
 import {
   City,
   Company,
+  CompanySubscriptionInfo,
   CompanyStatus,
   OwnerPayload,
+  Plan,
 } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
 
-type FormMode = 'create' | 'edit' | 'owner' | null;
+type FormMode = 'create' | 'edit' | 'owner' | 'plan' | null;
 
 @Component({
   selector: 'situr-empresas',
@@ -31,6 +34,7 @@ type FormMode = 'create' | 'edit' | 'owner' | null;
     LucideCheck,
     LucideCircleAlert,
     LucideCirclePlus,
+    LucideCreditCard,
     LucideMapPin,
     LucidePencil,
     LucideRefreshCw,
@@ -47,6 +51,7 @@ export class Empresas implements OnInit {
 
   protected readonly companies = signal<Company[]>([]);
   protected readonly cities = signal<City[]>([]);
+  protected readonly planes = signal<Plan[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly actionCompanyId = signal<number | null>(null);
@@ -56,6 +61,9 @@ export class Empresas implements OnInit {
   protected readonly statusFilter = signal('');
   protected readonly formMode = signal<FormMode>(null);
   protected readonly selectedCompany = signal<Company | null>(null);
+  protected readonly subscriptionInfo = signal<CompanySubscriptionInfo | null>(null);
+  protected readonly loadingSubscription = signal(false);
+  protected readonly selectedPlanCodigo = signal('');
 
   protected readonly activeCount = computed(
     () => this.companies().filter((company) => company.estado === 'ACTIVO').length,
@@ -81,6 +89,10 @@ export class Empresas implements OnInit {
     this.companiesService.listCities().subscribe({
       next: (cities) => this.cities.set(cities),
       error: () => this.cities.set([]),
+    });
+    this.companiesService.listPlans().subscribe({
+      next: (planes) => this.planes.set(planes),
+      error: () => this.planes.set([]),
     });
   }
 
@@ -150,6 +162,52 @@ export class Empresas implements OnInit {
     this.selectedCompany.set(null);
     this.saving.set(false);
     this.companyForm.reset();
+    this.subscriptionInfo.set(null);
+    this.selectedPlanCodigo.set('');
+  }
+
+  protected startPlanChange(company: Company): void {
+    this.selectedCompany.set(company);
+    this.formMode.set('plan');
+    this.successMessage.set(null);
+    this.errorMessage.set(null);
+    this.subscriptionInfo.set(null);
+    this.loadingSubscription.set(true);
+    this.companiesService.getSubscription(company.id).subscribe({
+      next: (info) => {
+        this.subscriptionInfo.set(info);
+        this.selectedPlanCodigo.set(info.suscripcion?.plan.codigo ?? '');
+        this.loadingSubscription.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.loadingSubscription.set(false);
+        this.errorMessage.set(this.apiMessage(error, 'No fue posible cargar la suscripción.'));
+      },
+    });
+  }
+
+  protected selectPlan(codigo: string): void {
+    this.selectedPlanCodigo.set(codigo);
+  }
+
+  protected submitPlanChange(): void {
+    const company = this.selectedCompany();
+    if (!company || !this.selectedPlanCodigo()) {
+      return;
+    }
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    this.companiesService.changeSubscription(company.id, this.selectedPlanCodigo()).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.closeForm();
+        this.successMessage.set('Plan de la empresa actualizado.');
+      },
+      error: (error: HttpErrorResponse) => {
+        this.saving.set(false);
+        this.errorMessage.set(this.apiMessage(error, 'No fue posible cambiar el plan.'));
+      },
+    });
   }
 
   protected submit(): void {

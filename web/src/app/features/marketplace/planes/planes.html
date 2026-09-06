@@ -5,7 +5,7 @@
     <nav class="flex items-center gap-5">
       <a routerLink="/" class="text-label hidden text-sm font-medium sm:inline hover:text-title">Marketplace</a>
       <a routerLink="/login" class="text-label text-sm font-semibold hover:text-title">Iniciar sesión</a>
-      <a routerLink="/login" class="btn-accent rounded-xl px-5 py-2.5 text-sm font-semibold text-white">
+      <a routerLink="/registro" class="btn-accent rounded-xl px-5 py-2.5 text-sm font-semibold text-white">
         Crear mi cuenta
       </a>
     </nav>
@@ -33,57 +33,63 @@
 
   <!-- Planes -->
   <section class="-mt-2 px-6 pb-2 sm:px-10">
-    <div class="mx-auto grid max-w-5xl items-start gap-6 sm:grid-cols-3">
-      @for (plan of planes; track plan.nombre) {
-        <article
-          class="flex flex-col rounded-[20px] bg-white transition duration-200 hover:-translate-y-0.5"
-          [class]="plan.destacado
-            ? 'border-accent shadow-2xl border-2'
-            : 'border-input-border border shadow-none'"
-          [style.margin-top]="plan.destacado ? '-12px' : '0px'"
-        >
-          @if (plan.destacado) {
-            <div class="btn-accent font-heading rounded-t-[18px] py-2 text-center text-xs font-bold tracking-wide text-white">
-              MÁS ELEGIDO
+    @if (loading()) {
+      <p class="text-text-secondary mx-auto max-w-5xl text-center text-sm">Cargando planes...</p>
+    } @else if (errorMessage()) {
+      <p class="text-error mx-auto max-w-5xl text-center text-sm">{{ errorMessage() }}</p>
+    } @else {
+      <div class="mx-auto grid max-w-5xl items-start gap-6 sm:grid-cols-3">
+        @for (plan of planes(); track plan.id) {
+          <article
+            class="flex flex-col rounded-[20px] bg-white transition duration-200 hover:-translate-y-0.5"
+            [class]="destacado(plan)
+              ? 'border-accent shadow-2xl border-2'
+              : 'border-input-border border shadow-none'"
+            [style.margin-top]="destacado(plan) ? '-12px' : '0px'"
+          >
+            @if (destacado(plan)) {
+              <div class="btn-accent font-heading rounded-t-[18px] py-2 text-center text-xs font-bold tracking-wide text-white">
+                MÁS ELEGIDO
+              </div>
+            }
+
+            <div class="flex flex-col gap-5 p-8">
+              <div class="flex flex-col gap-1.5">
+                <h3 class="font-heading text-title text-lg font-bold">{{ plan.nombre }}</h3>
+              </div>
+
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-title text-base font-semibold">{{ plan.moneda }}</span>
+                <span class="font-heading text-title text-4xl font-extrabold">{{ plan.precio_mensual }}</span>
+                <span class="text-text-secondary text-sm">/ mes</span>
+              </div>
+
+              <a
+                [routerLink]="['/registro']"
+                [queryParams]="{ plan: plan.codigo }"
+                class="flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
+                [class]="destacado(plan)
+                  ? 'btn-accent text-white'
+                  : 'border-input-border text-accent-dark border bg-white hover:bg-demo-bg hover:border-accent'"
+              >
+                Elegir {{ plan.nombre }}
+              </a>
+
+              <div class="h-px bg-gray-100"></div>
+
+              <ul class="flex flex-col gap-3">
+                @for (caracteristica of caracteristicas(plan); track caracteristica) {
+                  <li class="text-label flex items-start gap-2.5 text-[13px] leading-snug">
+                    <svg lucideCheck class="text-accent mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2.5"></svg>
+                    {{ caracteristica }}
+                  </li>
+                }
+              </ul>
             </div>
-          }
-
-          <div class="flex flex-col gap-5 p-8">
-            <div class="flex flex-col gap-1.5">
-              <h3 class="font-heading text-title text-lg font-bold">{{ plan.nombre }}</h3>
-              <p class="text-text-secondary min-h-[34px] text-[13px]">{{ plan.descripcion }}</p>
-            </div>
-
-            <div class="flex items-baseline gap-1.5">
-              <span class="text-title text-base font-semibold">Bs</span>
-              <span class="font-heading text-title text-4xl font-extrabold">{{ plan.precio }}</span>
-              <span class="text-text-secondary text-sm">/ mes</span>
-            </div>
-
-            <a
-              routerLink="/login"
-              class="flex items-center justify-center rounded-xl px-5 py-3 text-sm font-bold"
-              [class]="plan.destacado
-                ? 'btn-accent text-white'
-                : 'border-input-border text-accent-dark border bg-white hover:bg-demo-bg hover:border-accent'"
-            >
-              {{ plan.cta }}
-            </a>
-
-            <div class="h-px bg-gray-100"></div>
-
-            <ul class="flex flex-col gap-3">
-              @for (caracteristica of plan.caracteristicas; track caracteristica) {
-                <li class="text-label flex items-start gap-2.5 text-[13px] leading-snug">
-                  <svg lucideCheck class="text-accent mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2.5"></svg>
-                  {{ caracteristica }}
-                </li>
-              }
-            </ul>
-          </div>
-        </article>
-      }
-    </div>
+          </article>
+        }
+      </div>
+    }
   </section>
 
   <!-- Franja de confianza -->

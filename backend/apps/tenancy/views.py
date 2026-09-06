@@ -8,17 +8,26 @@ from .models import City, Country
 from .serializers import (
     CitySerializer,
     CompanyCreateSerializer,
+    CompanySelfSignupSerializer,
     CompanySerializer,
     CompanyUpdateSerializer,
     CountrySerializer,
     OwnerAssignSerializer,
+    PlanSerializer,
+    SubscriptionChangeSerializer,
+    SubscriptionSerializer,
 )
 from .services import (
     assign_company_owner,
+    change_company_subscription,
     create_company,
     get_company,
+    get_company_subscription,
+    get_subscription_usage,
     list_companies,
+    list_plans,
     require_company_management,
+    self_signup_company,
     update_company,
 )
 
@@ -104,3 +113,54 @@ class CompanyOwnerView(APIView):
             **serializer.validated_data,
         )
         return Response(CompanySerializer(company).data)
+
+
+class PlanListView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(responses=PlanSerializer(many=True))
+    def get(self, request):
+        return Response(PlanSerializer(list_plans(), many=True).data)
+
+
+class CompanySignupView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(request=CompanySelfSignupSerializer, responses={201: CompanySerializer})
+    def post(self, request):
+        serializer = CompanySelfSignupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        company, subscription = self_signup_company(request=request, **serializer.validated_data)
+        return Response(
+            {
+                "empresa": CompanySerializer(company).data,
+                "suscripcion": SubscriptionSerializer(subscription).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CompanySubscriptionView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=SubscriptionSerializer)
+    def get(self, request, pk):
+        subscription = get_company_subscription(actor=request.user, company_id=pk)
+        return Response(
+            {
+                "suscripcion": SubscriptionSerializer(subscription).data if subscription else None,
+                "uso": get_subscription_usage(tenant_id=pk),
+            }
+        )
+
+    @extend_schema(request=SubscriptionChangeSerializer, responses=SubscriptionSerializer)
+    def put(self, request, pk):
+        serializer = SubscriptionChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        subscription = change_company_subscription(
+            actor=request.user,
+            company_id=pk,
+            request=request,
+            **serializer.validated_data,
+        )
+        return Response(SubscriptionSerializer(subscription).data)

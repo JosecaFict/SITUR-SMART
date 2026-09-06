@@ -42,6 +42,83 @@
   }
 
   @if (formMode(); as mode) {
+    @if (mode === 'plan') {
+      <div class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm">
+        <div class="border-input-border flex items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
+          <div>
+            <h2 class="text-title font-heading text-lg font-semibold">
+              Plan de {{ selectedCompany()?.nombre_comercial }}
+            </h2>
+            <p class="text-text-secondary mt-1 text-sm">
+              Cambiar de plan reemplaza la suscripción activa desde hoy.
+            </p>
+          </div>
+          <button
+            type="button"
+            (click)="closeForm()"
+            class="text-text-secondary hover:bg-input-bg hover:text-title flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none"
+            aria-label="Cerrar panel de plan"
+          >
+            <svg lucideX class="h-5 w-5" [strokeWidth]="2"></svg>
+          </button>
+        </div>
+
+        <div class="space-y-5 p-5 sm:p-6">
+          @if (loadingSubscription()) {
+            <p class="text-text-secondary text-sm">Cargando suscripción...</p>
+          } @else {
+            @if (subscriptionInfo(); as info) {
+              <p class="text-text-secondary text-sm">
+                Uso actual:
+                <strong class="text-title">{{ info.uso.usuarios }}</strong> usuarios ·
+                <strong class="text-title">{{ info.uso.productos }}</strong> productos
+              </p>
+            }
+            <div class="grid gap-3 sm:grid-cols-3">
+              @for (plan of planes(); track plan.id) {
+                <button
+                  type="button"
+                  (click)="selectPlan(plan.codigo)"
+                  class="rounded-xl border p-4 text-left transition"
+                  [class]="selectedPlanCodigo() === plan.codigo
+                    ? 'border-accent bg-demo-bg'
+                    : 'border-input-border hover:border-accent'"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="text-title text-sm font-semibold">{{ plan.nombre }}</span>
+                    @if (selectedPlanCodigo() === plan.codigo) {
+                      <svg lucideCheck class="text-accent h-4 w-4" [strokeWidth]="2.5"></svg>
+                    }
+                  </div>
+                  <p class="text-text-secondary mt-1 text-xs">
+                    Bs {{ plan.precio_mensual }}/mes · {{ plan.max_usuarios }} usuarios ·
+                    {{ plan.max_productos }} productos
+                  </p>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="border-input-border flex flex-col-reverse gap-3 border-t bg-gray-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <button type="button" (click)="closeForm()" class="secondary-button">Cancelar</button>
+          <button
+            type="button"
+            (click)="submitPlanChange()"
+            [disabled]="saving() || !selectedPlanCodigo()"
+            class="primary-button"
+          >
+            @if (saving()) {
+              <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+              Guardando
+            } @else {
+              <svg lucideCheck class="h-4 w-4" [strokeWidth]="2"></svg>
+              Guardar plan
+            }
+          </button>
+        </div>
+      </div>
+    } @else {
     <form
       [formGroup]="companyForm"
       (ngSubmit)="submit()"
@@ -176,6 +253,7 @@
         </button>
       </div>
     </form>
+    }
   }
 
   <div class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm">
@@ -278,6 +356,10 @@
               <button type="button" (click)="startOwnerChange(company)" class="row-action">
                 <svg lucideUserRoundCog class="h-4 w-4" [strokeWidth]="2"></svg>
                 Propietario
+              </button>
+              <button type="button" (click)="startPlanChange(company)" class="row-action">
+                <svg lucideCreditCard class="h-4 w-4" [strokeWidth]="2"></svg>
+                Plan
               </button>
               <button
                 type="button"
