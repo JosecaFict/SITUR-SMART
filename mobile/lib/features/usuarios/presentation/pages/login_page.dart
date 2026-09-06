@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/storage/token_storage.dart';
+
 import '../../../../core/theme/app_theme.dart';
+import '../../data/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,8 +15,13 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'admin@situr.smart');
+
+  final _emailController =
+      TextEditingController(text: 'admin@situr-smart.com');
+
   final _passwordController = TextEditingController();
+
+  final AuthService _authService = AuthService();
 
   bool _obscurePassword = true;
   bool _rememberMe = false;
@@ -29,27 +37,49 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    await Future<void>.delayed(const Duration(milliseconds: 850));
-    if (!mounted) return;
+    try {
+      final response = await _authService.login(
+  email: _emailController.text.trim(),
+  password: _passwordController.text,
+);
 
-    if (_emailController.text.trim().toLowerCase() == 'admin@situr.smart' &&
-        _passwordController.text == 'Admin1234') {
-      context.go('/home');
-      return;
+
+await TokenStorage().saveTokens(
+  access: response['access'],
+  refresh: response['refresh'],
+);
+
+
+if (!mounted) return;
+
+debugPrint(response.toString());
+
+context.go('/dashboard');
+
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage = e.toString();
+      });
+
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-
-    setState(() {
-      _isLoading = false;
-      _errorMessage =
-          'Credenciales incorrectas. Verifica tu correo y contraseña.';
-    });
   }
 
   @override
@@ -63,7 +93,11 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: Row(
           children: [
-            if (isWide) const Expanded(flex: 11, child: _BrandPanel()),
+            if (isWide) const Expanded(
+              flex: 11,
+              child: _BrandPanel(),
+            ),
+
             Expanded(
               flex: 9,
               child: Align(
@@ -75,148 +109,253 @@ class _LoginPageState extends State<LoginPage> {
                     24,
                     24 + media.viewInsets.bottom,
                   ),
+
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 430),
+                    constraints: const BoxConstraints(
+                      maxWidth: 430,
+                    ),
+
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (!isWide) const _MobileLogo(),
-                        if (!isWide) const SizedBox(height: 24),
+
+                        if (!isWide)
+                          const _MobileLogo(),
+
+                        if (!isWide)
+                          const SizedBox(height: 24),
+
                         Text(
                           'Bienvenido de vuelta',
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontSize: 38,
                           ),
                         ),
+
                         const SizedBox(height: 8),
+
                         Text(
                           'Ingresa tus credenciales para continuar',
                           style: theme.textTheme.bodyLarge?.copyWith(
                             color: AppTheme.textSecondary,
                           ),
                         ),
+
                         const SizedBox(height: 20),
+
                         const _DemoHint(),
+
                         const SizedBox(height: 16),
+
                         if (_errorMessage != null)
-                          _ErrorMessage(message: _errorMessage!),
+                          _ErrorMessage(
+                            message: _errorMessage!,
+                          ),
+
                         Form(
                           key: _formKey,
+
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+
                             children: [
-                              const _FieldLabel('Correo electrónico'),
+
+                              const _FieldLabel(
+                                'Correo electrónico',
+                              ),
+
                               const SizedBox(height: 8),
+
                               TextFormField(
                                 controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                textInputAction: TextInputAction.next,
-                                decoration: const InputDecoration(
-                                  hintText: 'admin@situr.smart',
-                                  suffixIcon: Icon(Icons.mail_outline),
+                                keyboardType:
+                                    TextInputType.emailAddress,
+
+                                textInputAction:
+                                    TextInputAction.next,
+
+                                decoration:
+                                    const InputDecoration(
+                                  hintText:
+                                      'admin@situr-smart.com',
+                                  suffixIcon:
+                                      Icon(Icons.mail_outline),
                                 ),
+
                                 validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
+
+                                  if (value == null ||
+                                      value.trim().isEmpty) {
                                     return 'El correo es obligatorio.';
                                   }
-                                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                      .hasMatch(value.trim())) {
+
+                                  if (!RegExp(
+                                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                                  ).hasMatch(value.trim())) {
                                     return 'Ingresa un correo electrónico válido.';
                                   }
+
                                   return null;
                                 },
+
                                 enabled: !_isLoading,
                               ),
+
                               const SizedBox(height: 16),
-                              const _FieldLabel('Contraseña'),
+
+                              const _FieldLabel(
+                                'Contraseña',
+                              ),
+
                               const SizedBox(height: 8),
+
                               TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                textInputAction: TextInputAction.done,
+                                controller:
+                                    _passwordController,
+
+                                obscureText:
+                                    _obscurePassword,
+
+                                textInputAction:
+                                    TextInputAction.done,
+
                                 onFieldSubmitted: (_) {
-                                  if (!_isLoading) _submit();
+                                  if (!_isLoading) {
+                                    _submit();
+                                  }
                                 },
-                                decoration: InputDecoration(
+
+                                decoration:
+                                    InputDecoration(
                                   hintText: '••••••••',
-                                  suffixIcon: IconButton(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : () => setState(
-                                            () => _obscurePassword =
-                                                !_obscurePassword,
-                                          ),
+
+                                  suffixIcon:
+                                      IconButton(
+                                    onPressed:
+                                        _isLoading
+                                            ? null
+                                            : () {
+                                                setState(() {
+                                                  _obscurePassword =
+                                                      !_obscurePassword;
+                                                });
+                                              },
+
                                     icon: Icon(
                                       _obscurePassword
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
+                                          ? Icons
+                                              .visibility_outlined
+                                          : Icons
+                                              .visibility_off_outlined,
                                     ),
                                   ),
                                 ),
+
                                 validator: (value) =>
-                                    value == null || value.isEmpty
-                                    ? 'La contraseña es obligatoria.'
-                                    : null,
+                                    value == null ||
+                                            value.isEmpty
+                                        ? 'La contraseña es obligatoria.'
+                                        : null,
+
                                 enabled: !_isLoading,
-                              ),
-                              const SizedBox(height: 14),
+                              ),                              const SizedBox(height: 18),
+
                               Row(
                                 children: [
                                   Checkbox(
                                     value: _rememberMe,
                                     onChanged: _isLoading
                                         ? null
-                                        : (value) => setState(
-                                            () => _rememberMe = value ?? false,
-                                          ),
+                                        : (value) {
+                                            setState(() {
+                                              _rememberMe =
+                                                  value ?? false;
+                                            });
+                                          },
                                   ),
-                                  const Flexible(
-                                    child: Text(
-                                      'Recordarme',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: AppTheme.labelColor,
-                                      ),
-                                    ),
+
+                                  const Text(
+                                    'Recordarme',
                                   ),
+
                                   const Spacer(),
-                                  Flexible(
-                                    child: TextButton(
-                                      onPressed: _isLoading
-                                          ? null
-                                          : () =>
-                                                context.go('/recuperar-password'),
-                                      child: const Text(
-                                        '¿Olvidaste tu contraseña?',
-                                      ),
+
+                                  TextButton(
+                                    onPressed: _isLoading
+                                        ? null
+                                        : () {
+                                            context.push(
+                                              '/recuperar-contrasena',
+                                            );
+                                          },
+
+                                    child: const Text(
+                                      '¿Olvidaste tu contraseña?',
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+
+                              const SizedBox(height: 18),
+
                               SizedBox(
                                 width: double.infinity,
+                                height: 52,
+
                                 child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _submit,
+                                  onPressed:
+                                      _isLoading
+                                          ? null
+                                          : _submit,
+
                                   child: _isLoading
                                       ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.2,
+                                          width: 22,
+                                          height: 22,
+                                          child:
+                                              CircularProgressIndicator(
+                                            strokeWidth: 2,
                                           ),
                                         )
-                                      : const Text('Iniciar sesión'),
+                                      : const Text(
+                                          'Iniciar sesión',
+                                        ),
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              Align(
-                                alignment: Alignment.center,
+
+                              const SizedBox(height: 18),
+
+                              Center(
                                 child: TextButton(
                                   onPressed: _isLoading
                                       ? null
-                                      : () => context.go('/registrar-usuario'),
-                                  child: const Text('¿No tienes una cuenta? Regístrate'),
+                                      : () {
+                                          context.push(
+                                            '/registrar-usuario',
+                                          );
+                                        },
+
+                                  child: const Text(
+                                    '¿No tienes cuenta? Regístrate',
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              const Divider(),
+
+                              const SizedBox(height: 12),
+
+                              Center(
+                                child: Text(
+                                  'SITUR-SMART © 2026',
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(
+                                    color:
+                                        AppTheme.textSecondary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -235,68 +374,67 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
+
 class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.label);
-  final String label;
+  final String text;
+
+  const _FieldLabel(this.text);
 
   @override
-  Widget build(BuildContext context) => Text(
-    label,
-    style: const TextStyle(
-      fontSize: 15,
-      color: AppTheme.labelColor,
-      fontWeight: FontWeight.w600,
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context)
+          .textTheme
+          .labelLarge,
+    );
+  }
 }
 
-class _DemoHint extends StatelessWidget {
-  const _DemoHint();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    decoration: BoxDecoration(
-      color: AppTheme.demoBg,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppTheme.demoBorder),
-    ),
-    child: const Text(
-      'Demo: admin@situr.smart / Admin1234',
-      style: TextStyle(
-        fontSize: 13,
-        color: AppTheme.accentDark,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
-}
 
 class _ErrorMessage extends StatelessWidget {
-  const _ErrorMessage({required this.message});
   final String message;
 
+  const _ErrorMessage({
+    required this.message,
+  });
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    margin: const EdgeInsets.only(bottom: 14),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF1F2),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFFECACA)),
-    ),
-    child: Text(
-      message,
-      style: const TextStyle(
-        fontSize: 13,
-        color: AppTheme.errorColor,
-        fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+
+      margin: const EdgeInsets.only(
+        bottom: 16,
       ),
-    ),
-  );
+
+      padding: const EdgeInsets.all(12),
+
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(
+          alpha: 0.08,
+        ),
+
+        borderRadius:
+            BorderRadius.circular(12),
+
+        border: Border.all(
+          color: Colors.red.withValues(
+            alpha: 0.3,
+          ),
+        ),
+      ),
+
+      child: Text(
+        message,
+        style: const TextStyle(
+          color: Colors.red,
+        ),
+      ),
+    );
+  }
 }
+
 
 class _MobileLogo extends StatelessWidget {
   const _MobileLogo();
@@ -304,38 +442,37 @@ class _MobileLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          height: 44,
-          width: 44,
+          width: 46,
+          height: 46,
+
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: AppTheme.panelBg,
+            color: AppTheme.accent,
+            borderRadius:
+                BorderRadius.circular(14),
           ),
-          alignment: Alignment.center,
-          child: const Icon(Icons.explore, color: AppTheme.accent, size: 22),
+
+          child: const Icon(
+            Icons.travel_explore,
+            color: Colors.white,
+          ),
         ),
-        const SizedBox(width: 10),
-        const Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: 'SITUR',
-                style: TextStyle(color: AppTheme.titleColor, fontWeight: FontWeight.w800),
-              ),
-              TextSpan(
-                text: '-SMART',
-                style: TextStyle(color: AppTheme.accentDark, fontWeight: FontWeight.w800),
-              ),
-            ],
+
+        const SizedBox(width: 12),
+
+        const Text(
+          'SITUR-SMART',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
-          style: TextStyle(fontSize: 24, letterSpacing: -0.4),
         ),
       ],
     );
   }
 }
+
 
 class _BrandPanel extends StatelessWidget {
   const _BrandPanel();
@@ -343,93 +480,45 @@ class _BrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1A7A6C), AppTheme.panelBg, Color(0xFF082E29)],
-        ),
-      ),
+      color: AppTheme.accent,
+
+      padding: const EdgeInsets.all(48),
+
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment:
+            MainAxisAlignment.center,
+
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
         children: [
-          Row(
-            children: [
-              Container(
-                height: 44,
-                width: 44,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white24),
-                  color: Colors.white10,
-                ),
-                alignment: Alignment.center,
-                child: const Icon(Icons.explore, color: Colors.white, size: 22),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'SITUR-SMART',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
-              ),
-            ],
+
+          const Icon(
+            Icons.travel_explore,
+            size: 80,
+            color: Colors.white,
           ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white24),
-              color: Colors.white10,
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.travel_explore_rounded, color: Colors.white, size: 18),
-                SizedBox(width: 10),
-                Text(
-                  'Sistema Inteligente de Turismo',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
+
+          const SizedBox(height: 24),
+
           const Text(
-            'Gestiona el turismo\nde forma inteligente',
+            'SITUR-SMART',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 65,
-              fontWeight: FontWeight.w800,
-              height: 0.9,
-              letterSpacing: -1.5,
+              fontSize: 42,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 24),
+
+          const SizedBox(height: 12),
+
           const Text(
-            'Plataforma integrada para la administración, análisis y\nseguimiento de destinos turísticos en tiempo real.',
+            'Plataforma turística inteligente '
+            'para empresas y usuarios.',
             style: TextStyle(
               color: Colors.white70,
-              fontSize: 20,
-              height: 1.5,
+              fontSize: 18,
             ),
-          ),
-          const SizedBox(height: 30),
-          const Row(
-            children: [
-              _Metric(title: '1.2K+', subtitle: 'Destinos'),
-              SizedBox(width: 32),
-              _Metric(title: '48K', subtitle: 'Visitantes'),
-              SizedBox(width: 32),
-              _Metric(title: '99.9%', subtitle: 'Disponibilidad'),
-            ],
           ),
         ],
       ),
@@ -437,33 +526,27 @@ class _BrandPanel extends StatelessWidget {
   }
 }
 
-class _Metric extends StatelessWidget {
-  final String title;
-  final String subtitle;
 
-  const _Metric({required this.title, required this.subtitle});
+class _DemoHint extends StatelessWidget {
+  const _DemoHint();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 15,
-          ),
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(12),
+
+      decoration: BoxDecoration(
+        color: AppTheme.accent.withValues(
+  alpha: 0.08,
+),
+
+        borderRadius:
+            BorderRadius.circular(12),
+      ),
+
+      child: const Text(
+        'Usuario prueba: admin@situr-smart.com',
+      ),
     );
   }
 }
