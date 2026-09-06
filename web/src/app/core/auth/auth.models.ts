@@ -40,3 +40,25 @@ export interface ApiErrorResponse {
     details?: unknown;
   };
 }
+
+export interface PasswordResetRequestPayload {
+  email: string;
+}
+
+export interface PasswordResetVerifyPayload {
+  email: string;
+  code: string;
+}
+
+export interface PasswordResetConfirmPayload {
+  email: string;
+  code: string;
+  new_password: string;
+  new_password_confirm: string;
+}
+
+export interface PasswordResetResponse {
+  detail: string;
+  valid?: boolean;
+}
+

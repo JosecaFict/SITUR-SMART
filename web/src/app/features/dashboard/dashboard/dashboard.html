@@ -1,9 +1,844 @@
-<div class="border-input-border rounded-xl border bg-white p-6">
-  <h1 class="font-heading text-title text-xl font-semibold">
-    Bienvenido{{ session()?.user?.nombres ? ', ' + session()!.user.nombres : '' }}
-  </h1>
-  <p class="text-text-secondary mt-1 text-sm">
-    Este es el punto de partida del dashboard. El contenido real se construye en una siguiente
-    etapa.
-  </p>
-</div>
+<section class="dashboard-shell mx-auto max-w-[1520px] space-y-7 pb-10">
+  @if (loading()) {
+    <!-- Skeleton Loading State -->
+    <div class="space-y-6" aria-label="Cargando resumen del dashboard" aria-live="polite">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-2">
+          <div class="h-8 w-64 animate-pulse rounded-xl bg-slate-200"></div>
+          <div class="h-4 w-96 max-w-full animate-pulse rounded-lg bg-slate-200"></div>
+        </div>
+        <div class="h-11 w-44 animate-pulse rounded-xl bg-slate-200"></div>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        @for (_ of [1, 2, 3, 4]; track _) {
+          <div class="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white p-5">
+            <div class="h-4 w-28 rounded bg-slate-200"></div>
+            <div class="mt-4 h-9 w-20 rounded bg-slate-200"></div>
+          </div>
+        }
+      </div>
+      <div class="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.85fr)]">
+        <div class="h-96 animate-pulse rounded-2xl border border-slate-200 bg-white"></div>
+        <div class="h-96 animate-pulse rounded-2xl border border-slate-200 bg-white"></div>
+      </div>
+    </div>
+  } @else {
+    <!-- Main Top Header -->
+    <header class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <h1 class="font-heading text-2xl font-bold tracking-tight text-title sm:text-3xl">
+            Bienvenido{{ session()?.user?.nombres ? ', ' + session()!.user.nombres : '' }}
+          </h1>
+          @if (isSuperAdmin()) {
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-700 ring-1 ring-slate-300">
+              <svg lucideShieldCheck class="h-3.5 w-3.5 text-accent-dark"></svg>
+              SuperAdmin
+            </span>
+          } @else if (selectedCompany(); as company) {
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20">
+              <svg lucideBuilding2 class="h-3.5 w-3.5 text-emerald-600"></svg>
+              {{ company.name }}
+            </span>
+          }
+        </div>
+        <p class="mt-1.5 text-sm text-text-secondary sm:text-base">
+          @if (isSuperAdmin()) {
+            Supervisión global de la plataforma, control de empresas adheridas y trazabilidad operativa.
+          } @else {
+            Consulta el estado de tu catálogo, publicaciones pendientes y accesos operativos de tu empresa.
+          }
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        @if (!isSuperAdmin() && companyChoices().length > 1) {
+          <div class="flex items-center gap-2 rounded-xl border border-input-border bg-white px-3 py-1.5 shadow-sm">
+            <span class="text-xs font-semibold text-label">Empresa:</span>
+            <select
+              [value]="selectedCompanyId()"
+              (change)="changeCompany($event)"
+              aria-label="Seleccionar empresa"
+              class="bg-transparent text-sm font-semibold text-title outline-none cursor-pointer"
+            >
+              @for (choice of companyChoices(); track choice.id) {
+                <option [value]="choice.id">{{ choice.name }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        @if (isSuperAdmin()) {
+          <a
+            routerLink="/empresas"
+            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/30"
+          >
+            <svg lucidePlus class="h-4 w-4"></svg>
+            Nueva empresa
+          </a>
+          <a
+            routerLink="/bitacora"
+            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-input-border bg-white px-3.5 text-sm font-semibold text-title shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
+          >
+            <svg lucideScrollText class="h-4 w-4 text-text-secondary"></svg>
+            Auditoría
+          </a>
+        } @else if (canManageProducts()) {
+          <a
+            routerLink="/productos"
+            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/30"
+          >
+            <svg lucidePlus class="h-4 w-4"></svg>
+            Nueva publicación
+          </a>
+        }
+
+        <button
+          type="button"
+          (click)="reload()"
+          title="Actualizar datos del panel"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-input-border bg-white text-text-secondary shadow-sm transition hover:bg-slate-50 hover:text-title focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
+        >
+          <svg lucideRefreshCw class="h-4 w-4"></svg>
+          <span class="sr-only">Recargar</span>
+        </button>
+      </div>
+    </header>
+
+    @if (errorMessage(); as message) {
+      <div
+        class="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+        role="alert"
+      >
+        <div class="flex items-start gap-3">
+          <svg lucideCircleAlert class="mt-0.5 h-5 w-5 shrink-0 text-amber-600"></svg>
+          <span>{{ message }}</span>
+        </div>
+        <button
+          type="button"
+          (click)="reload()"
+          class="inline-flex items-center gap-1.5 self-start rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-200 sm:self-auto"
+        >
+          <svg lucideRefreshCw class="h-3.5 w-3.5"></svg>
+          Reintentar
+        </button>
+      </div>
+    }
+
+    <!-- ========================================================= -->
+    <!-- SUPERADMIN VIEW                                           -->
+    <!-- ========================================================= -->
+    @if (isSuperAdmin()) {
+      <!-- Pending Companies Alert Banner (if any) -->
+      @if (pendingCompanies() > 0) {
+        <div class="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-amber-100/60 to-amber-50 p-4 text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-3">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-800">
+              <svg lucideShieldAlert class="h-5 w-5"></svg>
+            </span>
+            <div>
+              <p class="font-bold text-amber-950">
+                {{ pendingCompanies() }} {{ pendingCompanies() === 1 ? 'empresa pendiente' : 'empresas pendientes' }} de activación
+              </p>
+              <p class="text-xs text-amber-800/90">
+                Revisa los documentos comerciales y habilita sus cuentas de propietario.
+              </p>
+            </div>
+          </div>
+          <a
+            routerLink="/empresas"
+            class="inline-flex items-center gap-2 rounded-xl bg-amber-800 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-900"
+          >
+            Revisar pendientes
+            <svg lucideArrowRight class="h-3.5 w-3.5"></svg>
+          </a>
+        </div>
+      }
+
+      <!-- Platform KPI Cards -->
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <!-- Total Registradas -->
+        <div class="relative overflow-hidden rounded-2xl border border-input-border bg-white p-5 shadow-sm transition hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-text-secondary">Empresas registradas</span>
+            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+              <svg lucideBuilding2 class="h-5 w-5"></svg>
+            </span>
+          </div>
+          <p class="mt-3 text-3xl font-bold tracking-tight text-title tabular-nums">
+            {{ companies().length }}
+          </p>
+          <p class="mt-1 text-xs text-text-secondary">
+            En la base de datos de SITUR-SMART
+          </p>
+        </div>
+
+        <!-- Activas -->
+        <div class="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-text-secondary">Empresas activas</span>
+            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <svg lucideCheckCircle2 class="h-5 w-5"></svg>
+            </span>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <p class="text-3xl font-bold tracking-tight text-emerald-700 tabular-nums">
+              {{ activeCompanies() }}
+            </p>
+            <span class="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+              {{ activationRate() }}% de la red
+            </span>
+          </div>
+          <p class="mt-1 text-xs text-text-secondary">
+            Operando y publicando en el marketplace
+          </p>
+        </div>
+
+        <!-- Pendientes -->
+        <div class="relative overflow-hidden rounded-2xl border border-amber-100 bg-white p-5 shadow-sm transition hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-text-secondary">Pendientes de revisión</span>
+            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+              <svg lucideClock3 class="h-5 w-5"></svg>
+            </span>
+          </div>
+          <p class="mt-3 text-3xl font-bold tracking-tight text-amber-700 tabular-nums">
+            {{ pendingCompanies() }}
+          </p>
+          <p class="mt-1 text-xs text-text-secondary">
+            Requieren validación o asignación
+          </p>
+        </div>
+
+        <!-- Inactivas / Suspendidas -->
+        <div class="relative overflow-hidden rounded-2xl border border-input-border bg-white p-5 shadow-sm transition hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-text-secondary">Inactivas o pausadas</span>
+            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+              <svg lucideFilePenLine class="h-5 w-5"></svg>
+            </span>
+          </div>
+          <p class="mt-3 text-3xl font-bold tracking-tight text-slate-700 tabular-nums">
+            {{ pausedCompanies() }}
+          </p>
+          <p class="mt-1 text-xs text-text-secondary">
+            Suspendidas temporal o definitivamente
+          </p>
+        </div>
+      </div>
+
+      <!-- Main Section: Recent Companies & Platform Shortcuts -->
+      <div class="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,0.8fr)]">
+        <!-- Recent Companies List -->
+        <section class="rounded-2xl border border-input-border bg-white p-6 shadow-sm">
+          <div class="flex items-center justify-between pb-4 border-b border-input-border">
+            <div>
+              <h2 class="font-heading text-lg font-bold text-title">Empresas registradas recientemente</h2>
+              <p class="text-xs text-text-secondary">Visualiza las últimas organizaciones incorporadas a la plataforma.</p>
+            </div>
+            <a
+              routerLink="/empresas"
+              class="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-dark hover:underline"
+            >
+              Ver todas ({{ companies().length }})
+              <svg lucideArrowRight class="h-3.5 w-3.5"></svg>
+            </a>
+          </div>
+
+          @if (recentCompanies().length > 0) {
+            <div class="mt-4 divide-y divide-slate-100">
+              @for (company of recentCompanies(); track company.id) {
+                <div class="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">
+                      {{ company.nombre_comercial.slice(0, 2).toUpperCase() }}
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2">
+                        <p class="truncate text-sm font-semibold text-title">
+                          {{ company.nombre_comercial }}
+                        </p>
+                        <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" [class]="companyStatusBadgeClass(company.estado)">
+                          {{ companyStatusLabel(company.estado) }}
+                        </span>
+                      </div>
+                      <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+                        @if (company.ciudad) {
+                          <span class="inline-flex items-center gap-1">
+                            <svg lucideMapPin class="h-3 w-3 text-slate-400"></svg>
+                            {{ company.ciudad.nombre }}
+                          </span>
+                          <span>·</span>
+                        }
+                        @if (company.propietario) {
+                          <span class="truncate">
+                            {{ company.propietario.nombres }} ({{ company.propietario.email }})
+                          </span>
+                        } @else {
+                          <span class="text-amber-700 font-medium">Sin propietario asignado</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <a
+                    routerLink="/empresas"
+                    class="inline-flex items-center gap-1.5 self-start rounded-lg border border-input-border bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 sm:self-auto"
+                  >
+                    Gestionar
+                    <svg lucideArrowRight class="h-3 w-3"></svg>
+                  </a>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="flex flex-col items-center justify-center py-12 text-center">
+              <svg lucideBuilding2 class="h-10 w-10 text-slate-300"></svg>
+              <p class="mt-3 font-semibold text-title">Aún no hay empresas registradas</p>
+              <p class="mt-1 text-xs text-text-secondary">Comienza registrando la primera empresa en el sistema.</p>
+              <a
+                routerLink="/empresas"
+                class="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-accent-dark"
+              >
+                <svg lucidePlus class="h-3.5 w-3.5"></svg>
+                Registrar empresa
+              </a>
+            </div>
+          }
+        </section>
+
+        <!-- Right Column: Shortcuts & Architecture Box -->
+        <div class="space-y-6">
+          <!-- Control Panel Shortcuts (Dark Teal Theme) -->
+          <section class="rounded-2xl border border-emerald-950/20 bg-panel-bg p-6 text-white shadow-sm">
+            <div class="flex items-center justify-between">
+              <h2 class="font-heading text-lg font-bold">Acciones de plataforma</h2>
+              <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-accent">
+                <svg lucideSparkles class="h-4 w-4"></svg>
+              </span>
+            </div>
+            <p class="mt-1 text-xs text-white/70">
+              Operaciones reservadas exclusivamente para el rol SuperAdmin.
+            </p>
+
+            <div class="mt-5 space-y-2.5">
+              <a
+                routerLink="/empresas"
+                class="flex items-center justify-between rounded-xl bg-white/10 p-3.5 text-sm font-semibold transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-3">
+                  <svg lucideBuilding2 class="h-5 w-5 text-accent"></svg>
+                  Administrar empresas
+                </span>
+                <svg lucideArrowRight class="h-4 w-4 text-white/60"></svg>
+              </a>
+
+              <a
+                routerLink="/bitacora"
+                class="flex items-center justify-between rounded-xl bg-white/10 p-3.5 text-sm font-semibold transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-3">
+                  <svg lucideScrollText class="h-5 w-5 text-accent"></svg>
+                  Ver bitácora de auditoría
+                </span>
+                <svg lucideArrowRight class="h-4 w-4 text-white/60"></svg>
+              </a>
+
+              <a
+                routerLink="/"
+                class="flex items-center justify-between rounded-xl bg-white/10 p-3.5 text-sm font-semibold transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-3">
+                  <svg lucideExternalLink class="h-5 w-5 text-accent"></svg>
+                  Explorar Marketplace público
+                </span>
+                <svg lucideArrowRight class="h-4 w-4 text-white/60"></svg>
+              </a>
+            </div>
+          </section>
+
+          <!-- Multitenant Architecture Card -->
+          <section class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-accent-dark">
+                <svg lucideShieldCheck class="h-5 w-5"></svg>
+              </span>
+              <div>
+                <h3 class="text-sm font-bold text-title">Aislamiento Multitenant</h3>
+                <p class="text-xs text-text-secondary">Seguridad y fronteras de datos</p>
+              </div>
+            </div>
+            <p class="mt-3 text-xs leading-relaxed text-text-secondary">
+              Cada empresa opera en su propio espacio virtual. Los propietarios administran independientemente sus productos turísticos, roles personalizados y equipo de colaboradores.
+            </p>
+          </section>
+        </div>
+      </div>
+
+    <!-- ========================================================= -->
+    <!-- TENANT VIEW (OWNER / EMPLOYEE)                            -->
+    <!-- ========================================================= -->
+    } @else if (selectedCompany(); as company) {
+      <!-- Active Company Banner -->
+      <div class="flex flex-col gap-3 rounded-2xl border border-emerald-900/10 bg-gradient-to-r from-demo-bg via-white to-demo-bg px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3.5">
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-panel-bg text-white shadow-sm">
+            <svg lucideBuilding2 class="h-5 w-5 text-accent"></svg>
+          </span>
+          <div>
+            <span class="text-xs font-semibold tracking-wide text-accent-dark uppercase">Espacio de trabajo activo</span>
+            <p class="text-base font-bold text-title">{{ company.name }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <a
+            routerLink="/"
+            class="inline-flex items-center gap-2 rounded-xl border border-input-border bg-white px-3.5 py-2 text-xs font-semibold text-title shadow-sm transition hover:bg-slate-50"
+          >
+            <svg lucideExternalLink class="h-3.5 w-3.5 text-accent-dark"></svg>
+            Ver en Marketplace
+          </a>
+        </div>
+      </div>
+
+      <!-- KPI Cards (Permission Aware) -->
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <!-- Publicaciones Activas -->
+        <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm transition hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-text-secondary">Publicaciones activas</span>
+            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <svg lucideCheckCircle2 class="h-5 w-5"></svg>
+            </span>
+          </div>
+          <p class="mt-3 text-3xl font-bold tracking-tight text-title tabular-nums">
+            {{ publishedCount() }}
+          </p>
+          <p class="mt-1 text-xs text-text-secondary">
+            Visibles para turistas en el marketplace
+          </p>
+        </div>
+
+        <!-- Borradores -->
+        <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm transition hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-text-secondary">Borradores en edición</span>
+            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+              <svg lucideFilePenLine class="h-5 w-5"></svg>
+            </span>
+          </div>
+          <p class="mt-3 text-3xl font-bold tracking-tight text-title tabular-nums">
+            {{ draftCount() }}
+          </p>
+          <p class="mt-1 text-xs text-text-secondary">
+            Pendientes de completar y publicar
+          </p>
+        </div>
+
+        @if (canManageUsers()) {
+          <!-- Empleados activos -->
+          <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-text-secondary">Colaboradores de empresa</span>
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-accent-dark">
+                <svg lucideUsers class="h-5 w-5"></svg>
+              </span>
+            </div>
+            <p class="mt-3 text-3xl font-bold tracking-tight text-title tabular-nums">
+              {{ employeeCount() }}
+            </p>
+            <p class="mt-1 text-xs text-text-secondary">
+              Sin contar al propietario principal
+            </p>
+          </div>
+
+          <!-- Roles Propios -->
+          <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-text-secondary">Roles y accesos</span>
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-accent-dark">
+                <svg lucideShieldCheck class="h-5 w-5"></svg>
+              </span>
+            </div>
+            <p class="mt-3 text-3xl font-bold tracking-tight text-title tabular-nums">
+              {{ customRoleCount() }}
+            </p>
+            <p class="mt-1 text-xs text-text-secondary">
+              Perfiles personalizados en tu empresa
+            </p>
+          </div>
+        } @else {
+          <!-- Categorías con oferta activa -->
+          <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-text-secondary">Categorías activas</span>
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-accent-dark">
+                <svg lucideLayers class="h-5 w-5"></svg>
+              </span>
+            </div>
+            <p class="mt-3 text-3xl font-bold tracking-tight text-title tabular-nums">
+              {{ categoriesWithProductsCount() }}
+            </p>
+            <p class="mt-1 text-xs text-text-secondary">
+              De {{ productTypes().length }} categorías turísticas disponibles
+            </p>
+          </div>
+
+          <!-- Requieren Atención -->
+          <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm transition hover:shadow-md">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-text-secondary">Requieren atención</span>
+              <span
+                class="flex h-9 w-9 items-center justify-center rounded-xl"
+                [class]="attentionItems().length > 0 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'"
+              >
+                @if (attentionItems().length > 0) {
+                  <svg lucideCircleAlert class="h-5 w-5"></svg>
+                } @else {
+                  <svg lucideCheck class="h-5 w-5"></svg>
+                }
+              </span>
+            </div>
+            <p class="mt-3 text-3xl font-bold tracking-tight text-title tabular-nums">
+              {{ attentionItems().length }}
+            </p>
+            <p class="mt-1 text-xs text-text-secondary">
+              {{ attentionItems().length > 0 ? 'Publicaciones incompletas' : 'Todo tu catálogo está al día' }}
+            </p>
+          </div>
+        }
+      </div>
+
+      <!-- Main Layout: Catalog Breakdown vs Attention Items -->
+      <div class="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.85fr)]">
+        <!-- Catalog Distribution by Category -->
+        <section class="rounded-2xl border border-input-border bg-white p-6 shadow-sm">
+          <div class="flex items-center justify-between pb-4 border-b border-input-border">
+            <div>
+              <h2 class="font-heading text-lg font-bold text-title">Distribución del catálogo</h2>
+              <p class="text-xs text-text-secondary">
+                Oferta total de {{ products().length }} servicios por tipo de turismo.
+              </p>
+            </div>
+            @if (canManageProducts()) {
+              <a
+                routerLink="/productos"
+                class="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-dark hover:underline"
+              >
+                Ver catálogo completo
+                <svg lucideArrowRight class="h-3.5 w-3.5"></svg>
+              </a>
+            }
+          </div>
+
+          @if (categories().length > 0 && products().length > 0) {
+            <div class="mt-5 space-y-4">
+              @for (category of categories(); track category.code) {
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between text-xs font-medium">
+                    <span class="truncate font-semibold text-title" [title]="category.name">
+                      {{ category.name }}
+                    </span>
+                    <div class="flex items-center gap-2 tabular-nums">
+                      <span class="text-text-secondary">{{ category.count }} servicios</span>
+                      <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-700">
+                        {{ category.percentage }}%
+                      </span>
+                    </div>
+                  </div>
+                  <!-- Progress Bar with Brand Gradient -->
+                  <div class="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      class="h-full rounded-full bg-gradient-to-r from-accent-dark to-accent transition-all duration-500 ease-out"
+                      [style.width.%]="category.percentage"
+                    ></div>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="flex min-h-60 flex-col items-center justify-center rounded-xl border border-dashed border-input-border p-6 text-center">
+              <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                <svg lucidePackageOpen class="h-6 w-6"></svg>
+              </span>
+              <p class="mt-3 font-semibold text-title">Tu catálogo no tiene publicaciones registradas</p>
+              <p class="mt-1 max-w-sm text-xs text-text-secondary">
+                Publica hoteles, tours, gastronomía o actividades para que los turistas puedan encontrarte.
+              </p>
+              @if (canManageProducts()) {
+                <a
+                  routerLink="/productos"
+                  class="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-accent-dark"
+                >
+                  <svg lucidePlus class="h-3.5 w-3.5"></svg>
+                  Crear primer servicio
+                </a>
+              }
+            </div>
+          }
+        </section>
+
+        <!-- Requieren Atención Section -->
+        <section class="rounded-2xl border border-input-border bg-white p-6 shadow-sm">
+          <div class="flex items-center justify-between pb-4 border-b border-input-border">
+            <div>
+              <h2 class="font-heading text-lg font-bold text-title">Requieren atención</h2>
+              <p class="text-xs text-text-secondary">
+                Publicaciones que necesitan datos para maximizar sus visitas.
+              </p>
+            </div>
+            @if (attentionItems().length > 0) {
+              <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                {{ attentionItems().length }}
+              </span>
+            }
+          </div>
+
+          @if (attentionItems().length > 0) {
+            <div class="mt-4 divide-y divide-slate-100">
+              @for (item of attentionItems(); track item.product.id) {
+                <article class="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-2.5">
+                      <span
+                        class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                        [class]="item.severity === 'high' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-700'"
+                      >
+                        @if (item.severity === 'high') {
+                          <svg lucideImage class="h-4 w-4"></svg>
+                        } @else {
+                          <svg lucideCircleAlert class="h-4 w-4"></svg>
+                        }
+                      </span>
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-title">
+                          {{ item.product.nombre }}
+                        </p>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                          @for (issue of item.issues; track issue) {
+                            <span class="inline-block rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                              {{ issue }}
+                            </span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+
+                    @if (canManageProducts()) {
+                      <a
+                        routerLink="/productos"
+                        title="Completar esta publicación"
+                        class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-input-border bg-slate-50 px-2.5 py-1 text-xs font-semibold text-accent-dark hover:bg-slate-100"
+                      >
+                        <svg lucidePencil class="h-3 w-3"></svg>
+                        Editar
+                      </a>
+                    }
+                  </div>
+                </article>
+              }
+            </div>
+
+            @if (canManageProducts()) {
+              <div class="mt-5 pt-3 border-t border-slate-100">
+                <a
+                  routerLink="/productos"
+                  class="inline-flex items-center gap-2 text-xs font-semibold text-accent-dark hover:underline"
+                >
+                  Ir a catálogo para completar publicaciones
+                  <svg lucideArrowRight class="h-3.5 w-3.5"></svg>
+                </a>
+              </div>
+            }
+          } @else {
+            <div class="flex min-h-48 flex-col items-center justify-center py-6 text-center">
+              <span class="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                <svg lucideCheckCircle2 class="h-6 w-6"></svg>
+              </span>
+              <p class="mt-3 font-semibold text-title">¡Catálogo en orden!</p>
+              <p class="mt-1 max-w-xs text-xs text-text-secondary">
+                No encontramos publicaciones con fotografía o información faltante.
+              </p>
+            </div>
+          }
+        </section>
+      </div>
+
+      <!-- Secondary Layout: Recent Updates vs Quick Actions -->
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.8fr)]">
+        <!-- Recent Updates Feed -->
+        <section class="rounded-2xl border border-input-border bg-white p-6 shadow-sm">
+          <div class="flex items-center justify-between pb-4 border-b border-input-border">
+            <div>
+              <h2 class="font-heading text-lg font-bold text-title">Últimas actualizaciones</h2>
+              <p class="text-xs text-text-secondary">Historial reciente de cambios registrados en tu catálogo.</p>
+            </div>
+            @if (canManageProducts()) {
+              <a
+                routerLink="/productos"
+                class="inline-flex items-center gap-1 text-xs font-semibold text-accent-dark hover:underline"
+              >
+                Ver todos
+                <svg lucideArrowRight class="h-3.5 w-3.5"></svg>
+              </a>
+            }
+          </div>
+
+          @if (recentProducts().length > 0) {
+            <div class="mt-4 divide-y divide-slate-100">
+              @for (product of recentProducts(); track product.id) {
+                <article class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <!-- Image or Icon Placeholder -->
+                    @if (product.imagen_url) {
+                      <img
+                        [src]="product.imagen_url"
+                        [alt]="product.nombre"
+                        class="h-10 w-10 shrink-0 rounded-xl object-cover border border-slate-200"
+                      />
+                    } @else {
+                      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-accent-dark">
+                        <svg lucideHotel class="h-5 w-5"></svg>
+                      </span>
+                    }
+
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-semibold text-title">
+                        {{ product.nombre }}
+                      </p>
+                      <div class="mt-0.5 flex items-center gap-2 text-xs text-text-secondary">
+                        <span class="flex items-center gap-1">
+                          <svg lucideClock3 class="h-3 w-3"></svg>
+                          {{ product.actualizado_en | date: 'd MMM, HH:mm' }}
+                        </span>
+                        @if (product.ciudad) {
+                          <span>·</span>
+                          <span class="truncate">{{ product.ciudad }}</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold shrink-0" [class]="statusClass(product.estado)">
+                    {{ statusLabel(product.estado) }}
+                  </span>
+                </article>
+              }
+            </div>
+          } @else {
+            <div class="flex flex-col items-center justify-center py-10 text-center text-xs text-text-secondary">
+              <svg lucideClock3 class="h-8 w-8 text-slate-300"></svg>
+              <p class="mt-2 font-medium">Las actualizaciones aparecerán cuando registres publicaciones.</p>
+            </div>
+          }
+        </section>
+
+        <!-- Quick Actions Panel (Dark Teal) -->
+        <section class="rounded-2xl border border-emerald-950/20 bg-panel-bg p-6 text-white shadow-sm">
+          <div class="flex items-center justify-between">
+            <h2 class="font-heading text-lg font-bold">Accesos rápidos</h2>
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-accent">
+              <svg lucideTrendingUp class="h-4 w-4"></svg>
+            </span>
+          </div>
+          <p class="mt-1 text-xs text-white/70">
+            Tareas operativas más frecuentes para tu empresa.
+          </p>
+
+          <div class="mt-5 space-y-2.5">
+            @if (canManageProducts()) {
+              <a
+                routerLink="/productos"
+                class="flex items-center justify-between rounded-xl bg-white/10 p-3.5 text-sm font-semibold transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-3">
+                  <svg lucidePackageOpen class="h-5 w-5 text-accent"></svg>
+                  Gestionar catálogo
+                </span>
+                <svg lucideArrowRight class="h-4 w-4 text-white/60"></svg>
+              </a>
+            }
+            @if (canManageUsers()) {
+              <a
+                routerLink="/usuarios"
+                class="flex items-center justify-between rounded-xl bg-white/10 p-3.5 text-sm font-semibold transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-3">
+                  <svg lucideUsers class="h-5 w-5 text-accent"></svg>
+                  Administrar colaboradores
+                </span>
+                <svg lucideArrowRight class="h-4 w-4 text-white/60"></svg>
+              </a>
+            }
+            @if (canManageRoles()) {
+              <a
+                routerLink="/roles"
+                class="flex items-center justify-between rounded-xl bg-white/10 p-3.5 text-sm font-semibold transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-3">
+                  <svg lucideShieldCheck class="h-5 w-5 text-accent"></svg>
+                  Configurar permisos
+                </span>
+                <svg lucideArrowRight class="h-4 w-4 text-white/60"></svg>
+              </a>
+            }
+            @if (canReadAudit()) {
+              <a
+                routerLink="/bitacora"
+                class="flex items-center justify-between rounded-xl bg-white/10 p-3.5 text-sm font-semibold transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span class="flex items-center gap-3">
+                  <svg lucideScrollText class="h-5 w-5 text-accent"></svg>
+                  Consultar bitácora
+                </span>
+                <svg lucideArrowRight class="h-4 w-4 text-white/60"></svg>
+              </a>
+            }
+          </div>
+        </section>
+      </div>
+
+      <!-- Roadmap & Future Integrations Banner -->
+      <section class="rounded-2xl border border-dashed border-input-border bg-slate-50/80 p-6" aria-labelledby="future-title">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div class="max-w-xl">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-accent-dark">
+                <svg lucideSparkles class="h-4 w-4"></svg>
+              </span>
+              <h2 id="future-title" class="font-heading text-lg font-bold text-title">
+                Próximas integraciones en SITUR-SMART
+              </h2>
+            </div>
+            <p class="mt-2 text-xs leading-relaxed text-text-secondary sm:text-sm">
+              Tu catálogo actual está estructurado y listo para conectarse con el motor transaccional de reservas y recomendaciones basadas en inteligencia artificial en los próximos despliegues.
+            </p>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2 lg:min-w-[30rem]">
+            <div class="flex items-center gap-3 rounded-xl border border-input-border bg-white p-4 shadow-sm">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-text-secondary">
+                <svg lucideCalendarClock class="h-5 w-5"></svg>
+              </span>
+              <div>
+                <p class="text-sm font-bold text-title">Reservas & Pagos</p>
+                <p class="text-xs text-text-secondary">Módulo transaccional · Sprint 2</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 rounded-xl border border-input-border bg-white p-4 shadow-sm">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-text-secondary">
+                <svg lucideSparkles class="h-5 w-5 text-accent-dark"></svg>
+              </span>
+              <div>
+                <p class="text-sm font-bold text-title">Analítica con IA</p>
+                <p class="text-xs text-text-secondary">Predicción de demanda · Sprint 3</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    }
+  }
+</section>

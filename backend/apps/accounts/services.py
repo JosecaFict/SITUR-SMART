@@ -1,7 +1,10 @@
-from datetime import UTC, datetime
+import secrets
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 
+from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -16,8 +19,10 @@ from apps.audit.services import record_audit
 from apps.rbac.models import Role, UserRole
 from apps.rbac.services import is_superadmin, require_permission, require_tenant_access
 from apps.tenancy.models import UserTenant
+from apps.tenancy.services import ensure_user_quota_available
 
-from .models import User, UserSession
+from .brevo import send_password_reset_otp_email
+from .models import PasswordResetToken, User, UserSession
 
 
 def token_hash(token: str) -> str:
@@ -170,6 +175,12 @@ def create_or_link_tenant_user(
     else:
         _protect_company_owner(actor, user.id, tenant_id)
 
+    already_active_member = UserTenant.objects.filter(
+        user=user, tenant_id=tenant_id, status=UserTenant.Status.ACTIVE
+    ).exists()
+    if not already_active_member:
+        ensure_user_quota_available(tenant_id)
+
     membership, _ = UserTenant.objects.get_or_create(
         user=user, tenant_id=tenant_id, defaults={"status": UserTenant.Status.ACTIVE}
     )
@@ -267,3 +278,121 @@ def remove_tenant_user(*, actor, tenant_id: int, user_id: int, request=None) -> 
         request=request,
     )
 
+
+def generate_otp_code() -> str:
+    """Genera un código OTP de 6 dígitos numéricos criptográficamente seguro."""
+    return f"{secrets.randbelow(900000) + 100000}"
+
+
+@transaction.atomic
+def request_password_reset_otp(*, email: str, request=None) -> dict[str, str]:
+    normalized_email = email.strip().lower()
+    user = User.objects.filter(email=normalized_email).first()
+
+    generic_message = {
+        "detail": "Si el correo está registrado en la plataforma, recibirás un código de verificación de 6 dígitos."
+    }
+
+    if user is None or not user.is_active:
+        return generic_message
+
+    rate_limit_seconds = getattr(settings, "PASSWORD_RESET_RATE_LIMIT_SECONDS", 60)
+    cutoff = timezone.now() - timedelta(seconds=rate_limit_seconds)
+    recent_token = PasswordResetToken.objects.filter(
+        user=user, created_at__gt=cutoff, used_at__isnull=True
+    ).first()
+    if recent_token:
+        raise ValidationError(
+            {"detail": "Por favor espera un momento antes de solicitar otro código."}
+        )
+
+    otp_code = generate_otp_code()
+    expiration_minutes = getattr(settings, "PASSWORD_RESET_OTP_MINUTES", 15)
+    expires_at = timezone.now() + timedelta(minutes=expiration_minutes)
+
+    PasswordResetToken.objects.filter(user=user).delete()
+
+    hashed = token_hash(f"{user.id}:{otp_code}")
+    PasswordResetToken.objects.create(
+        user=user,
+        token_hash=hashed,
+        expires_at=expires_at,
+    )
+
+    send_password_reset_otp_email(
+        to_email=user.email,
+        recipient_name=user.get_full_name(),
+        otp_code=otp_code,
+        expiration_minutes=expiration_minutes,
+    )
+
+    return generic_message
+
+
+def verify_password_reset_otp(*, email: str, code: str) -> bool:
+    normalized_email = email.strip().lower()
+    user = User.objects.filter(email=normalized_email).first()
+    if user is None or not user.is_active:
+        raise ValidationError({"detail": "Código de recuperación inválido o expirado."})
+
+    hashed = token_hash(f"{user.id}:{code.strip()}")
+    token = PasswordResetToken.objects.filter(
+        user=user,
+        token_hash=hashed,
+        used_at__isnull=True,
+        expires_at__gt=timezone.now(),
+    ).first()
+
+    if token is None:
+        raise ValidationError({"detail": "Código de recuperación inválido o expirado."})
+
+    return True
+
+
+@transaction.atomic
+def confirm_password_reset(*, email: str, code: str, new_password: str, request=None) -> User:
+    normalized_email = email.strip().lower()
+    user = User.objects.filter(email=normalized_email).first()
+    if user is None or not user.is_active:
+        raise ValidationError({"detail": "Código de recuperación inválido o expirado."})
+
+    hashed = token_hash(f"{user.id}:{code.strip()}")
+    token = (
+        PasswordResetToken.objects.select_for_update()
+        .filter(
+            user=user,
+            token_hash=hashed,
+            used_at__isnull=True,
+            expires_at__gt=timezone.now(),
+        )
+        .first()
+    )
+    if token is None:
+        raise ValidationError({"detail": "Código de recuperación inválido o expirado."})
+
+    try:
+        validate_password(new_password, user=user)
+    except Exception as exc:
+        raise ValidationError({"new_password": list(exc.messages)}) from exc
+
+    user.set_password(new_password)
+    user.save(update_fields=["password", "updated_at"])
+
+    token.used_at = timezone.now()
+    token.save(update_fields=["used_at"])
+
+    UserSession.objects.filter(user=user, revoked_at__isnull=True).update(
+        revoked_at=timezone.now()
+    )
+
+    record_audit(
+        actor=user,
+        tenant_id=None,
+        action="RECUPERAR_PASSWORD",
+        entity="usuario",
+        entity_id=str(user.id),
+        new_data={"metodo": "OTP_BREVO"},
+        request=request,
+    )
+
+    return user

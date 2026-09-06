@@ -7,6 +7,8 @@ import {
   AuthSession,
   AuthUser,
   LoginPayload,
+  PasswordResetConfirmPayload,
+  PasswordResetResponse,
   RegisterPayload,
 } from './auth.models';
 
@@ -41,10 +43,32 @@ export class AuthService {
     );
   }
 
-  requestPasswordReset(_email: string): Observable<{ email: string }> {
-    return throwError(
-      () => new Error('La recuperación de contraseña todavía no está disponible en el backend.'),
-    );
+  requestPasswordResetOtp(email: string): Observable<PasswordResetResponse> {
+    return this.http
+      .post<PasswordResetResponse>(`${environment.apiUrl}/auth/password-reset/request/`, {
+        email: email.trim().toLowerCase(),
+      })
+      .pipe(catchError((error: HttpErrorResponse) => this.handleError(error)));
+  }
+
+  verifyPasswordResetOtp(email: string, code: string): Observable<PasswordResetResponse> {
+    return this.http
+      .post<PasswordResetResponse>(`${environment.apiUrl}/auth/password-reset/verify/`, {
+        email: email.trim().toLowerCase(),
+        code: code.trim(),
+      })
+      .pipe(catchError((error: HttpErrorResponse) => this.handleError(error)));
+  }
+
+  confirmPasswordReset(payload: PasswordResetConfirmPayload): Observable<PasswordResetResponse> {
+    return this.http
+      .post<PasswordResetResponse>(`${environment.apiUrl}/auth/password-reset/confirm/`, {
+        email: payload.email.trim().toLowerCase(),
+        code: payload.code.trim(),
+        new_password: payload.new_password,
+        new_password_confirm: payload.new_password_confirm,
+      })
+      .pipe(catchError((error: HttpErrorResponse) => this.handleError(error)));
   }
 
   refreshSession(): Observable<AuthSession> {
@@ -130,8 +154,44 @@ export class AuthService {
       );
     }
 
-    const response = error.error as ApiErrorResponse | undefined;
-    const message = response?.error?.message ?? 'Credenciales incorrectas.';
+    const response = error.error as
+      | (ApiErrorResponse & { detail?: string; error?: { message?: string; details?: unknown } })
+      | undefined;
+
+    let fieldMsg = '';
+    const details = response?.error?.details;
+    if (typeof details === 'object' && details !== null) {
+      const record = details as Record<string, unknown>;
+      const firstKey = Object.keys(record)[0];
+      if (firstKey) {
+        const val = record[firstKey];
+        if (Array.isArray(val) && val.length > 0) {
+          fieldMsg = String(val[0]);
+        } else if (typeof val === 'string') {
+          fieldMsg = val;
+        }
+      }
+    }
+
+    let rawError = '';
+    if (typeof error.error === 'string') {
+      if (
+        error.error.includes('<html') ||
+        error.error.includes('<!doctype') ||
+        error.error.includes('<title>')
+      ) {
+        rawError = `El servidor no encontró el servicio solicitado (Error ${error.status}). El backend en Railway está actualizándose o reiniciando.`;
+      } else {
+        rawError = error.error;
+      }
+    }
+
+    const message =
+      fieldMsg ||
+      response?.error?.message ||
+      response?.detail ||
+      rawError ||
+      'Ocurrió un error inesperado al procesar la solicitud.';
     return throwError(() => new Error(message));
   }
 }

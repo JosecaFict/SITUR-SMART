@@ -26,11 +26,14 @@ export const routes: Routes = [
   },
   {
     path: 'registro',
-    redirectTo: 'login',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./features/auth/registro/registro').then((m) => m.Registro),
   },
   {
     path: 'recuperar',
-    redirectTo: 'login',
+    canActivate: [guestGuard],
+    loadComponent: () =>
+      import('./features/auth/forgot-password/forgot-password').then((m) => m.ForgotPassword),
   },
   {
     path: '',
