@@ -173,11 +173,24 @@ export class AuthService {
       }
     }
 
+    let rawError = '';
+    if (typeof error.error === 'string') {
+      if (
+        error.error.includes('<html') ||
+        error.error.includes('<!doctype') ||
+        error.error.includes('<title>')
+      ) {
+        rawError = `El servidor no encontró el servicio solicitado (Error ${error.status}). El backend en Railway está actualizándose o reiniciando.`;
+      } else {
+        rawError = error.error;
+      }
+    }
+
     const message =
       fieldMsg ||
       response?.error?.message ||
       response?.detail ||
-      (typeof error.error === 'string' ? error.error : null) ||
+      rawError ||
       'Ocurrió un error inesperado al procesar la solicitud.';
     return throwError(() => new Error(message));
   }
