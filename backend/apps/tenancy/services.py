@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.db import transaction
 from django.db.models import Q
 from django.utils.text import slugify
@@ -6,9 +8,11 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from apps.accounts.models import User
 from apps.audit.services import record_audit
 from apps.rbac.models import Role, UserRole
-from apps.rbac.services import is_superadmin, require_tenant_access
+from apps.rbac.services import is_superadmin, require_permission, require_tenant_access
 
-from .models import Tenant, UserTenant
+from .models import Plan, Subscription, Tenant, UserTenant
+
+DEFAULT_PLAN_CODE = "BASICO"
 
 
 def require_company_management(actor) -> None:
@@ -138,12 +142,14 @@ def create_company(
     nit: str = "",
     email_contacto: str = "",
     telefono: str = "",
+    plan_codigo: str = DEFAULT_PLAN_CODE,
     request=None,
 ) -> Tenant:
     require_company_management(actor)
     tax_id = nit.strip() or None
     if tax_id and Tenant.objects.filter(tax_id__iexact=tax_id).exists():
         raise ValidationError({"nit": "Ya existe una empresa con este NIT."})
+    plan = _resolve_plan(plan_codigo)
 
     company = Tenant.objects.create(
         legal_name=razon_social.strip(),
@@ -156,6 +162,7 @@ def create_company(
         status=Tenant.Status.ACTIVE,
     )
     owner = _assign_owner(company=company, owner_data=propietario)
+    _open_subscription(tenant=company, plan=plan)
     record_audit(
         actor=actor,
         tenant_id=company.id,
@@ -166,10 +173,61 @@ def create_company(
             "nombre_comercial": company.trade_name,
             "razon_social": company.legal_name,
             "propietario_id": owner.id,
+            "plan": plan.code,
         },
         request=request,
     )
     return company
+
+
+@transaction.atomic
+def self_signup_company(
+    *,
+    razon_social: str,
+    nombre_comercial: str,
+    propietario: dict,
+    plan_codigo: str,
+    ciudad_id: int | None = None,
+    subdominio: str = "",
+    nit: str = "",
+    email_contacto: str = "",
+    telefono: str = "",
+    request=None,
+) -> Tenant:
+    """Autoregistro público: una empresa se da de alta sola eligiendo un plan, sin
+    intervención del SuperAdministrador (usado por la vitrina pública de planes)."""
+    tax_id = nit.strip() or None
+    if tax_id and Tenant.objects.filter(tax_id__iexact=tax_id).exists():
+        raise ValidationError({"nit": "Ya existe una empresa con este NIT."})
+    plan = _resolve_plan(plan_codigo)
+
+    company = Tenant.objects.create(
+        legal_name=razon_social.strip(),
+        trade_name=nombre_comercial.strip(),
+        city_id=ciudad_id,
+        subdomain=_unique_subdomain(nombre_comercial, subdominio),
+        tax_id=tax_id,
+        contact_email=email_contacto.strip().lower() or None,
+        phone=telefono.strip() or None,
+        status=Tenant.Status.ACTIVE,
+    )
+    owner = _assign_owner(company=company, owner_data=propietario)
+    subscription = _open_subscription(tenant=company, plan=plan)
+    record_audit(
+        actor=owner,
+        tenant_id=company.id,
+        action="AUTOREGISTRO",
+        entity="empresa",
+        entity_id=str(company.id),
+        new_data={
+            "nombre_comercial": company.trade_name,
+            "razon_social": company.legal_name,
+            "propietario_id": owner.id,
+            "plan": plan.code,
+        },
+        request=request,
+    )
+    return company, subscription
 
 
 @transaction.atomic
@@ -252,3 +310,113 @@ def assign_company_owner(
         request=request,
     )
     return company
+
+
+# ---------------------------------------------------------------------------
+# Planes y suscripciones
+# ---------------------------------------------------------------------------
+
+
+def list_plans():
+    return Plan.objects.filter(active=True).select_related("currency")
+
+
+def _resolve_plan(plan_codigo: str) -> Plan:
+    plan = Plan.objects.filter(code__iexact=plan_codigo, active=True).first()
+    if plan is None:
+        raise ValidationError({"plan_codigo": "El plan seleccionado no existe o no está disponible."})
+    return plan
+
+
+def _open_subscription(*, tenant: Tenant, plan: Plan, auto_renew: bool = False) -> Subscription:
+    Subscription.objects.filter(tenant=tenant, status=Subscription.Status.ACTIVE).update(
+        status=Subscription.Status.CANCELLED, end_date=date.today()
+    )
+    return Subscription.objects.create(
+        tenant=tenant,
+        plan=plan,
+        start_date=date.today(),
+        status=Subscription.Status.ACTIVE,
+        auto_renew=auto_renew,
+    )
+
+
+def get_company_subscription(*, actor, company_id: int) -> Subscription | None:
+    require_tenant_access(actor, company_id)
+    return (
+        Subscription.objects.select_related("plan", "plan__currency")
+        .filter(tenant_id=company_id, status=Subscription.Status.ACTIVE)
+        .first()
+    )
+
+
+def get_subscription_usage(*, tenant_id: int) -> dict:
+    from apps.catalog.models import TourismProduct
+
+    return {
+        "usuarios": UserTenant.objects.filter(
+            tenant_id=tenant_id, status=UserTenant.Status.ACTIVE
+        ).count(),
+        "productos": TourismProduct.objects.filter(tenant_id=tenant_id).count(),
+    }
+
+
+def require_subscription_management(actor) -> None:
+    require_permission(actor, "SUSCRIPCIONES_GESTIONAR")
+
+
+@transaction.atomic
+def change_company_subscription(
+    *, actor, company_id: int, plan_codigo: str, auto_renew: bool = False, request=None
+) -> Subscription:
+    require_subscription_management(actor)
+    company = Tenant.objects.filter(pk=company_id).first()
+    if company is None:
+        raise NotFound("Empresa no encontrada.")
+    plan = _resolve_plan(plan_codigo)
+    previous = get_company_subscription(actor=actor, company_id=company_id)
+    subscription = _open_subscription(tenant=company, plan=plan, auto_renew=auto_renew)
+    record_audit(
+        actor=actor,
+        tenant_id=company.id,
+        action="CAMBIAR_PLAN",
+        entity="suscripcion",
+        entity_id=str(subscription.id),
+        previous_data={"plan": previous.plan.code} if previous else None,
+        new_data={"plan": plan.code},
+        request=request,
+    )
+    return subscription
+
+
+def _active_subscription_plan(tenant_id: int) -> Plan | None:
+    subscription = (
+        Subscription.objects.select_related("plan")
+        .filter(tenant_id=tenant_id, status=Subscription.Status.ACTIVE)
+        .first()
+    )
+    return subscription.plan if subscription else None
+
+
+def ensure_user_quota_available(tenant_id: int) -> None:
+    plan = _active_subscription_plan(tenant_id)
+    if plan is None:
+        return
+    current = UserTenant.objects.filter(tenant_id=tenant_id, status=UserTenant.Status.ACTIVE).count()
+    if current >= plan.max_users:
+        raise ValidationError(
+            {"plan": f"Alcanzaste el límite de {plan.max_users} usuarios del plan {plan.name}. Sube de plan para agregar más."}
+        )
+
+
+def ensure_product_quota_available(tenant_id: int) -> None:
+    from apps.catalog.models import TourismProduct
+
+    plan = _active_subscription_plan(tenant_id)
+    if plan is None:
+        return
+    current = TourismProduct.objects.filter(tenant_id=tenant_id).count()
+    if current >= plan.max_products:
+        raise ValidationError(
+            {"plan": f"Alcanzaste el límite de {plan.max_products} productos del plan {plan.name}. Sube de plan para publicar más."}
+        )

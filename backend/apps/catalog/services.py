@@ -5,6 +5,7 @@ from rest_framework.exceptions import NotFound
 from apps.audit.services import record_audit
 from apps.rbac.services import require_permission, require_tenant_access
 from apps.tenancy.models import City
+from apps.tenancy.services import ensure_product_quota_available
 
 from .models import Currency, ProductType, TourismProduct
 
@@ -55,6 +56,7 @@ def _relations(data: dict) -> dict:
 def create_product(*, actor, tenant_id: int, request=None, **data) -> TourismProduct:
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "PRODUCTOS_GESTIONAR", tenant_id)
+    ensure_product_quota_available(tenant_id)
     requested_code = data.pop("codigo", None)
     values = _relations(data)
     values["code"] = _unique_product_code(tenant_id, values["name"], requested_code)
