@@ -388,6 +388,84 @@ paths:
               schema:
                 $ref: '#/components/schemas/Company'
           description: ''
+  /api/v1/empresas/{id}/suscripcion/:
+    get:
+      operationId: api_v1_empresas_suscripcion_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+          description: ''
+    put:
+      operationId: api_v1_empresas_suscripcion_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionChange'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubscriptionChange'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubscriptionChange'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+          description: ''
+  /api/v1/empresas/autoregistro/:
+    post:
+      operationId: api_v1_empresas_autoregistro_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanySelfSignup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompanySelfSignup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompanySelfSignup'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+          description: ''
   /api/v1/health/:
     get:
       operationId: api_v1_health_retrieve
@@ -456,6 +534,23 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Permission'
+          description: ''
+  /api/v1/planes/:
+    get:
+      operationId: api_v1_planes_list
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plan'
           description: ''
   /api/v1/productos/:
     get:
@@ -908,10 +1003,49 @@ components:
         telefono:
           type: string
           maxLength: 30
+        plan_codigo:
+          type: string
+          default: BASICO
+          maxLength: 50
         propietario:
           $ref: '#/components/schemas/OwnerInput'
       required:
       - nombre_comercial
+      - propietario
+      - razon_social
+    CompanySelfSignup:
+      type: object
+      properties:
+        razon_social:
+          type: string
+          maxLength: 180
+        nombre_comercial:
+          type: string
+          maxLength: 180
+        plan_codigo:
+          type: string
+          maxLength: 50
+        ciudad_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        subdominio:
+          type: string
+          pattern: ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$
+        nit:
+          type: string
+          maxLength: 30
+        email_contacto:
+          type: string
+          format: email
+        telefono:
+          type: string
+          maxLength: 30
+        propietario:
+          $ref: '#/components/schemas/OwnerInput'
+      required:
+      - nombre_comercial
+      - plan_codigo
       - propietario
       - razon_social
     CompanyUpdateEstadoEnum:
@@ -1183,6 +1317,43 @@ components:
       - id
       - module
       - name
+    Plan:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+        nombre:
+          type: string
+        moneda:
+          type: string
+          readOnly: true
+        precio_mensual:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        max_usuarios:
+          type: integer
+        max_productos:
+          type: integer
+        porcentaje_comision:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        activo:
+          type: boolean
+      required:
+      - activo
+      - codigo
+      - id
+      - max_productos
+      - max_usuarios
+      - moneda
+      - nombre
+      - porcentaje_comision
+      - precio_mensual
     Product:
       type: object
       properties:
@@ -1386,6 +1557,49 @@ components:
       description: |-
         * `GLOBAL` - Global
         * `TENANT` - Tenant
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        plan:
+          allOf:
+          - $ref: '#/components/schemas/Plan'
+          readOnly: true
+        fecha_inicio:
+          type: string
+          format: date
+        fecha_fin:
+          type: string
+          format: date
+          nullable: true
+        estado:
+          type: string
+        renovacion_automatica:
+          type: boolean
+        creado_en:
+          type: string
+          format: date-time
+      required:
+      - creado_en
+      - estado
+      - fecha_fin
+      - fecha_inicio
+      - id
+      - plan
+      - renovacion_automatica
+    SubscriptionChange:
+      type: object
+      properties:
+        plan_codigo:
+          type: string
+          maxLength: 50
+        renovacion_automatica:
+          type: boolean
+          default: false
+      required:
+      - plan_codigo
     TenantContext:
       type: object
       properties:

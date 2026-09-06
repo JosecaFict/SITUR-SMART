@@ -214,7 +214,7 @@ export class Roles implements OnInit {
 
   protected deleteRole(role: Role): void {
     const companyId = this.selectedCompanyId();
-    if (!companyId || role.is_system || !confirm(`¿Eliminar el rol “${role.name}”?`)) return;
+    if (!companyId || role.is_system || !confirm(`¿Eliminar el rol "${role.name}"?`)) return;
     this.rbac.deleteRole(companyId, role.id).subscribe({
       next: () => {
         this.roles.update((roles) => roles.filter((current) => current.id !== role.id));

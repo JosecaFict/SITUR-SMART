@@ -6,7 +6,7 @@ from rest_framework import serializers
 from apps.accounts.models import User
 from apps.rbac.models import UserRole
 
-from .models import City, Country, Tenant
+from .models import City, Country, Plan, Subscription, Tenant
 
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -133,11 +133,17 @@ class CompanyCreateSerializer(serializers.Serializer):
     nit = serializers.CharField(max_length=30, required=False, allow_blank=True)
     email_contacto = serializers.EmailField(required=False, allow_blank=True)
     telefono = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    plan_codigo = serializers.CharField(max_length=50, required=False, default="BASICO")
     propietario = OwnerInputSerializer()
 
     def validate_ciudad_id(self, value):
         if value is not None and not City.objects.filter(pk=value).exists():
             raise serializers.ValidationError("La ciudad seleccionada no existe.")
+        return value
+
+    def validate_plan_codigo(self, value):
+        if not Plan.objects.filter(code__iexact=value, active=True).exists():
+            raise serializers.ValidationError("El plan seleccionado no existe o no está disponible.")
         return value
 
 
@@ -158,3 +164,80 @@ class CompanyUpdateSerializer(serializers.Serializer):
 
 class OwnerAssignSerializer(serializers.Serializer):
     propietario = OwnerInputSerializer()
+
+
+class PlanSerializer(serializers.ModelSerializer):
+    codigo = serializers.CharField(source="code")
+    nombre = serializers.CharField(source="name")
+    moneda = serializers.CharField(source="currency.iso_code", read_only=True)
+    precio_mensual = serializers.DecimalField(source="monthly_price", max_digits=12, decimal_places=2)
+    max_usuarios = serializers.IntegerField(source="max_users")
+    max_productos = serializers.IntegerField(source="max_products")
+    porcentaje_comision = serializers.DecimalField(
+        source="commission_percentage", max_digits=5, decimal_places=2
+    )
+    activo = serializers.BooleanField(source="active")
+
+    class Meta:
+        model = Plan
+        fields = (
+            "id",
+            "codigo",
+            "nombre",
+            "moneda",
+            "precio_mensual",
+            "max_usuarios",
+            "max_productos",
+            "porcentaje_comision",
+            "activo",
+        )
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    plan = PlanSerializer(read_only=True)
+    fecha_inicio = serializers.DateField(source="start_date")
+    fecha_fin = serializers.DateField(source="end_date", allow_null=True)
+    estado = serializers.CharField(source="status")
+    renovacion_automatica = serializers.BooleanField(source="auto_renew")
+    creado_en = serializers.DateTimeField(source="created_at")
+
+    class Meta:
+        model = Subscription
+        fields = (
+            "id",
+            "plan",
+            "fecha_inicio",
+            "fecha_fin",
+            "estado",
+            "renovacion_automatica",
+            "creado_en",
+        )
+
+
+class SubscriptionChangeSerializer(serializers.Serializer):
+    plan_codigo = serializers.CharField(max_length=50)
+    renovacion_automatica = serializers.BooleanField(required=False, default=False, source="auto_renew")
+
+
+class CompanySelfSignupSerializer(serializers.Serializer):
+    razon_social = serializers.CharField(max_length=180)
+    nombre_comercial = serializers.CharField(max_length=180)
+    plan_codigo = serializers.CharField(max_length=50)
+    ciudad_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    subdominio = serializers.RegexField(
+        r"^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$", required=False, allow_blank=True
+    )
+    nit = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    email_contacto = serializers.EmailField(required=False, allow_blank=True)
+    telefono = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    propietario = OwnerInputSerializer()
+
+    def validate_ciudad_id(self, value):
+        if value is not None and not City.objects.filter(pk=value).exists():
+            raise serializers.ValidationError("La ciudad seleccionada no existe.")
+        return value
+
+    def validate_plan_codigo(self, value):
+        if not Plan.objects.filter(code__iexact=value, active=True).exists():
+            raise serializers.ValidationError("El plan seleccionado no existe o no está disponible.")
+        return value

@@ -19,6 +19,7 @@ from apps.audit.services import record_audit
 from apps.rbac.models import Role, UserRole
 from apps.rbac.services import is_superadmin, require_permission, require_tenant_access
 from apps.tenancy.models import UserTenant
+from apps.tenancy.services import ensure_user_quota_available
 
 from .brevo import send_password_reset_otp_email
 from .models import PasswordResetToken, User, UserSession
@@ -173,6 +174,12 @@ def create_or_link_tenant_user(
         created = True
     else:
         _protect_company_owner(actor, user.id, tenant_id)
+
+    already_active_member = UserTenant.objects.filter(
+        user=user, tenant_id=tenant_id, status=UserTenant.Status.ACTIVE
+    ).exists()
+    if not already_active_member:
+        ensure_user_quota_available(tenant_id)
 
     membership, _ = UserTenant.objects.get_or_create(
         user=user, tenant_id=tenant_id, defaults={"status": UserTenant.Status.ACTIVE}

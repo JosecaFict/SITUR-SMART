@@ -4,11 +4,16 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   City,
+  CompanySubscriptionInfo,
   Country,
   Company,
   CompanyStatus,
   CreateCompanyPayload,
   OwnerPayload,
+  Plan,
+  SelfSignupPayload,
+  SelfSignupResponse,
+  Subscription,
   UpdateCompanyPayload,
 } from './companies.models';
 
@@ -51,5 +56,23 @@ export class CompaniesService {
 
   listCountries(): Observable<Country[]> {
     return this.http.get<Country[]>(`${environment.apiUrl}/catalogos/paises/`);
+  }
+
+  listPlans(): Observable<Plan[]> {
+    return this.http.get<Plan[]>(`${environment.apiUrl}/planes/`);
+  }
+
+  selfSignup(payload: SelfSignupPayload): Observable<SelfSignupResponse> {
+    return this.http.post<SelfSignupResponse>(`${environment.apiUrl}/empresas/autoregistro/`, payload);
+  }
+
+  getSubscription(companyId: number): Observable<CompanySubscriptionInfo> {
+    return this.http.get<CompanySubscriptionInfo>(`${environment.apiUrl}/empresas/${companyId}/suscripcion/`);
+  }
+
+  changeSubscription(companyId: number, planCodigo: string): Observable<Subscription> {
+    return this.http.put<Subscription>(`${environment.apiUrl}/empresas/${companyId}/suscripcion/`, {
+      plan_codigo: planCodigo,
+    });
   }
 }
