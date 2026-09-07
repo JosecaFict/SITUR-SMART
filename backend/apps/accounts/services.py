@@ -22,7 +22,8 @@ from apps.tenancy.models import UserTenant
 from apps.tenancy.services import ensure_user_quota_available
 
 from .brevo import send_password_reset_otp_email
-from .models import PasswordResetToken, User, UserSession
+from .models import CustomerProfile, PasswordResetToken, User, UserSession
+
 
 
 def token_hash(token: str) -> str:
@@ -396,3 +397,105 @@ def confirm_password_reset(*, email: str, code: str, new_password: str, request=
     )
 
     return user
+
+
+@transaction.atomic
+def register_customer(
+    *,
+    email: str,
+    password: str,
+    first_names: str,
+    last_names: str,
+    phone: str | None = None,
+    request=None,
+) -> tuple[User, dict[str, str]]:
+    normalized_email = email.strip().lower()
+    if User.objects.filter(email__iexact=normalized_email).exists():
+        raise ValidationError({"email": "Ya existe un usuario con este correo electrónico."})
+
+    if not password or len(password) < 8:
+        raise ValidationError({"password": "La contraseña debe tener al menos 8 caracteres."})
+
+    user = User.objects.create_user(
+        email=normalized_email,
+        password=password,
+        first_names=first_names.strip(),
+        last_names=last_names.strip(),
+        phone=phone.strip() if phone else None,
+        status=User.Status.ACTIVE,
+    )
+
+    role = Role.objects.filter(code="CLIENTE", scope=Role.Scope.GLOBAL).first()
+    if role is None:
+        role, _ = Role.objects.get_or_create(
+            code="CLIENTE",
+            defaults={"name": "Cliente o turista", "scope": Role.Scope.GLOBAL, "is_system": True},
+        )
+
+    UserRole.objects.create(user=user, role=role, tenant=None)
+    CustomerProfile.objects.get_or_create(user=user)
+
+    record_audit(
+        actor=user,
+        tenant_id=None,
+        action="REGISTRO_CLIENTE",
+        entity="usuario",
+        entity_id=str(user.id),
+        new_data={"email": user.email, "role": "CLIENTE"},
+        request=request,
+    )
+
+    user.last_login = timezone.now()
+    user.save(update_fields=["last_login"])
+
+    tokens = token_pair_for_user(user, request)
+    return user, tokens
+
+
+@transaction.atomic
+def update_customer_profile(
+    *,
+    user: User,
+    data: dict,
+    request=None,
+) -> User:
+    update_user_fields = ["updated_at"]
+    if "nombres" in data and data["nombres"] is not None:
+        user.first_names = data["nombres"].strip()
+        update_user_fields.append("first_names")
+    if "apellidos" in data and data["apellidos"] is not None:
+        user.last_names = data["apellidos"].strip()
+        update_user_fields.append("last_names")
+    if "telefono" in data:
+        user.phone = data["telefono"].strip() if data["telefono"] else None
+        update_user_fields.append("phone")
+
+    user.save(update_fields=update_user_fields)
+
+    profile, _ = CustomerProfile.objects.get_or_create(user=user)
+    update_profile_fields = []
+    if "tipo_documento" in data:
+        profile.document_type = data["tipo_documento"].strip() if data["tipo_documento"] else None
+        update_profile_fields.append("document_type")
+    if "numero_documento" in data:
+        profile.document_number = data["numero_documento"].strip() if data["numero_documento"] else None
+        update_profile_fields.append("document_number")
+    if "fecha_nacimiento" in data:
+        profile.birth_date = data["fecha_nacimiento"]
+        update_profile_fields.append("birth_date")
+
+    if update_profile_fields:
+        profile.save(update_fields=update_profile_fields)
+
+    record_audit(
+        actor=user,
+        tenant_id=None,
+        action="ACTUALIZAR_PERFIL",
+        entity="usuario",
+        entity_id=str(user.id),
+        new_data={"email": user.email},
+        request=request,
+    )
+
+    return user
+

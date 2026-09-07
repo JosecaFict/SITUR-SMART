@@ -35,6 +35,11 @@
               <svg lucideShieldCheck class="h-3.5 w-3.5 text-accent-dark"></svg>
               SuperAdmin
             </span>
+          } @else if (isCustomer()) {
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-0.5 text-xs font-semibold text-accent-dark ring-1 ring-accent/20">
+              <svg lucideSparkles class="h-3.5 w-3.5 text-accent"></svg>
+              Viajero / Turista
+            </span>
           } @else if (selectedCompany(); as company) {
             <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20">
               <svg lucideBuilding2 class="h-3.5 w-3.5 text-emerald-600"></svg>
@@ -45,10 +50,13 @@
         <p class="mt-1.5 text-sm text-text-secondary sm:text-base">
           @if (isSuperAdmin()) {
             Supervisión global de la plataforma, control de empresas adheridas y trazabilidad operativa.
+          } @else if (isCustomer()) {
+            Bienvenido a tu panel de viajero. Explora paquetes turísticos, atracciones y gestiona tus datos de viaje.
           } @else {
             Consulta el estado de tu catálogo, publicaciones pendientes y accesos operativos de tu empresa.
           }
         </p>
+
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
@@ -133,9 +141,105 @@
     }
 
     <!-- ========================================================= -->
-    <!-- SUPERADMIN VIEW                                           -->
+    <!-- CUSTOMER / TURISTA VIEW                                   -->
     <!-- ========================================================= -->
-    @if (isSuperAdmin()) {
+    @if (isCustomer()) {
+      <div class="space-y-6">
+        <!-- Hero Welcome Banner -->
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-accent-dark via-teal-800 to-slate-900 p-7 text-white shadow-lg sm:p-9">
+          <div class="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-accent/20 blur-3xl pointer-events-none"></div>
+          <div class="relative z-10 max-w-2xl">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-teal-200 backdrop-blur-sm">
+              <svg lucideCompass class="h-3.5 w-3.5 text-teal-300"></svg>
+              Portal del Viajero
+            </span>
+            <h2 class="mt-3 font-heading text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              ¡Hola{{ session()?.user?.nombres ? ', ' + session()!.user.nombres : '' }}! ¿Listo para tu próxima aventura?
+            </h2>
+            <p class="mt-2 text-sm leading-relaxed text-teal-100/90 sm:text-base">
+              Descubre y reserva hoteles, tours y experiencias turísticas auténticas a lo largo de Bolivia gestionadas por empresas locales certificadas.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a
+                routerLink="/"
+                class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-accent-dark shadow-md transition hover:bg-teal-50"
+              >
+                <svg lucideCompass class="h-4 w-4"></svg>
+                Explorar experiencias
+              </a>
+              <a
+                routerLink="/perfil"
+                class="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+              >
+                <svg lucideUser class="h-4 w-4"></svg>
+                Mi perfil
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Access Feature Cards -->
+        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <!-- Card 1: Explorar Catalogo -->
+          <div class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div>
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-accent-dark">
+                <svg lucideCompass class="h-6 w-6"></svg>
+              </div>
+              <h3 class="mt-4 font-heading text-lg font-bold text-title">Catálogo Turístico</h3>
+              <p class="mt-1 text-sm text-text-secondary">
+                Atracciones, hoteles, transporte y paquetes turísticos de toda Bolivia verificados.
+              </p>
+            </div>
+            <div class="mt-6">
+              <a routerLink="/" class="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-dark hover:underline">
+                Buscar experiencias
+                <svg lucideArrowRight class="h-4 w-4"></svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- Card 2: Mi Perfil -->
+          <div class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div>
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                <svg lucideUser class="h-6 w-6"></svg>
+              </div>
+              <h3 class="mt-4 font-heading text-lg font-bold text-title">Mis Datos de Viaje</h3>
+              <p class="mt-1 text-sm text-text-secondary">
+                Actualiza tu documento de identidad (CI / Pasaporte) y número telefónico para tus reservas.
+              </p>
+            </div>
+            <div class="mt-6">
+              <a routerLink="/perfil" class="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-dark hover:underline">
+                Gestionar mi perfil
+                <svg lucideArrowRight class="h-4 w-4"></svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- Card 3: Seguridad -->
+          <div class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div>
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                <svg lucideShieldCheck class="h-6 w-6"></svg>
+              </div>
+              <h3 class="mt-4 font-heading text-lg font-bold text-title">Seguridad y Cuenta</h3>
+              <p class="mt-1 text-sm text-text-secondary">
+                Tu cuenta está protegida. Puedes cambiar tu clave o solicitar recuperación con código OTP.
+              </p>
+            </div>
+            <div class="mt-6">
+              <a routerLink="/recuperar" class="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-dark hover:underline">
+                Opciones de seguridad
+                <svg lucideArrowRight class="h-4 w-4"></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else if (isSuperAdmin()) {
+
       <!-- Pending Companies Alert Banner (if any) -->
       @if (pendingCompanies() > 0) {
         <div class="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-amber-100/60 to-amber-50 p-4 text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">

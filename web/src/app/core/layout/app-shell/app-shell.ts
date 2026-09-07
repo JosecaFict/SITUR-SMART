@@ -1,13 +1,15 @@
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
-  LucideLayoutDashboard,
   LucideBuilding2,
+  LucideCompass,
+  LucideLayoutDashboard,
   LucideLogOut,
   LucideMenu,
   LucidePackageOpen,
   LucideScrollText,
   LucideShieldCheck,
+  LucideUser,
   LucideUsers,
   LucideX,
 } from '@lucide/angular';
@@ -16,9 +18,11 @@ import { AuthService } from '../../auth/auth.service';
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'products' | 'roles' | 'users' | 'audit';
+  icon: 'dashboard' | 'companies' | 'products' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
   superAdminOnly?: boolean;
   hideForSuperAdmin?: boolean;
+  hideForCustomer?: boolean;
+  customerOnly?: boolean;
   permission?: string;
 }
 
@@ -29,12 +33,14 @@ interface NavItem {
     RouterLink,
     RouterLinkActive,
     LucideBuilding2,
+    LucideCompass,
     LucideLayoutDashboard,
     LucideLogOut,
     LucideMenu,
     LucidePackageOpen,
     LucideScrollText,
     LucideShieldCheck,
+    LucideUser,
     LucideUsers,
     LucideX,
   ],
@@ -50,33 +56,60 @@ export class AppShell {
 
   private readonly allNavItems: NavItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { label: 'Explorar', path: '/', icon: 'explore' },
+    { label: 'Mi Perfil', path: '/perfil', icon: 'profile' },
     {
       label: 'Empresas',
       path: '/empresas',
       icon: 'companies',
       superAdminOnly: true,
+      hideForCustomer: true,
     },
     {
       label: 'Empleados',
       path: '/usuarios',
       icon: 'users',
       hideForSuperAdmin: true,
+      hideForCustomer: true,
       permission: 'USUARIOS_GESTIONAR',
     },
-    { label: 'Roles y permisos', path: '/roles', icon: 'roles', permission: 'ROLES_GESTIONAR' },
-    { label: 'Catálogo', path: '/productos', icon: 'products', permission: 'PRODUCTOS_LEER' },
-    { label: 'Bitácora', path: '/bitacora', icon: 'audit', permission: 'BITACORA_LEER' },
+    {
+      label: 'Roles y permisos',
+      path: '/roles',
+      icon: 'roles',
+      hideForCustomer: true,
+      permission: 'ROLES_GESTIONAR',
+    },
+    {
+      label: 'Catálogo',
+      path: '/productos',
+      icon: 'products',
+      hideForCustomer: true,
+      permission: 'PRODUCTOS_LEER',
+    },
+    {
+      label: 'Bitácora',
+      path: '/bitacora',
+      icon: 'audit',
+      hideForCustomer: true,
+      permission: 'BITACORA_LEER',
+    },
   ];
 
   protected readonly navItems = computed(() => {
-    const isSuperAdmin = this.session()?.user.roles.includes('SUPER_ADMIN') ?? false;
+    const roles = this.session()?.user.roles ?? [];
+    const isSuperAdmin = roles.includes('SUPER_ADMIN');
+    const isCustomer = roles.includes('CLIENTE') && !isSuperAdmin && (this.session()?.user.tenants.length ?? 0) === 0;
     const permissions = this.session()?.user.permisos ?? [];
-    return this.allNavItems.filter(
-      (item) =>
-        (!item.superAdminOnly || isSuperAdmin) &&
-        (!item.hideForSuperAdmin || !isSuperAdmin) &&
-        (!item.permission || isSuperAdmin || permissions.includes(item.permission)),
-    );
+
+    return this.allNavItems.filter((item) => {
+      if (item.customerOnly && !isCustomer) return false;
+      if (item.hideForCustomer && isCustomer) return false;
+      if (item.superAdminOnly && !isSuperAdmin) return false;
+      if (item.hideForSuperAdmin && isSuperAdmin) return false;
+      if (item.permission && !isSuperAdmin && !permissions.includes(item.permission)) return false;
+      return true;
+    });
   });
 
   @HostListener('document:keydown.escape')

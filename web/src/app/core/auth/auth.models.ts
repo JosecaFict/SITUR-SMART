@@ -4,15 +4,23 @@ export interface TenantContext {
   subdomain: string;
 }
 
+export interface CustomerProfileData {
+  tipo_documento?: string | null;
+  numero_documento?: string | null;
+  fecha_nacimiento?: string | null;
+}
+
 export interface AuthUser {
   id: number;
   email: string;
   nombres: string;
   apellidos: string;
+  telefono?: string | null;
   estado: string;
   roles: string[];
   permisos: string[];
   tenants: TenantContext[];
+  perfil?: CustomerProfileData | null;
 }
 
 export interface AuthSession {
@@ -28,10 +36,22 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
-  nombre: string;
+  nombres: string;
+  apellidos: string;
   email: string;
   password: string;
+  telefono?: string | null;
 }
+
+export interface ProfileUpdatePayload {
+  nombres?: string;
+  apellidos?: string;
+  telefono?: string | null;
+  tipo_documento?: string | null;
+  numero_documento?: string | null;
+  fecha_nacimiento?: string | null;
+}
+
 
 export interface ApiErrorResponse {
   error?: {

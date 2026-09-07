@@ -15,24 +15,45 @@
       </div>
     }
 
-    <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5" novalidate>
-      <div>
-        <label for="nombre" class="text-label mb-1.5 block text-sm font-medium">Nombre completo</label>
-        <div class="relative">
-          <input
-            id="nombre"
-            type="text"
-            formControlName="nombre"
-            placeholder="Juan García"
-            autocomplete="name"
-            class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
-            [class.border-input-border-error]="form.controls.nombre.invalid && form.controls.nombre.touched"
-          />
-          <svg lucideUser class="text-text-secondary absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+    <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4" novalidate>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label for="nombres" class="text-label mb-1.5 block text-sm font-medium">Nombres</label>
+          <div class="relative">
+            <input
+              id="nombres"
+              type="text"
+              formControlName="nombres"
+              placeholder="Carlos"
+              autocomplete="given-name"
+              class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+              [class.border-input-border-error]="form.controls.nombres.invalid && form.controls.nombres.touched"
+            />
+            <svg lucideUser class="text-text-secondary absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+          </div>
+          @if (form.controls.nombres.invalid && form.controls.nombres.touched) {
+            <p class="text-error mt-1.5 text-xs">El nombre es obligatorio.</p>
+          }
         </div>
-        @if (form.controls.nombre.invalid && form.controls.nombre.touched) {
-          <p class="text-error mt-1.5 text-xs">El nombre completo es obligatorio.</p>
-        }
+
+        <div>
+          <label for="apellidos" class="text-label mb-1.5 block text-sm font-medium">Apellidos</label>
+          <div class="relative">
+            <input
+              id="apellidos"
+              type="text"
+              formControlName="apellidos"
+              placeholder="Mendoza"
+              autocomplete="family-name"
+              class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+              [class.border-input-border-error]="form.controls.apellidos.invalid && form.controls.apellidos.touched"
+            />
+            <svg lucideUser class="text-text-secondary absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+          </div>
+          @if (form.controls.apellidos.invalid && form.controls.apellidos.touched) {
+            <p class="text-error mt-1.5 text-xs">El apellido es obligatorio.</p>
+          }
+        </div>
       </div>
 
       <div>
@@ -42,7 +63,7 @@
             id="reg-email"
             type="email"
             formControlName="email"
-            placeholder="juan@ejemplo.com"
+            placeholder="carlos@ejemplo.com"
             autocomplete="email"
             class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
             [class.border-input-border-error]="form.controls.email.invalid && form.controls.email.touched"
@@ -52,6 +73,23 @@
         @if (form.controls.email.invalid && form.controls.email.touched) {
           <p class="text-error mt-1.5 text-xs">Ingresa un correo electrónico válido.</p>
         }
+      </div>
+
+      <div>
+        <label for="reg-telefono" class="text-label mb-1.5 block text-sm font-medium">
+          Teléfono <span class="text-text-secondary text-xs font-normal">(opcional)</span>
+        </label>
+        <div class="relative">
+          <input
+            id="reg-telefono"
+            type="tel"
+            formControlName="telefono"
+            placeholder="+591 70000000"
+            autocomplete="tel"
+            class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-4 text-sm outline-none focus:ring-2"
+          />
+          <svg lucidePhone class="text-text-secondary absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+        </div>
       </div>
 
       <div>
@@ -131,7 +169,7 @@
       <button
         type="submit"
         [disabled]="loading()"
-        class="btn-accent mt-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-70"
+        class="btn-accent mt-2 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-70"
       >
         @if (loading()) {
           <svg lucideLoaderCircle class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
@@ -146,16 +184,17 @@
       <span class="animate-fade-in-scale flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
         <svg lucideCircleCheck class="h-7 w-7 text-emerald-600" [strokeWidth]="2"></svg>
       </span>
-      <h2 class="animate-fade-in-up-delay font-heading text-title mt-4 text-2xl font-bold">¡Registro exitoso!</h2>
+      <h2 class="animate-fade-in-up-delay font-heading text-title mt-4 text-2xl font-bold">¡Cuenta creada con éxito!</h2>
       <p class="animate-fade-in-up-delay text-text-secondary mt-2 text-sm">
-        Tu cuenta ha sido creada correctamente. Ahora puedes iniciar sesión.
+        Bienvenido a SITUR-SMART. Ya puedes explorar experiencias turísticas o configurar tu perfil.
       </p>
-      <a
-        routerLink="/login"
+      <button
+        type="button"
+        (click)="continueToApp()"
         class="animate-fade-in-up-delay btn-accent mt-6 w-full rounded-xl py-2.5 text-center text-sm font-semibold text-white"
       >
-        Ir al inicio de sesión
-      </a>
+        Continuar a SITUR-SMART
+      </button>
     </div>
   }
 </situr-auth-layout>
