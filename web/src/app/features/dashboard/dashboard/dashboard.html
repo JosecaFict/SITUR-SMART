@@ -93,6 +93,13 @@
           </a>
         }
 
+        @if (lastUpdated(); as updated) {
+          <span class="hidden text-xs text-text-secondary sm:inline-flex sm:items-center sm:gap-1.5">
+            <svg lucideClock3 class="h-3.5 w-3.5"></svg>
+            Actualizado {{ updated | date: 'HH:mm:ss' }}
+          </span>
+        }
+
         <button
           type="button"
           (click)="reload()"

@@ -98,6 +98,7 @@ export class Dashboard implements OnInit {
   protected readonly session = this.auth.session;
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly lastUpdated = signal<Date | null>(null);
 
   // Raw data signals
   protected readonly companies = signal<Company[]>([]);
@@ -307,6 +308,7 @@ export class Dashboard implements OnInit {
       next: (companies) => {
         this.companies.set(companies);
         this.loading.set(false);
+        this.lastUpdated.set(new Date());
       },
       error: () => {
         this.loading.set(false);
@@ -343,6 +345,7 @@ export class Dashboard implements OnInit {
       this.roles.set(roles ?? []);
       this.productTypes.set(types ?? []);
       this.loading.set(false);
+      this.lastUpdated.set(new Date());
 
       const requestedSources = [
         canReadProducts && products,
