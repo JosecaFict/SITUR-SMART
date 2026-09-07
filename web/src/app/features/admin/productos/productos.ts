@@ -2,14 +2,16 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
-  LucideBuilding2, LucideCircleAlert, LucideEye, LucideEyeOff, LucideImage,
-  LucideMapPin, LucidePackageOpen, LucidePencil, LucidePlus, LucideRefreshCw,
-  LucideSearch, LucideUsers, LucideX,
+  LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
+  LucideImage, LucideLink, LucideMapPin, LucidePackageOpen, LucidePencil,
+  LucidePlus, LucideRefreshCw, LucideSearch, LucideTrash2, LucideUpload,
+  LucideUsers, LucideX,
 } from '@lucide/angular';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { City } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
+import { MediaService } from '../../../core/media/media.service';
 import { Currency, ProductStatus, ProductType, TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
 
@@ -19,9 +21,9 @@ type StatusFilter = 'TODOS' | ProductStatus;
 @Component({
   selector: 'situr-productos',
   imports: [
-    ReactiveFormsModule, LucideBuilding2, LucideCircleAlert, LucideEye, LucideEyeOff,
-    LucideImage, LucideMapPin, LucidePackageOpen, LucidePencil, LucidePlus,
-    LucideRefreshCw, LucideSearch, LucideUsers, LucideX,
+    ReactiveFormsModule, LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
+    LucideImage, LucideLink, LucideMapPin, LucidePackageOpen, LucidePencil, LucidePlus,
+    LucideRefreshCw, LucideSearch, LucideTrash2, LucideUpload, LucideUsers, LucideX,
   ],
   templateUrl: './productos.html',
   styleUrl: './productos.css',
@@ -30,6 +32,7 @@ export class Productos implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly companiesService = inject(CompaniesService);
   private readonly productsService = inject(ProductsService);
+  private readonly mediaService = inject(MediaService);
   private readonly fb = inject(FormBuilder);
 
   protected readonly companies = signal<CompanyChoice[]>([]);
@@ -47,6 +50,13 @@ export class Productos implements OnInit {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
   protected readonly successMessage = signal<string | null>(null);
+
+  // Cloudinary / Media upload states
+  protected readonly currentImageUrl = signal<string>('');
+  protected readonly uploadingImage = signal(false);
+  protected readonly imageUploadError = signal<string | null>(null);
+  protected readonly showManualUrl = signal(false);
+  protected readonly isDragOver = signal(false);
 
   protected readonly isSuperAdmin = computed(() => this.auth.session()?.user.roles.includes('SUPER_ADMIN') ?? false);
   protected readonly canManage = computed(() => {
@@ -119,17 +129,49 @@ export class Productos implements OnInit {
 
   protected startCreate(): void {
     this.editingProduct.set(null);
-    this.productForm.reset({ tipo_codigo: this.types()[0]?.codigo ?? '', ciudad_id: this.cities()[0]?.id ?? 0, moneda_codigo: this.currencies()[0]?.codigo ?? 'BOB', precio_base: 0, capacidad_maxima: 1, estado: 'BORRADOR' });
-    this.formError.set(null); this.showForm.set(true);
+    this.currentImageUrl.set('');
+    this.imageUploadError.set(null);
+    this.showManualUrl.set(false);
+    this.productForm.reset({
+      tipo_codigo: this.types()[0]?.codigo ?? '',
+      ciudad_id: this.cities()[0]?.id ?? 0,
+      moneda_codigo: this.currencies()[0]?.codigo ?? 'BOB',
+      precio_base: 0,
+      capacidad_maxima: 1,
+      estado: 'BORRADOR',
+    });
+    this.formError.set(null);
+    this.showForm.set(true);
   }
 
   protected startEdit(product: TourismProduct): void {
     this.editingProduct.set(product);
-    this.productForm.setValue({ nombre: product.nombre, tipo_codigo: product.tipo_codigo, ciudad_id: product.ciudad_id, localidad: product.localidad ?? '', moneda_codigo: product.moneda_codigo, precio_base: Number(product.precio_base), capacidad_maxima: product.capacidad_maxima, descripcion: product.descripcion ?? '', imagen_url: product.imagen_url ?? '', estado: product.estado });
-    this.formError.set(null); this.showForm.set(true);
+    this.currentImageUrl.set(product.imagen_url ?? '');
+    this.imageUploadError.set(null);
+    this.showManualUrl.set(!!product.imagen_url && !this.isCloudinaryUrl(product.imagen_url));
+    this.productForm.setValue({
+      nombre: product.nombre,
+      tipo_codigo: product.tipo_codigo,
+      ciudad_id: product.ciudad_id,
+      localidad: product.localidad ?? '',
+      moneda_codigo: product.moneda_codigo,
+      precio_base: Number(product.precio_base),
+      capacidad_maxima: product.capacidad_maxima,
+      descripcion: product.descripcion ?? '',
+      imagen_url: product.imagen_url ?? '',
+      estado: product.estado,
+    });
+    this.formError.set(null);
+    this.showForm.set(true);
   }
 
-  protected cancelForm(): void { this.showForm.set(false); this.editingProduct.set(null); this.productForm.reset(); }
+  protected cancelForm(): void {
+    this.showForm.set(false);
+    this.editingProduct.set(null);
+    this.currentImageUrl.set('');
+    this.imageUploadError.set(null);
+    this.productForm.reset();
+  }
 
   protected submitProduct(): void {
     const companyId = this.selectedCompanyId();
@@ -172,6 +214,85 @@ export class Productos implements OnInit {
 
   protected imageError(event: Event): void {
     (event.target as HTMLImageElement).style.display = 'none';
+  }
+
+  // --- Cloudinary / Image Upload Actions ---
+  protected onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    this.uploadFile(file);
+    input.value = '';
+  }
+
+  protected onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver.set(true);
+  }
+
+  protected onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver.set(false);
+  }
+
+  protected onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver.set(false);
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      const file = event.dataTransfer.files[0];
+      this.uploadFile(file);
+    }
+  }
+
+  private uploadFile(file: File): void {
+    this.imageUploadError.set(null);
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      this.imageUploadError.set('Formato no admitido. Selecciona un archivo JPG, PNG, WEBP o AVIF.');
+      return;
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      this.imageUploadError.set('La imagen supera el límite de 10 MB.');
+      return;
+    }
+
+    this.uploadingImage.set(true);
+    this.mediaService.uploadImage(file, 'productos').subscribe({
+      next: (res) => {
+        this.productForm.patchValue({ imagen_url: res.url });
+        this.currentImageUrl.set(res.url);
+        this.uploadingImage.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.uploadingImage.set(false);
+        this.imageUploadError.set(this.apiMessage(error, 'No fue posible subir la imagen a Cloudinary.'));
+      },
+    });
+  }
+
+  protected removeImage(): void {
+    this.productForm.patchValue({ imagen_url: '' });
+    this.currentImageUrl.set('');
+    this.imageUploadError.set(null);
+  }
+
+  protected toggleManualUrl(): void {
+    this.showManualUrl.update((v) => !v);
+  }
+
+  protected onManualUrlInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.currentImageUrl.set(val);
+  }
+
+  protected isCloudinaryUrl(url: string): boolean {
+    return url.includes('cloudinary.com') || url.includes('res.cloudinary');
   }
 
   private apiMessage(error: HttpErrorResponse, fallback: string): string {

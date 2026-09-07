@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "apps.rbac",
     "apps.audit",
     "apps.catalog",
+    "apps.media",
 ]
 
 MIDDLEWARE = [
@@ -165,4 +166,9 @@ BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "jcvillarroeld126@ficct.uag
 BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "SITUR-SMART")
 PASSWORD_RESET_OTP_MINUTES = int(os.getenv("PASSWORD_RESET_OTP_MINUTES", "15"))
 PASSWORD_RESET_RATE_LIMIT_SECONDS = int(os.getenv("PASSWORD_RESET_RATE_LIMIT_SECONDS", "60"))
+
+# Cloudinary Media Storage
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
 

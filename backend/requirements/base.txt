@@ -6,4 +6,5 @@ django-cors-headers>=4.7,<5
 drf-spectacular>=0.28,<0.29
 python-dotenv>=1.1,<2
 argon2-cffi>=23.1,<26
+cloudinary>=1.40.0,<2
 

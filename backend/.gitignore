@@ -15,6 +15,6 @@ htmlcov/
 venv/
 dist/
 build/
-staticfiles/
-media/
+/staticfiles/
+/media/
 
