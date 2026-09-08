@@ -1,3 +1,5 @@
+# Guarda la logica mas compleja
+
 from django.db import transaction
 from rest_framework.exceptions import PermissionDenied, ValidationError
 

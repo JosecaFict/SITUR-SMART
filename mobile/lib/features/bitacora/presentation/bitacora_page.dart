@@ -1,106 +1,593 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../data/bitacora_service.dart';
+import '../models/bitacora.dart';
 
-class BitacoraPage extends StatelessWidget {
+import '../../../core/theme/app_theme.dart';
+
+
+
+class BitacoraPage extends StatefulWidget {
 
   const BitacoraPage({
     super.key,
   });
 
 
+  @override
+  State<BitacoraPage> createState() =>
+      _BitacoraPageState();
 
-  String _fechaActual() {
+}
 
-    final now = DateTime.now();
 
-    return DateFormat('dd/MM/yyyy').format(now);
+
+class _BitacoraPageState extends State<BitacoraPage> {
+
+
+  final BitacoraService _service =
+      BitacoraService();
+
+
+  List<Bitacora> _registros = [];
+
+
+  bool _loading = true;
+
+
+  String? _error;
+
+
+
+  @override
+  void initState(){
+
+    super.initState();
+
+    _loadBitacora();
 
   }
 
 
 
-  String _horaActual() {
 
-    final now = DateTime.now();
 
-    return DateFormat('HH:mm:ss').format(now);
+  Future<void> _loadBitacora() async {
+
+    try {
+
+      final data =
+          await _service.getBitacora();
+
+
+      setState((){
+
+        _registros = data;
+
+        _loading = false;
+
+      });
+
+
+    } catch(e){
+
+      setState((){
+
+        _error = e.toString();
+
+        _loading = false;
+
+      });
+
+    }
 
   }
+
+
 
 
 
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
 
 
-    final fecha = _fechaActual();
+    if(_loading){
 
-    final hora = _horaActual();
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
 
-
-
-    return ListView(
-
-      padding: const EdgeInsets.all(20),
-
-
-      children: [
+    }
 
 
 
-        _buildItem(
+    if(_error != null){
 
-          icon: Icons.login,
+      return Center(
+        child: Text(_error!),
+      );
 
-          titulo: 'Inicio de sesión',
+    }
 
-          descripcion:
-              'Usuario ingresó al sistema',
 
-          fecha: fecha,
 
-          hora: hora,
+
+    return RefreshIndicator(
+
+      onRefresh: _loadBitacora,
+
+
+      child: ListView(
+
+        padding:
+            const EdgeInsets.all(20),
+
+
+        children:[
+
+
+
+          const Text(
+
+            'Bitácora',
+
+            style: TextStyle(
+
+              fontSize:32,
+
+              fontWeight:
+                  FontWeight.bold,
+
+              color:
+                  AppTheme.titleColor,
+
+            ),
+
+          ),
+
+
+
+          const SizedBox(
+            height:6,
+          ),
+
+
+
+
+          const Text(
+
+            'Historial de cambios de toda la plataforma. Filtra por empresa para revisar una en particular.',
+
+            style: TextStyle(
+
+              fontSize:16,
+
+              color:
+                  AppTheme.textSecondary,
+
+            ),
+
+          ),
+
+
+
+
+          const SizedBox(
+            height:22,
+          ),
+
+
+
+
+          _filters(),
+
+
+
+          const SizedBox(
+            height:22,
+          ),
+
+
+
+
+          _table(),
+
+
+
+        ],
+
+      ),
+
+    );
+
+
+  }
+
+
+
+
+
+
+
+
+
+  Widget _filters(){
+
+
+    return Container(
+
+      padding:
+          const EdgeInsets.all(18),
+
+
+      decoration:
+          BoxDecoration(
+
+        color:
+            Colors.white,
+
+        borderRadius:
+            BorderRadius.circular(18),
+
+
+        border:
+            Border.all(
+
+              color:
+                  AppTheme.demoBorder,
+
+            ),
+
+      ),
+
+
+      child: Column(
+
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
+
+        children:[
+
+
+
+          _select(
+            'Empresa',
+            'Todas las empresas',
+          ),
+
+
+
+          const SizedBox(
+            height:15,
+          ),
+
+
+
+          _select(
+            'Entidad',
+            'Todas',
+          ),
+
+
+
+          const SizedBox(
+            height:15,
+          ),
+
+
+
+          _select(
+            'Acción',
+            'Todas',
+          ),
+
+
+
+
+          const SizedBox(
+            height:15,
+          ),
+
+
+
+
+          const Text(
+
+            'Usuario',
+
+            style: TextStyle(
+
+              fontWeight:
+                  FontWeight.bold,
+
+            ),
+
+          ),
+
+
+
+
+          const SizedBox(
+            height:8,
+          ),
+
+
+
+
+          TextField(
+
+            decoration:
+                InputDecoration(
+
+              hintText:
+                  'Nombre o correo',
+
+              prefixIcon:
+                  const Icon(
+                    Icons.search,
+                  ),
+
+
+              border:
+                  OutlineInputBorder(
+
+                borderRadius:
+                    BorderRadius.circular(14),
+
+              ),
+
+            ),
+
+          ),
+
+
+
+
+
+          const SizedBox(
+            height:15,
+          ),
+
+
+
+
+          Column(
+
+            children:[
+
+              _dateBox(
+                'Desde',
+              ),
+
+
+              const SizedBox(
+                height:12,
+              ),
+
+
+              _dateBox(
+                'Hasta',
+              ),
+
+
+            ],
+
+          ),
+
+
+
+
+          const SizedBox(
+            height:18,
+          ),
+
+
+
+
+
+          Wrap(
+
+            spacing:
+                12,
+
+
+            runSpacing:
+                12,
+
+
+            children:[
+
+
+
+              ElevatedButton(
+
+                onPressed:(){},
+
+
+                style:
+                    ElevatedButton.styleFrom(
+
+                  backgroundColor:
+                      AppTheme.accent,
+
+                  foregroundColor:
+                      Colors.white,
+
+                ),
+
+
+                child:
+                    const Text(
+                      'Aplicar filtros',
+                    ),
+
+              ),
+
+
+
+
+              OutlinedButton(
+
+                onPressed:(){},
+
+
+                child:
+                    const Text(
+                      'Limpiar',
+                    ),
+
+              ),
+
+
+
+
+              OutlinedButton.icon(
+
+                onPressed:
+                    _loadBitacora,
+
+
+                icon:
+                    const Icon(
+                      Icons.refresh,
+                    ),
+
+
+                label:
+                    const Text(
+                      'Actualizar',
+                    ),
+
+              ),
+
+
+            ],
+
+
+          ),
+
+
+
+
+        ],
+
+
+      ),
+
+
+    );
+
+
+  }
+
+
+
+
+
+
+
+
+
+  Widget _select(
+    String title,
+    String value,
+  ){
+
+
+    return Column(
+
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+
+
+      children:[
+
+
+
+        Text(
+
+          title,
+
+          style:
+              const TextStyle(
+
+            fontWeight:
+                FontWeight.bold,
+
+          ),
 
         ),
 
 
 
 
-        _buildItem(
-
-          icon: Icons.person_add,
-
-          titulo: 'Usuario creado',
-
-          descripcion:
-              'Registro de usuario en plataforma',
-
-          fecha: fecha,
-
-          hora: hora,
-
+        const SizedBox(
+          height:8,
         ),
 
 
 
 
-        _buildItem(
+        Container(
 
-          icon: Icons.business,
+          height:
+              52,
 
-          titulo: 'Empresa registrada',
 
-          descripcion:
-              'Nuevo tenant agregado',
+          padding:
+              const EdgeInsets.symmetric(
+                horizontal:15,
+              ),
 
-          fecha: fecha,
 
-          hora: hora,
+
+          decoration:
+              BoxDecoration(
+
+            border:
+                Border.all(
+                  color:
+                      Colors.grey.shade300,
+                ),
+
+
+            borderRadius:
+                BorderRadius.circular(14),
+
+
+          ),
+
+
+
+
+          child: Row(
+
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
+
+
+            children:[
+
+
+              Text(value),
+
+
+
+              const Icon(
+                Icons.keyboard_arrow_down,
+              ),
+
+
+            ],
+
+
+          ),
+
 
         ),
-
 
 
       ],
@@ -117,172 +604,197 @@ class BitacoraPage extends StatelessWidget {
 
 
 
-  Widget _buildItem({
-
-    required IconData icon,
-
-    required String titulo,
-
-    required String descripcion,
-
-    required String fecha,
-
-    required String hora,
-
-  }) {
 
 
-    return Card(
+  Widget _dateBox(
+    String title,
+  ){
 
-      margin:
 
-          const EdgeInsets.only(
+    return Column(
 
-        bottom: 14,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+
+
+      children:[
+
+
+
+        Text(
+
+          title,
+
+          style:
+              const TextStyle(
+
+            fontWeight:
+                FontWeight.bold,
+
+          ),
+
+        ),
+
+
+
+
+        const SizedBox(
+          height:8,
+        ),
+
+
+
+
+        Container(
+
+          height:
+              52,
+
+
+          padding:
+              const EdgeInsets.symmetric(
+                horizontal:12,
+              ),
+
+
+
+          decoration:
+              BoxDecoration(
+
+            border:
+                Border.all(
+                  color:
+                      Colors.grey.shade300,
+                ),
+
+
+            borderRadius:
+                BorderRadius.circular(14),
+
+
+          ),
+
+
+
+
+          child: Row(
+
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
+
+
+            children:[
+
+
+
+              const Text(
+                'dd/mm/aaaa',
+              ),
+
+
+
+              const Icon(
+                Icons.calendar_month,
+              ),
+
+
+            ],
+
+
+          ),
+
+
+        ),
+
+
+      ],
+
+
+    );
+
+
+  }
+
+
+
+
+
+
+
+
+
+  Widget _table(){
+
+
+    return Container(
+
+      decoration:
+          BoxDecoration(
+
+        color:
+            Colors.white,
+
+
+        borderRadius:
+            BorderRadius.circular(18),
+
+
+
+        border:
+            Border.all(
+
+              color:
+                  AppTheme.demoBorder,
+
+            ),
+
 
       ),
 
 
 
-      child: Padding(
 
-        padding:
+      child:
+          SingleChildScrollView(
 
-            const EdgeInsets.all(16),
-
-
-
-        child: Column(
-
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+        scrollDirection:
+            Axis.horizontal,
 
 
+        child:
+            DataTable(
 
-          children: [
-
-
-
-            Row(
-
-              children: [
+          columnSpacing:
+              35,
 
 
-
-                Icon(
-
-                  icon,
-
-                ),
+          columns:[
 
 
-
-                const SizedBox(
-                  width: 12,
-                ),
-
-
-
-                Text(
-
-                  titulo,
-
-                  style:
-                      const TextStyle(
-
-                    fontSize: 16,
-
-                    fontWeight:
-                        FontWeight.bold,
-
+            const DataColumn(
+              label:
+                  Text(
+                    'Fecha',
                   ),
+            ),
 
-                ),
 
 
-              ],
-
+            const DataColumn(
+              label:
+                  Text(
+                    'Usuario',
+                  ),
             ),
 
 
 
 
-            const SizedBox(
-              height: 10,
-            ),
-
-
-
-
-            Text(
-              descripcion,
-            ),
-
-
-
-            const SizedBox(
-              height: 12,
-            ),
-
-
-
-
-            Row(
-
-              children: [
-
-
-                const Icon(
-
-                  Icons.calendar_today,
-
-                  size: 16,
-
-                ),
-
-
-
-                const SizedBox(
-                  width: 6,
-                ),
-
-
-
-                Text(
-                  fecha,
-                ),
-
-
-
-                const SizedBox(
-                  width: 20,
-                ),
-
-
-
-                const Icon(
-
-                  Icons.access_time,
-
-                  size: 16,
-
-                ),
-
-
-
-                const SizedBox(
-                  width: 6,
-                ),
-
-
-
-                Text(
-                  hora,
-                ),
-
-
-              ],
-
+            const DataColumn(
+              label:
+                  Text(
+                    'Empresa',
+                  ),
             ),
 
 
@@ -290,9 +802,129 @@ class BitacoraPage extends StatelessWidget {
           ],
 
 
+
+
+
+          rows:
+
+
+              _registros.map(
+
+
+                (registro)=>
+
+
+                    DataRow(
+
+                  cells:[
+
+
+
+                    DataCell(
+
+                      Text(
+
+                        DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format(
+                          registro.fecha,
+                        ),
+
+                      ),
+
+                    ),
+
+
+
+
+
+
+                    DataCell(
+
+                      SizedBox(
+
+                        width:
+                            150,
+
+
+                        child:
+                            Column(
+
+                          mainAxisAlignment:
+                              MainAxisAlignment.center,
+
+
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+
+
+                          children:[
+
+
+
+                            Text(
+
+                              registro.usuario ??
+                                  'Sistema',
+
+
+                              style:
+                                  const TextStyle(
+
+                                fontWeight:
+                                    FontWeight.bold,
+
+                              ),
+
+                            ),
+
+
+
+                          ],
+
+
+                        ),
+
+
+                      ),
+
+
+                    ),
+
+
+
+
+
+
+                    DataCell(
+
+                      Text(
+
+                        registro.entidad,
+
+                      ),
+
+                    ),
+
+
+
+
+                  ],
+
+
+                ),
+
+
+
+              ).toList(),
+
+
+
         ),
 
+
       ),
+
 
     );
 

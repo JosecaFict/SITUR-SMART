@@ -1,3 +1,5 @@
+# Representa las tablas de la base de datos
+
 from django.db import models
 
 

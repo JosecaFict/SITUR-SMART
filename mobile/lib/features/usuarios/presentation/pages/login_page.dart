@@ -1,11 +1,18 @@
+// Archivo actualizado:
+// - Eliminado usuario demo.
+// - Eliminados datos de prueba.
+// - Login guarda usuario autenticado.
+// - Comentarios únicamente por clase y función.
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/storage/token_storage.dart';
-
 import '../../../../core/theme/app_theme.dart';
 import '../../data/auth_service.dart';
 
+
+/// Pantalla de autenticación de usuarios.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -13,20 +20,26 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
+
+/// Controla el formulario, validaciones y proceso de login.
 class _LoginPageState extends State<LoginPage> {
+
   final _formKey = GlobalKey<FormState>();
 
-  final _emailController =
-      TextEditingController(text: 'admin@situr-smart.com');
+  final _emailController = TextEditingController();
 
   final _passwordController = TextEditingController();
 
   final AuthService _authService = AuthService();
 
   bool _obscurePassword = true;
-  bool _rememberMe = false;
+
   bool _isLoading = false;
+
+  bool _rememberMe = false;
+
   String? _errorMessage;
+
 
   @override
   void dispose() {
@@ -35,7 +48,10 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+
+  /// Realiza autenticación y guarda la sesión del usuario.
   Future<void> _submit() async {
+
     FocusScope.of(context).unfocus();
 
     if (!(_formKey.currentState?.validate() ?? false)) {
@@ -48,409 +64,275 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+
       final response = await _authService.login(
-  email: _emailController.text.trim(),
-  password: _passwordController.text,
-);
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
 
-await TokenStorage().saveTokens(
-  access: response['access'],
-  refresh: response['refresh'],
-);
+      final storage = TokenStorage();
 
 
-if (!mounted) return;
+      await storage.saveTokens(
+        access: response['access'],
+        refresh: response['refresh'],
+      );
 
-debugPrint(response.toString());
 
-context.go('/dashboard');
+      await storage.saveUser(
+        response['user'],
+      );
+
+
+      if (!mounted) {
+        return;
+      }
+
+
+      context.go('/dashboard');
+
 
     } catch (e) {
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _errorMessage = e.toString();
       });
 
+
     } finally {
+
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
+
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
+
     final theme = Theme.of(context);
-    final media = MediaQuery.of(context);
-    final isWide = media.size.width >= 900;
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+
+      backgroundColor: Colors.white,
+
       body: SafeArea(
-        child: Row(
-          children: [
-            if (isWide) const Expanded(
-              flex: 11,
-              child: _BrandPanel(),
-            ),
 
-            Expanded(
-              flex: 9,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    isWide ? 40 : 22,
-                    24,
-                    24 + media.viewInsets.bottom,
+        child: Center(
+
+          child: SingleChildScrollView(
+
+            padding: const EdgeInsets.all(28),
+
+            child: Form(
+
+              key: _formKey,
+
+              child: Column(
+
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                children: [
+
+                  const _MobileLogo(),
+
+                  const SizedBox(height: 40),
+
+
+                  Text(
+                    'Bienvenido de vuelta',
+                    style: theme.textTheme.headlineMedium,
                   ),
 
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 430,
-                    ),
 
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  const SizedBox(height: 10),
 
-                        if (!isWide)
-                          const _MobileLogo(),
 
-                        if (!isWide)
-                          const SizedBox(height: 24),
-
-                        Text(
-                          'Bienvenido de vuelta',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontSize: 38,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        Text(
-                          'Ingresa tus credenciales para continuar',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        const _DemoHint(),
-
-                        const SizedBox(height: 16),
-
-                        if (_errorMessage != null)
-                          _ErrorMessage(
-                            message: _errorMessage!,
-                          ),
-
-                        Form(
-                          key: _formKey,
-
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-
-                            children: [
-
-                              const _FieldLabel(
-                                'Correo electrónico',
-                              ),
-
-                              const SizedBox(height: 8),
-
-                              TextFormField(
-                                controller: _emailController,
-                                keyboardType:
-                                    TextInputType.emailAddress,
-
-                                textInputAction:
-                                    TextInputAction.next,
-
-                                decoration:
-                                    const InputDecoration(
-                                  hintText:
-                                      'admin@situr-smart.com',
-                                  suffixIcon:
-                                      Icon(Icons.mail_outline),
-                                ),
-
-                                validator: (value) {
-
-                                  if (value == null ||
-                                      value.trim().isEmpty) {
-                                    return 'El correo es obligatorio.';
-                                  }
-
-                                  if (!RegExp(
-                                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                                  ).hasMatch(value.trim())) {
-                                    return 'Ingresa un correo electrónico válido.';
-                                  }
-
-                                  return null;
-                                },
-
-                                enabled: !_isLoading,
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              const _FieldLabel(
-                                'Contraseña',
-                              ),
-
-                              const SizedBox(height: 8),
-
-                              TextFormField(
-                                controller:
-                                    _passwordController,
-
-                                obscureText:
-                                    _obscurePassword,
-
-                                textInputAction:
-                                    TextInputAction.done,
-
-                                onFieldSubmitted: (_) {
-                                  if (!_isLoading) {
-                                    _submit();
-                                  }
-                                },
-
-                                decoration:
-                                    InputDecoration(
-                                  hintText: '••••••••',
-
-                                  suffixIcon:
-                                      IconButton(
-                                    onPressed:
-                                        _isLoading
-                                            ? null
-                                            : () {
-                                                setState(() {
-                                                  _obscurePassword =
-                                                      !_obscurePassword;
-                                                });
-                                              },
-
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons
-                                              .visibility_outlined
-                                          : Icons
-                                              .visibility_off_outlined,
-                                    ),
-                                  ),
-                                ),
-
-                                validator: (value) =>
-                                    value == null ||
-                                            value.isEmpty
-                                        ? 'La contraseña es obligatoria.'
-                                        : null,
-
-                                enabled: !_isLoading,
-                              ),                              const SizedBox(height: 18),
-
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: _rememberMe,
-                                    onChanged: _isLoading
-                                        ? null
-                                        : (value) {
-                                            setState(() {
-                                              _rememberMe =
-                                                  value ?? false;
-                                            });
-                                          },
-                                  ),
-
-                                  const Text(
-                                    'Recordarme',
-                                  ),
-
-                                  const Spacer(),
-
-                                  TextButton(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : () {
-                                            context.push(
-                                              '/recuperar-contrasena',
-                                            );
-                                          },
-
-                                    child: const Text(
-                                      '¿Olvidaste tu contraseña?',
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 18),
-
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-
-                                child: ElevatedButton(
-                                  onPressed:
-                                      _isLoading
-                                          ? null
-                                          : _submit,
-
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child:
-                                              CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Text(
-                                          'Iniciar sesión',
-                                        ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 18),
-
-                              Center(
-                                child: TextButton(
-                                  onPressed: _isLoading
-                                      ? null
-                                      : () {
-                                          context.push(
-                                            '/registrar-usuario',
-                                          );
-                                        },
-
-                                  child: const Text(
-                                    '¿No tienes cuenta? Regístrate',
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              const Divider(),
-
-                              const SizedBox(height: 12),
-
-                              Center(
-                                child: Text(
-                                  'SITUR-SMART © 2026',
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(
-                                    color:
-                                        AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                  Text(
+                    'Ingresa tus credenciales para continuar',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.textSecondary,
                     ),
                   ),
-                ),
+
+
+                  const SizedBox(height: 30),
+
+
+                  if (_errorMessage != null)
+                    _ErrorMessage(
+                      message: _errorMessage!,
+                    ),
+
+
+                  TextFormField(
+
+                    controller: _emailController,
+
+                    decoration:
+                        const InputDecoration(
+                      labelText: 'Correo electrónico',
+                      prefixIcon:
+                          Icon(Icons.email_outlined),
+                    ),
+
+                    validator: (value) {
+                      if (value == null ||
+                          value.trim().isEmpty) {
+                        return 'El correo es obligatorio.';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+
+                  const SizedBox(height: 20),
+
+
+                  TextFormField(
+
+                    controller: _passwordController,
+
+                    obscureText: _obscurePassword,
+
+                    decoration: InputDecoration(
+
+                      labelText: 'Contraseña',
+
+                      prefixIcon:
+                          const Icon(Icons.lock_outline),
+
+                      suffixIcon:
+                          IconButton(
+
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword =
+                                !_obscurePassword;
+                          });
+                        },
+
+                      ),
+                    ),
+
+                    validator: (value) {
+
+                      if (value == null ||
+                          value.isEmpty) {
+
+                        return 'La contraseña es obligatoria.';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+
+                  const SizedBox(height: 15),
+
+
+                  Row(
+
+                    children: [
+
+                      Checkbox(
+                        value: _rememberMe,
+
+                        onChanged: (value) {
+
+                          setState(() {
+                            _rememberMe = value ?? false;
+                          });
+
+                        },
+                      ),
+
+                      const Text(
+                        'Recordarme',
+                      ),
+                    ],
+                  ),
+
+
+                  const SizedBox(height: 20),
+
+
+                  SizedBox(
+
+                    width: double.infinity,
+
+                    height: 52,
+
+                    child: ElevatedButton(
+
+                      onPressed:
+                          _isLoading
+                              ? null
+                              : _submit,
+
+                      child:
+                          _isLoading
+                              ? const CircularProgressIndicator()
+                              : const Text(
+                                  'Iniciar sesión',
+                                ),
+                    ),
+                  ),
+
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-
-  const _FieldLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context)
-          .textTheme
-          .labelLarge,
-    );
-  }
-}
-
-
-class _ErrorMessage extends StatelessWidget {
-  final String message;
-
-  const _ErrorMessage({
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-
-      margin: const EdgeInsets.only(
-        bottom: 16,
-      ),
-
-      padding: const EdgeInsets.all(12),
-
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(
-          alpha: 0.08,
-        ),
-
-        borderRadius:
-            BorderRadius.circular(12),
-
-        border: Border.all(
-          color: Colors.red.withValues(
-            alpha: 0.3,
           ),
         ),
       ),
-
-      child: Text(
-        message,
-        style: const TextStyle(
-          color: Colors.red,
-        ),
-      ),
     );
   }
 }
 
 
+/// Muestra el logo principal del sistema.
 class _MobileLogo extends StatelessWidget {
+
   const _MobileLogo();
+
 
   @override
   Widget build(BuildContext context) {
+
     return Row(
+
       children: [
+
         Container(
-          width: 46,
-          height: 46,
+
+          width: 50,
+
+          height: 50,
 
           decoration: BoxDecoration(
+
             color: AppTheme.accent,
+
             borderRadius:
                 BorderRadius.circular(14),
+
           ),
 
           child: const Icon(
@@ -459,93 +341,53 @@ class _MobileLogo extends StatelessWidget {
           ),
         ),
 
+
         const SizedBox(width: 12),
+
 
         const Text(
           'SITUR-SMART',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
         ),
+
       ],
     );
   }
 }
 
 
-class _BrandPanel extends StatelessWidget {
-  const _BrandPanel();
+/// Muestra errores del proceso de autenticación.
+class _ErrorMessage extends StatelessWidget {
+
+  final String message;
+
+
+  const _ErrorMessage({
+    required this.message,
+  });
+
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppTheme.accent,
 
-      padding: const EdgeInsets.all(48),
+    return Padding(
 
-      child: Column(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
-
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-
-        children: [
-
-          const Icon(
-            Icons.travel_explore,
-            size: 80,
-            color: Colors.white,
+      padding:
+          const EdgeInsets.only(
+            bottom: 16,
           ),
 
-          const SizedBox(height: 24),
+      child: Text(
 
-          const Text(
-            'SITUR-SMART',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 42,
-              fontWeight: FontWeight.bold,
+        message,
+
+        style:
+            const TextStyle(
+              color: Colors.red,
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          const Text(
-            'Plataforma turística inteligente '
-            'para empresas y usuarios.',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 18,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-class _DemoHint extends StatelessWidget {
-  const _DemoHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-
-      decoration: BoxDecoration(
-        color: AppTheme.accent.withValues(
-  alpha: 0.08,
-),
-
-        borderRadius:
-            BorderRadius.circular(12),
-      ),
-
-      child: const Text(
-        'Usuario prueba: admin@situr-smart.com',
       ),
     );
   }

@@ -1,3 +1,5 @@
+# Define las direcciones
+
 from django.urls import path
 
 from .views import PermissionListView, RoleListCreateView

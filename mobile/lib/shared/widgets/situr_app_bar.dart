@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 
 
+/// Barra superior principal del sistema.
+///
+/// Muestra la identidad de SITUR-SMART
+/// y permite abrir el menú lateral Drawer.
 class SiturAppBar extends StatelessWidget
     implements PreferredSizeWidget {
 
@@ -16,42 +19,98 @@ class SiturAppBar extends StatelessWidget
   });
 
 
+
   @override
   Widget build(BuildContext context) {
 
     return AppBar(
 
-      backgroundColor: AppTheme.accentDark,
-
-      foregroundColor: Colors.white,
-
-      elevation: 0,
-
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      backgroundColor:
+          AppTheme.accentDark,
 
 
-      actions: [
+      foregroundColor:
+          Colors.white,
 
-        IconButton(
 
-          icon: const Icon(
-            Icons.logout,
+      elevation:
+          0,
+
+
+      centerTitle:
+          false,
+
+
+      titleSpacing:
+          0,
+
+
+      title:
+          Row(
+
+        children: [
+
+
+          Container(
+
+            padding:
+                const EdgeInsets.all(6),
+
+
+            decoration:
+                BoxDecoration(
+
+              color:
+                  Colors.white24,
+
+              borderRadius:
+                  BorderRadius.circular(10),
+
+            ),
+
+
+            child:
+                const Icon(
+
+              Icons.travel_explore,
+
+              color:
+                  Colors.white,
+
+              size:
+                  26,
+
+            ),
+
           ),
 
-          onPressed: () {
 
-            context.go('/login');
+          const SizedBox(
+            width: 12,
+          ),
 
-          },
 
-        ),
 
-      ],
+          Text(
+
+            title,
+
+            style:
+                const TextStyle(
+
+              fontWeight:
+                  FontWeight.bold,
+
+              fontSize:
+                  20,
+
+            ),
+
+          ),
+
+        ],
+
+      ),
 
     );
 
@@ -61,6 +120,8 @@ class SiturAppBar extends StatelessWidget
 
   @override
   Size get preferredSize =>
-      const Size.fromHeight(kToolbarHeight);
+      const Size.fromHeight(
+        kToolbarHeight,
+      );
 
 }

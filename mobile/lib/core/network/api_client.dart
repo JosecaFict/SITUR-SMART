@@ -14,6 +14,13 @@ class ApiClient {
 
   final TokenStorage _storage = TokenStorage();
 
+  /// Obtiene el token actual almacenado.
+  Future<String?> getAccessToken() async {
+
+  return await _storage.getAccessToken();
+
+  }
+
 
 
   Future<Map<String, dynamic>> post(

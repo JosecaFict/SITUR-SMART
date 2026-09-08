@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/storage/token_storage.dart';
+import '../../../core/theme/app_theme.dart';
+
 import '../../tenants/data/tenant_service.dart';
 import '../../tenants/models/tenant.dart';
 
-import '../../../core/theme/app_theme.dart';
 
-
+/// Dashboard principal del sistema SITUR-SMART.
+///
+/// Este widget solamente contiene el contenido interno.
+/// La estructura general (AppBar, Drawer y navegación)
+/// pertenece a MainShellPage.
 class DashboardPage extends StatefulWidget {
 
   const DashboardPage({
@@ -21,8 +27,12 @@ class DashboardPage extends StatefulWidget {
 
 
 
+/// Controla la carga de información del usuario
+/// y las empresas asociadas.
 class _DashboardPageState extends State<DashboardPage> {
 
+  final TokenStorage _storage =
+      TokenStorage();
 
   final TenantService _tenantService =
       TenantService();
@@ -30,9 +40,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
   List<Tenant> _tenants = [];
 
+  String _name = 'Usuario';
+
+  String _role = '';
+
 
   bool _loading = true;
-
 
   String? _error;
 
@@ -43,15 +56,21 @@ class _DashboardPageState extends State<DashboardPage> {
 
     super.initState();
 
-    _loadTenants();
+    _loadData();
 
   }
 
 
 
-  Future<void> _loadTenants() async {
+  /// Obtiene datos reales almacenados
+  /// y empresas desde el servicio existente.
+  Future<void> _loadData() async {
 
     try {
+
+      final user =
+          await _storage.getUser();
+
 
       final tenants =
           await _tenantService.getTenants();
@@ -61,13 +80,19 @@ class _DashboardPageState extends State<DashboardPage> {
 
         _tenants = tenants;
 
+        _name =
+            '${user?['nombres'] ?? ''} ${user?['apellidos'] ?? ''}'
+                .trim();
+
+        _role =
+            user?['rol'] ?? '';
+
         _loading = false;
 
       });
 
 
-    } catch(e) {
-
+    } catch (e) {
 
       setState(() {
 
@@ -77,20 +102,16 @@ class _DashboardPageState extends State<DashboardPage> {
 
       });
 
-
     }
 
   }
 
 
 
-
-
   @override
   Widget build(BuildContext context) {
 
-
-    if(_loading){
+    if (_loading) {
 
       return const Center(
         child: CircularProgressIndicator(),
@@ -99,205 +120,142 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
 
-
-    if(_error != null){
+    if (_error != null) {
 
       return Center(
-        child: Text(
-          _error!,
-        ),
+        child: Text(_error!),
       );
 
     }
 
 
-
     return RefreshIndicator(
 
-      onRefresh: _loadTenants,
+      onRefresh: _loadData,
 
 
       child: ListView(
 
-        padding: const EdgeInsets.all(20),
+        padding:
+            const EdgeInsets.all(20),
 
 
         children: [
 
 
+          _welcomeCard(),
+
+
+          const SizedBox(
+            height: 20,
+          ),
+
+
+          Row(
+
+            children: [
+
+              Expanded(
+                child: _quickAction(
+                  Icons.business,
+                  'Nueva empresa',
+                ),
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child: _quickAction(
+                  Icons.history,
+                  'Auditoría',
+                ),
+              ),
+
+            ],
+
+          ),
+
+
+          const SizedBox(
+            height: 24,
+          ),
+
 
           const Text(
-
-            'Bienvenido, Alex Lupa',
-
+            'Resumen general',
             style: TextStyle(
-
               fontSize: 22,
-
               fontWeight: FontWeight.bold,
-
-              color: AppTheme.titleColor,
-
             ),
+          ),
+
+
+          const SizedBox(
+            height: 15,
+          ),
+
+
+          Row(
+
+            children: [
+
+              Expanded(
+                child: _statCard(
+                  'Empresas',
+                  '${_tenants.length}',
+                  Icons.business,
+                ),
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child: _statCard(
+                  'Activas',
+                  '${_tenants.length}',
+                  Icons.check_circle,
+                ),
+              ),
+
+            ],
 
           ),
 
-          const SizedBox(height: 28),
+
+          const SizedBox(
+            height: 24,
+          ),
+
 
           const Text(
-
-            'Empresas registradas',
-
+            'Empresas registradas recientemente',
             style: TextStyle(
-
-              fontSize: 20,
-
+              fontSize: 22,
               fontWeight: FontWeight.bold,
-
             ),
-
           ),
 
 
+          const SizedBox(
+            height: 12,
+          ),
 
-          const SizedBox(height: 16),
 
+          ..._tenants.map(
+            (tenant) => _tenantCard(tenant),
+          ),
 
 
+          const SizedBox(
+            height: 24,
+          ),
 
-          ..._tenants.map((tenant){
 
-
-            return Container(
-
-
-              margin: const EdgeInsets.only(
-                bottom: 14,
-              ),
-
-
-
-              decoration: BoxDecoration(
-
-                color: const Color(0xFFF0F7F5),
-
-                borderRadius:
-                    BorderRadius.circular(16),
-
-
-                boxShadow: const [
-
-                  BoxShadow(
-
-                    color:
-                        Colors.black12,
-
-                    blurRadius: 4,
-
-                    offset:
-                        Offset(0,2),
-
-                  ),
-
-                ],
-
-              ),
-
-
-
-              child: ListTile(
-
-
-
-                contentPadding:
-                    const EdgeInsets.symmetric(
-
-                  horizontal: 18,
-
-                  vertical: 8,
-
-                ),
-
-
-
-                leading: Container(
-
-
-                  padding:
-                      const EdgeInsets.all(10),
-
-
-                  decoration:
-                      BoxDecoration(
-
-                    color:
-                        AppTheme.demoBorder,
-
-                    borderRadius:
-                        BorderRadius.circular(12),
-
-                  ),
-
-
-
-                  child: const Icon(
-
-                    Icons.business,
-
-                    color:
-                        AppTheme.accentDark,
-
-                  ),
-
-                ),
-
-
-
-
-                title: Text(
-
-                  tenant.nombreComercial,
-
-                  style:
-                      const TextStyle(
-
-                    fontWeight:
-                        FontWeight.bold,
-
-                  ),
-
-                ),
-
-
-
-
-                subtitle: Text(
-
-                  tenant.razonSocial,
-
-                ),
-
-
-
-
-                trailing:
-                    const Icon(
-
-                  Icons.arrow_forward_ios,
-
-                  size: 16,
-
-                ),
-
-
-              ),
-
-
-            );
-
-
-          }),
-
+          _platformCard(),
 
         ],
 
@@ -305,8 +263,318 @@ class _DashboardPageState extends State<DashboardPage> {
 
     );
 
+  }
+
+
+
+  /// Tarjeta de bienvenida del usuario.
+  Widget _welcomeCard() {
+
+    return Container(
+
+      padding:
+          const EdgeInsets.all(20),
+
+
+      decoration:
+          BoxDecoration(
+
+        color:
+            AppTheme.panelBg,
+
+        borderRadius:
+            BorderRadius.circular(18),
+
+      ),
+
+
+      child: Column(
+
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
+
+        children: [
+
+          const Text(
+            'Bienvenido',
+            style: TextStyle(
+              color: Colors.white70,
+            ),
+          ),
+
+
+          Text(
+            _name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+
+          Text(
+            _role,
+            style: const TextStyle(
+              color: Colors.white70,
+            ),
+          ),
+
+        ],
+
+      ),
+
+    );
 
   }
 
+
+
+  /// Botón de acción rápida.
+  Widget _quickAction(
+    IconData icon,
+    String text,
+  ) {
+
+    return Container(
+
+      height:
+          55,
+
+      decoration:
+          BoxDecoration(
+
+        color:
+            AppTheme.accent,
+
+        borderRadius:
+            BorderRadius.circular(14),
+
+      ),
+
+      child:
+          Center(
+
+        child:
+            Row(
+
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+
+          children: [
+
+            Icon(
+              icon,
+              color: Colors.white,
+            ),
+
+            const SizedBox(
+              width: 8,
+            ),
+
+            Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+          ],
+
+        ),
+
+      ),
+
+    );
+
+  }
+
+
+
+  /// Tarjeta estadística del dashboard.
+  Widget _statCard(
+    String title,
+    String value,
+    IconData icon,
+  ) {
+
+    return Container(
+
+      padding:
+          const EdgeInsets.all(16),
+
+      decoration:
+          BoxDecoration(
+
+        color:
+            Colors.white,
+
+        borderRadius:
+            BorderRadius.circular(16),
+
+        border:
+            Border.all(
+              color: AppTheme.demoBorder,
+            ),
+
+      ),
+
+
+      child:
+          Column(
+
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
+        children: [
+
+          Icon(
+            icon,
+            color: AppTheme.accentDark,
+          ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          Text(title),
+
+        ],
+
+      ),
+
+    );
+
+  }
+
+
+
+  /// Tarjeta de empresa.
+  Widget _tenantCard(
+    Tenant tenant,
+  ) {
+
+    return Container(
+
+      margin:
+          const EdgeInsets.only(
+            bottom: 12,
+          ),
+
+      padding:
+          const EdgeInsets.all(16),
+
+      decoration:
+          BoxDecoration(
+
+        color:
+            Colors.white,
+
+        borderRadius:
+            BorderRadius.circular(16),
+
+        border:
+            Border.all(
+              color: AppTheme.demoBorder,
+            ),
+
+      ),
+
+
+      child:
+          ListTile(
+
+        leading:
+            const Icon(
+              Icons.business,
+              color: AppTheme.accentDark,
+            ),
+
+        title:
+            Text(
+              tenant.nombreComercial,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+        subtitle:
+            Text(
+              tenant.razonSocial,
+            ),
+
+      ),
+
+    );
+
+  }
+
+
+
+  /// Bloque informativo de plataforma.
+  Widget _platformCard() {
+
+    return Container(
+
+      padding:
+          const EdgeInsets.all(18),
+
+      decoration:
+          BoxDecoration(
+
+        color:
+            AppTheme.demoBg,
+
+        borderRadius:
+            BorderRadius.circular(18),
+
+        border:
+            Border.all(
+              color: AppTheme.demoBorder,
+            ),
+
+      ),
+
+      child:
+          const Column(
+
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
+        children: [
+
+          Text(
+            'Acciones de plataforma',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          SizedBox(
+            height: 8,
+          ),
+
+          Text(
+            'Administración segura bajo arquitectura multitenant.',
+          ),
+
+        ],
+
+      ),
+
+    );
+
+  }
 
 }
