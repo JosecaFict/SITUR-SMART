@@ -29,21 +29,25 @@ class TenantService {
 
 
   Future<List<Tenant>> getTenants() async {
-
+    final user = await _storage.getUser();
+    final sessionTenants = user?['tenants'];
+    if (sessionTenants is List && sessionTenants.isNotEmpty) {
+      return sessionTenants.map((json) {
+        final item = Map<String, dynamic>.from(json as Map);
+        return Tenant(
+          id: item['id'] as int,
+          nombreComercial: item['name']?.toString() ?? '',
+          razonSocial: item['name']?.toString() ?? '',
+          estado: 'ACTIVO',
+        );
+      }).toList();
+    }
 
     final token = await _getToken();
-
-
-    final data = await _apiClient.getList(
-      'tenants/',
-      token,
-    );
-
-
+    final data = await _apiClient.getList('empresas/', token);
     return data
-        .map(
-          (json)=>Tenant.fromJson(json),
-        )
+        .whereType<Map<String, dynamic>>()
+        .map(Tenant.fromJson)
         .toList();
 
   }
@@ -58,7 +62,7 @@ class TenantService {
 
 
     final response = await _apiClient.postAuth(
-      'tenants/',
+      'empresas/',
       body,
     );
 
@@ -77,8 +81,8 @@ class TenantService {
   ) async {
 
 
-    final response = await _apiClient.putAuth(
-      'tenants/$id/',
+    final response = await _apiClient.patchAuth(
+      'empresas/$id/',
       body,
     );
 
@@ -97,7 +101,7 @@ class TenantService {
 
 
     await _apiClient.deleteAuth(
-      'tenants/$id/',
+      'empresas/$id/',
     );
 
 
