@@ -9,6 +9,8 @@ from apps.rbac.views import tenant_id_from_request
 
 from .serializers import (
     AuthResponseSerializer,
+    CustomerProfileUpdateSerializer,
+    CustomerRegisterSerializer,
     LoginSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -24,13 +26,16 @@ from .services import (
     create_or_link_tenant_user,
     list_tenant_users,
     login_user,
+    register_customer,
     remove_tenant_user,
     request_password_reset_otp,
     revoke_refresh_token,
     rotate_refresh_token,
+    update_customer_profile,
     update_tenant_user,
     verify_password_reset_otp,
 )
+
 
 
 class LoginView(APIView):
@@ -57,6 +62,31 @@ class RefreshView(APIView):
         return Response({**tokens, "user": UserContextSerializer(user).data})
 
 
+class CustomerRegisterView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        request=CustomerRegisterSerializer,
+        responses={201: AuthResponseSerializer},
+        description="Auto-registro público de cliente/turista.",
+    )
+    def post(self, request):
+        serializer = CustomerRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user, tokens = register_customer(
+            email=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+            first_names=serializer.validated_data["nombres"],
+            last_names=serializer.validated_data["apellidos"],
+            phone=serializer.validated_data.get("telefono"),
+            request=request,
+        )
+        return Response(
+            {**tokens, "user": UserContextSerializer(user).data},
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class LogoutView(APIView):
     permission_classes = (AllowAny,)
 
@@ -74,6 +104,16 @@ class MeView(APIView):
     @extend_schema(responses=UserContextSerializer)
     def get(self, request):
         return Response(UserContextSerializer(request.user).data)
+
+    @extend_schema(request=CustomerProfileUpdateSerializer, responses=UserContextSerializer)
+    def patch(self, request):
+        serializer = CustomerProfileUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated_user = update_customer_profile(
+            user=request.user, data=serializer.validated_data, request=request
+        )
+        return Response(UserContextSerializer(updated_user).data)
+
 
 
 class PasswordResetRequestView(APIView):

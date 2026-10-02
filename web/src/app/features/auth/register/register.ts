@@ -6,13 +6,15 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+
 import {
   LucideCircleCheck,
   LucideEye,
   LucideEyeOff,
   LucideLoaderCircle,
   LucideMail,
+  LucidePhone,
   LucideUser,
 } from '@lucide/angular';
 import { AuthLayout } from '../shared/auth-layout/auth-layout';
@@ -35,6 +37,7 @@ const STRENGTH_COLORS = ['bg-red-400', 'bg-red-400', 'bg-orange-400', 'bg-yellow
     AuthLayout,
     LucideUser,
     LucideMail,
+    LucidePhone,
     LucideEye,
     LucideEyeOff,
     LucideCircleCheck,
@@ -46,6 +49,7 @@ const STRENGTH_COLORS = ['bg-red-400', 'bg-red-400', 'bg-orange-400', 'bg-yellow
 export class Register {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   protected readonly showPassword = signal(false);
   protected readonly showConfirmPassword = signal(false);
@@ -60,8 +64,10 @@ export class Register {
 
   protected readonly form = this.fb.nonNullable.group(
     {
-      nombre: ['', [Validators.required, Validators.minLength(2)]],
+      nombres: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
+      apellidos: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
       email: ['', [Validators.required, Validators.email]],
+      telefono: [''],
       password: ['', [Validators.required, Validators.minLength(8)]],
       confirmPassword: ['', [Validators.required]],
     },
@@ -89,19 +95,32 @@ export class Register {
     this.errorMessage.set(null);
     this.loading.set(true);
 
-    const { nombre, email, password } = this.form.getRawValue();
+    const { nombres, apellidos, email, password, telefono } = this.form.getRawValue();
 
-    this.auth.register({ nombre, email, password }).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.success.set(true);
-      },
-      error: (err: Error) => {
-        this.loading.set(false);
-        this.errorMessage.set(err.message);
-      },
-    });
+    this.auth
+      .register({
+        nombres,
+        apellidos,
+        email,
+        password,
+        telefono: telefono || null,
+      })
+      .subscribe({
+        next: () => {
+          this.loading.set(false);
+          this.success.set(true);
+        },
+        error: (err: Error) => {
+          this.loading.set(false);
+          this.errorMessage.set(err.message);
+        },
+      });
   }
+
+  protected continueToApp(): void {
+    this.router.navigateByUrl('/perfil');
+  }
+
 
   private calculateStrength(password: string): number {
     if (!password) {

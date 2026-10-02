@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 
+
+/// Barra de navegación inferior principal.
+///
+/// Permite cambiar entre los módulos principales
+/// del sistema SITUR-SMART.
 class SiturBottomNav extends StatelessWidget {
 
   final int currentIndex;
@@ -20,57 +26,162 @@ class SiturBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
 
 
-    return NavigationBar(
+    return NavigationBarTheme(
 
-      selectedIndex: currentIndex,
+      data:
+          NavigationBarThemeData(
+
+        backgroundColor:
+            Colors.white,
 
 
-      onDestinationSelected: onTap,
+        indicatorColor:
+            AppTheme.demoBorder,
 
 
-      destinations: const [
+        labelTextStyle:
+            WidgetStateProperty.resolveWith(
 
-        NavigationDestination(
+          (states) {
 
-          icon: Icon(Icons.business),
+            if (states.contains(
+              WidgetState.selected,
+            )) {
 
-          label: 'Dashboard',
+              return const TextStyle(
+
+                color:
+                    AppTheme.accentDark,
+
+                fontWeight:
+                    FontWeight.bold,
+
+              );
+
+            }
+
+
+            return const TextStyle(
+
+              color:
+                  AppTheme.textSecondary,
+
+            );
+
+          },
 
         ),
 
-
-        NavigationDestination(
-
-          icon: Icon(Icons.people),
-
-          label: 'Usuarios',
-
-        ),
+      ),
 
 
-        NavigationDestination(
 
-          icon: Icon(Icons.security),
+      child:
+          NavigationBar(
 
-          label: 'Roles',
+        height:
+            72,
 
-        ),
+
+        elevation:
+            8,
 
 
-        NavigationDestination(
+        selectedIndex:
+            currentIndex,
 
-          icon: Icon(Icons.history),
 
-          label: 'Bitácora',
+        onDestinationSelected:
+            onTap,
 
-        ),
 
-      ],
+        destinations: const [
+
+
+          NavigationDestination(
+
+            icon:
+                Icon(
+                  Icons.dashboard_outlined,
+                ),
+
+            selectedIcon:
+                Icon(
+                  Icons.dashboard,
+                  color: AppTheme.accentDark,
+                ),
+
+            label:
+                'Inicio',
+
+          ),
+
+
+
+          NavigationDestination(
+
+            icon:
+                Icon(
+                  Icons.people_outline,
+                ),
+
+            selectedIcon:
+                Icon(
+                  Icons.people,
+                  color: AppTheme.accentDark,
+                ),
+
+            label:
+                'Usuarios',
+
+          ),
+
+
+
+          NavigationDestination(
+
+            icon:
+                Icon(
+                  Icons.security_outlined,
+                ),
+
+            selectedIcon:
+                Icon(
+                  Icons.security,
+                  color: AppTheme.accentDark,
+                ),
+
+            label:
+                'Roles',
+
+          ),
+
+
+
+          NavigationDestination(
+
+            icon:
+                Icon(
+                  Icons.history_outlined,
+                ),
+
+            selectedIcon:
+                Icon(
+                  Icons.history,
+                  color: AppTheme.accentDark,
+                ),
+
+            label:
+                'Bitácora',
+
+          ),
+
+        ],
+
+      ),
 
     );
 
-
   }
-
 
 }

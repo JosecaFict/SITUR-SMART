@@ -174,12 +174,11 @@ class _UserFormPageState extends State<UserFormPage> {
     try {
 
 
-      final roles =
-          await _roleService.getRoles();
-
-
       final tenants =
           await _tenantService.getTenants();
+
+      final initialTenant = tenants.isNotEmpty ? tenants.first.id : null;
+      final roles = await _roleService.getRoles(tenantId: initialTenant);
 
 
 
@@ -189,6 +188,8 @@ class _UserFormPageState extends State<UserFormPage> {
         _roles = roles;
 
         _tenants = tenants;
+
+        _selectedTenant = initialTenant;
 
         _loadingData = false;
 
@@ -324,8 +325,8 @@ class _UserFormPageState extends State<UserFormPage> {
               _estado,
 
 
-          roleId:
-              _selectedRole!,
+          roleCode:
+              _roles.firstWhere((role) => role.id == _selectedRole).codigo,
 
 
           tenantId:
@@ -663,18 +664,14 @@ class _UserFormPageState extends State<UserFormPage> {
 
 
 
-                  onChanged:(value){
-
-
-                    setState((){
-
-
-                      _selectedTenant=value;
-
-
+                  onChanged:(value) async {
+                    if (value == null) return;
+                    setState(() {
+                      _selectedTenant = value;
+                      _selectedRole = null;
                     });
-
-
+                    final roles = await _roleService.getRoles(tenantId: value);
+                    if (mounted) setState(() => _roles = roles);
                   },
 
 

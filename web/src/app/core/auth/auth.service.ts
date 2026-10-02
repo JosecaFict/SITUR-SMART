@@ -9,6 +9,7 @@ import {
   LoginPayload,
   PasswordResetConfirmPayload,
   PasswordResetResponse,
+  ProfileUpdatePayload,
   RegisterPayload,
 } from './auth.models';
 
@@ -23,6 +24,11 @@ export class AuthService {
 
   readonly session = this.sessionSignal.asReadonly();
   readonly isAuthenticated = computed(() => this.sessionSignal() !== null);
+  readonly isSuperAdmin = computed(
+    () => this.sessionSignal()?.user.roles.includes('SUPER_ADMIN') ?? false,
+  );
+  readonly roles = computed(() => this.sessionSignal()?.user.roles ?? []);
+  readonly permissions = computed(() => this.sessionSignal()?.user.permisos ?? []);
   readonly accessToken = computed(() => this.sessionSignal()?.access ?? null);
 
   login(payload: LoginPayload): Observable<AuthSession> {
@@ -37,10 +43,37 @@ export class AuthService {
       );
   }
 
-  register(_payload: RegisterPayload): Observable<AuthSession> {
-    return throwError(
-      () => new Error('El registro todavía no está disponible en el backend.'),
-    );
+  register(payload: RegisterPayload): Observable<AuthSession> {
+    return this.http
+      .post<AuthSession>(`${environment.apiUrl}/auth/register/`, {
+        nombres: payload.nombres.trim(),
+        apellidos: payload.apellidos.trim(),
+        email: payload.email.trim().toLowerCase(),
+        password: payload.password,
+        telefono: payload.telefono?.trim() || null,
+      })
+      .pipe(
+        tap((session) => this.persistSession(session, true)),
+        catchError((error: HttpErrorResponse) => this.handleError(error)),
+      );
+  }
+
+  updateProfile(payload: ProfileUpdatePayload): Observable<AuthUser> {
+    return this.http
+      .patch<AuthUser>(`${environment.apiUrl}/auth/me/`, payload)
+      .pipe(
+        tap((updatedUser) => {
+          const current = this.sessionSignal();
+          if (current) {
+            const updatedSession: AuthSession = {
+              ...current,
+              user: updatedUser,
+            };
+            this.persistSession(updatedSession, true);
+          }
+        }),
+        catchError((error: HttpErrorResponse) => this.handleError(error)),
+      );
   }
 
   requestPasswordResetOtp(email: string): Observable<PasswordResetResponse> {

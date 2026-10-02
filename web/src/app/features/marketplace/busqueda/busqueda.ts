@@ -15,6 +15,7 @@ import { City, Country } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
 import { ProductType, TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
+import { AuthService } from '../../../core/auth/auth.service';
 
 @Component({
   selector: 'situr-busqueda',
@@ -35,6 +36,10 @@ export class Busqueda implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly productsService = inject(ProductsService);
   private readonly companiesService = inject(CompaniesService);
+  private readonly auth = inject(AuthService);
+
+  protected readonly session = this.auth.session;
+  protected readonly isAuthenticated = this.auth.isAuthenticated;
 
   protected readonly products = signal<TourismProduct[]>([]);
   protected readonly countries = signal<Country[]>([]);

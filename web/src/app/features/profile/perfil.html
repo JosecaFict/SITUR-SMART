@@ -1,0 +1,249 @@
+<div class="perfil-container max-w-4xl mx-auto px-4 py-8">
+
+  <!-- Header Card: Identity Overview -->
+  <div class="bg-surface rounded-2xl border border-input-border/60 p-6 shadow-sm mb-8 relative overflow-hidden">
+    <div class="absolute -right-12 -top-12 w-48 h-48 bg-accent/5 rounded-full blur-2xl pointer-events-none"></div>
+
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 relative z-10">
+      <div class="h-20 w-20 rounded-2xl bg-gradient-to-br from-accent to-accent-dark text-white flex items-center justify-center font-heading text-2xl font-bold shadow-md shadow-accent/20 shrink-0">
+        {{ userInitials() }}
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <div class="flex flex-wrap items-center gap-2.5 mb-1">
+          <h1 class="text-title font-heading text-2xl font-bold truncate">
+            {{ session()?.user?.nombres }} {{ session()?.user?.apellidos }}
+          </h1>
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-accent/10 text-accent-dark ring-1 ring-accent/20">
+            <svg lucideSparkles class="h-3 w-3" [strokeWidth]="2"></svg>
+            {{ roleBadge() }}
+          </span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs sm:text-sm text-text-secondary">
+          <span class="flex items-center gap-1.5">
+            <svg lucideMail class="h-3.5 w-3.5 text-accent" [strokeWidth]="2"></svg>
+            {{ session()?.user?.email }}
+          </span>
+          @if (session()?.user?.telefono) {
+            <span class="flex items-center gap-1.5">
+              <svg lucidePhone class="h-3.5 w-3.5 text-accent" [strokeWidth]="2"></svg>
+              {{ session()?.user?.telefono }}
+            </span>
+          }
+          <span class="flex items-center gap-1 text-emerald-600 font-medium">
+            <svg lucideShieldCheck class="h-3.5 w-3.5" [strokeWidth]="2"></svg>
+            Cuenta Activa
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="animate-fade-in-up mb-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+      <svg lucideCheckCircle2 class="h-5 w-5 text-emerald-600 shrink-0" [strokeWidth]="2"></svg>
+      <p class="text-sm font-medium">{{ successMessage() }}</p>
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <div class="animate-fade-in-up mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800">
+      <svg lucideCircleAlert class="h-5 w-5 text-red-600 shrink-0" [strokeWidth]="2"></svg>
+      <p class="text-sm font-medium">{{ errorMessage() }}</p>
+    </div>
+  }
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Profile Edit Form -->
+    <div class="lg:col-span-2 bg-surface rounded-2xl border border-input-border/60 p-6 shadow-sm">
+      <div class="border-b border-input-border/60 pb-4 mb-6">
+        <h2 class="text-title font-heading text-lg font-bold">Datos Personales</h2>
+        <p class="text-text-secondary text-xs sm:text-sm mt-0.5">
+          Esta información se utilizará para tus reservas y emisión de comprobantes turísticos.
+        </p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="saveProfile()" class="flex flex-col gap-5">
+        <!-- Nombres y Apellidos -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="p-nombres" class="text-label text-xs font-semibold block mb-1.5">Nombres</label>
+            <div class="relative">
+              <input
+                id="p-nombres"
+                type="text"
+                formControlName="nombres"
+                placeholder="Nombres"
+                class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-3.5 text-sm outline-none focus:ring-2"
+                [class.border-red-400]="form.controls.nombres.invalid && form.controls.nombres.touched"
+              />
+              <svg lucideUser class="text-text-secondary absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+            </div>
+            @if (form.controls.nombres.invalid && form.controls.nombres.touched) {
+              <p class="text-red-500 text-xs mt-1">El nombre es requerido.</p>
+            }
+          </div>
+
+          <div>
+            <label for="p-apellidos" class="text-label text-xs font-semibold block mb-1.5">Apellidos</label>
+            <div class="relative">
+              <input
+                id="p-apellidos"
+                type="text"
+                formControlName="apellidos"
+                placeholder="Apellidos"
+                class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-3.5 text-sm outline-none focus:ring-2"
+                [class.border-red-400]="form.controls.apellidos.invalid && form.controls.apellidos.touched"
+              />
+              <svg lucideUser class="text-text-secondary absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+            </div>
+            @if (form.controls.apellidos.invalid && form.controls.apellidos.touched) {
+              <p class="text-red-500 text-xs mt-1">El apellido es requerido.</p>
+            }
+          </div>
+        </div>
+
+        <!-- Correo Electrónico (Readonly) -->
+        <div>
+          <label class="text-label text-xs font-semibold block mb-1.5">Correo electrónico</label>
+          <div class="relative">
+            <input
+              type="email"
+              [value]="session()?.user?.email"
+              disabled
+              class="bg-gray-100 border-input-border/70 text-gray-500 cursor-not-allowed w-full rounded-xl border py-2.5 pr-10 pl-3.5 text-sm outline-none"
+            />
+            <svg lucideMail class="text-text-secondary absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+          </div>
+          <p class="text-text-secondary text-xs mt-1">El correo es la identidad única de tu cuenta y no puede modificarse.</p>
+        </div>
+
+        <!-- Teléfono de contacto -->
+        <div>
+          <label for="p-telefono" class="text-label text-xs font-semibold block mb-1.5">Teléfono móvil / WhatsApp</label>
+          <div class="relative">
+            <input
+              id="p-telefono"
+              type="tel"
+              formControlName="telefono"
+              placeholder="+591 70000000"
+              class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-3.5 text-sm outline-none focus:ring-2"
+            />
+            <svg lucidePhone class="text-text-secondary absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+          </div>
+        </div>
+
+        <!-- Documento de identidad -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="p-tipo-doc" class="text-label text-xs font-semibold block mb-1.5">Tipo de documento</label>
+            <div class="relative">
+              <select
+                id="p-tipo-doc"
+                formControlName="tipo_documento"
+                class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-8 pl-3.5 text-sm outline-none focus:ring-2"
+              >
+                <option value="CI">Cédula de Identidad (CI)</option>
+                <option value="PASAPORTE">Pasaporte</option>
+                <option value="DNI">DNI</option>
+                <option value="OTRO">Otro documento</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="p-num-doc" class="text-label text-xs font-semibold block mb-1.5">Número de documento</label>
+            <div class="relative">
+              <input
+                id="p-num-doc"
+                type="text"
+                formControlName="numero_documento"
+                placeholder="Ej. 8493021 SC"
+                class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-3.5 text-sm outline-none focus:ring-2"
+              />
+              <svg lucideFileText class="text-text-secondary absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fecha de nacimiento -->
+        <div>
+          <label for="p-fecha-nac" class="text-label text-xs font-semibold block mb-1.5">Fecha de nacimiento</label>
+          <div class="relative">
+            <input
+              id="p-fecha-nac"
+              type="date"
+              formControlName="fecha_nacimiento"
+              class="bg-input-bg border-input-border text-title focus:border-accent focus:ring-accent/30 w-full rounded-xl border py-2.5 pr-10 pl-3.5 text-sm outline-none focus:ring-2"
+            />
+            <svg lucideCalendar class="text-text-secondary absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-3 border-t border-input-border/60 flex justify-end">
+          <button
+            type="submit"
+            [disabled]="loading() || form.pristine"
+            class="btn-accent flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-50 transition"
+          >
+            @if (loading()) {
+              <svg lucideLoaderCircle class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+              Guardando...
+            } @else {
+              Guardar cambios
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Sidebar Cards: Actions & Info -->
+    <div class="flex flex-col gap-6">
+
+      <!-- Explore Travel Card -->
+      <div class="bg-gradient-to-br from-accent-dark to-slate-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+        <div class="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4">
+          <svg lucideCompass class="h-40 w-40" [strokeWidth]="1.5"></svg>
+        </div>
+        <div class="relative z-10">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-teal-200 mb-4 backdrop-blur-sm">
+            <svg lucideCompass class="h-3.5 w-3.5" [strokeWidth]="2"></svg>
+            Destinos & Experiencias
+          </span>
+          <h3 class="text-lg font-bold font-heading mb-2">Descubre Bolivia</h3>
+          <p class="text-sm text-teal-100/80 mb-5 leading-relaxed">
+            Explora paquetes turísticos, alojamientos y excursiones verificadas por operadores locales.
+          </p>
+          <a
+            routerLink="/"
+            class="inline-flex items-center gap-2 bg-white text-accent-dark hover:bg-teal-50 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-sm transition"
+          >
+            Explorar catálogo
+            <svg lucideCompass class="h-4 w-4" [strokeWidth]="2"></svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- Security / Account Info Card -->
+      <div class="bg-surface rounded-2xl border border-input-border/60 p-6 shadow-sm">
+        <h3 class="text-title font-heading text-base font-bold mb-2">Seguridad de la cuenta</h3>
+        <p class="text-text-secondary text-xs leading-relaxed mb-4">
+          Puedes actualizar tu contraseña en cualquier momento usando la verificación de seguridad por correo.
+        </p>
+        <a
+          routerLink="/recuperar"
+          class="text-xs font-semibold text-accent-dark hover:underline flex items-center gap-1.5"
+        >
+          <svg lucideShieldCheck class="h-4 w-4" [strokeWidth]="2"></svg>
+          Cambiar contraseña
+        </a>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

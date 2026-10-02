@@ -9,6 +9,7 @@ import {
   LucideCheckCircle2,
   LucideCircleAlert,
   LucideClock3,
+  LucideCompass,
   LucideExternalLink,
   LucideFilePenLine,
   LucideHotel,
@@ -24,6 +25,7 @@ import {
   LucideShieldCheck,
   LucideSparkles,
   LucideTrendingUp,
+  LucideUser,
   LucideUsers,
 } from '@lucide/angular';
 import { catchError, forkJoin, of } from 'rxjs';
@@ -68,6 +70,7 @@ export interface CategorySummary {
     LucideCheckCircle2,
     LucideCircleAlert,
     LucideClock3,
+    LucideCompass,
     LucideExternalLink,
     LucideFilePenLine,
     LucideHotel,
@@ -83,6 +86,7 @@ export interface CategorySummary {
     LucideShieldCheck,
     LucideSparkles,
     LucideTrendingUp,
+    LucideUser,
     LucideUsers,
   ],
   templateUrl: './dashboard.html',
@@ -98,6 +102,7 @@ export class Dashboard implements OnInit {
   protected readonly session = this.auth.session;
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly lastUpdated = signal<Date | null>(null);
 
   // Raw data signals
   protected readonly companies = signal<Company[]>([]);
@@ -112,6 +117,15 @@ export class Dashboard implements OnInit {
   protected readonly isSuperAdmin = computed(
     () => this.session()?.user.roles.includes('SUPER_ADMIN') ?? false,
   );
+  protected readonly isCustomer = computed(() => {
+    const roles = this.session()?.user.roles ?? [];
+    return (
+      roles.includes('CLIENTE') &&
+      !this.isSuperAdmin() &&
+      (this.session()?.user.tenants.length ?? 0) === 0
+    );
+  });
+
   protected readonly selectedCompany = computed(() =>
     this.companyChoices().find((company) => company.id === this.selectedCompanyId()),
   );
@@ -244,6 +258,11 @@ export class Dashboard implements OnInit {
       return;
     }
 
+    if (this.isCustomer()) {
+      this.loading.set(false);
+      return;
+    }
+
     const choices =
       this.session()?.user.tenants.map((tenant) => ({ id: tenant.id, name: tenant.name })) ?? [];
     this.companyChoices.set(choices);
@@ -265,10 +284,13 @@ export class Dashboard implements OnInit {
   protected reload(): void {
     if (this.isSuperAdmin()) {
       this.loadPlatformSummary();
+    } else if (this.isCustomer()) {
+      this.loading.set(false);
     } else {
       this.loadCompanySummary();
     }
   }
+
 
   protected statusLabel(status: TourismProduct['estado']): string {
     return { PUBLICADO: 'Publicado', BORRADOR: 'Borrador', INACTIVO: 'Inactivo' }[status] ?? status;
@@ -307,6 +329,7 @@ export class Dashboard implements OnInit {
       next: (companies) => {
         this.companies.set(companies);
         this.loading.set(false);
+        this.lastUpdated.set(new Date());
       },
       error: () => {
         this.loading.set(false);
@@ -343,6 +366,7 @@ export class Dashboard implements OnInit {
       this.roles.set(roles ?? []);
       this.productTypes.set(types ?? []);
       this.loading.set(false);
+      this.lastUpdated.set(new Date());
 
       const requestedSources = [
         canReadProducts && products,

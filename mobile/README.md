@@ -1,6 +1,32 @@
-# mobile
+# Mobile SITUR-SMART
 
-A new Flutter project.
+Aplicación Flutter que consume la misma API Django utilizada por la aplicación web.
+
+## Configuración de la API
+
+La URL no está escrita directamente en el código. Se configura al ejecutar o compilar mediante
+`API_URL`.
+
+Emulador Android con backend local:
+
+```powershell
+flutter run --dart-define=API_URL=http://10.0.2.2:8000/api/v1/
+```
+
+Teléfono físico en la misma red que la computadora:
+
+```powershell
+flutter run --dart-define=API_URL=http://IP-DE-LA-COMPUTADORA:8000/api/v1/
+```
+
+Backend desplegado en Railway:
+
+```powershell
+flutter run --dart-define=API_URL=https://DOMINIO-RAILWAY/api/v1/
+```
+
+Para generar un APK conectado a Railway se debe incluir el mismo `--dart-define` en
+`flutter build apk`.
 
 ## Getting Started
 

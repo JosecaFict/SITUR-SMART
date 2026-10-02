@@ -30,6 +30,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/registro/registro').then((m) => m.Registro),
   },
   {
+    path: 'crear-cuenta',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./features/auth/register/register').then((m) => m.Register),
+  },
+  {
+    path: 'registro-turista',
+    redirectTo: 'crear-cuenta',
+    pathMatch: 'full',
+  },
+  {
     path: 'recuperar',
     canActivate: [guestGuard],
     loadComponent: () =>
@@ -43,6 +53,10 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.Dashboard),
+      },
+      {
+        path: 'perfil',
+        loadComponent: () => import('./features/profile/perfil').then((m) => m.Perfil),
       },
       {
         path: 'empresas',
@@ -75,3 +89,4 @@ export const routes: Routes = [
   },
   { path: '**', redirectTo: '' },
 ];
+

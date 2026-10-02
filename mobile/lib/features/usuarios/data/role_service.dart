@@ -41,7 +41,7 @@ class RoleService {
 
 
 
-  Future<List<RoleModel>> getRoles() async {
+  Future<List<RoleModel>> getRoles({int? tenantId}) async {
 
 
     final token =
@@ -49,12 +49,16 @@ class RoleService {
 
 
 
+    final activeTenantId = tenantId ?? await _storage.getActiveTenantId();
+
     final response =
         await _apiClient.getList(
 
           'roles/',
 
           token,
+
+          tenantId: activeTenantId,
 
         );
 

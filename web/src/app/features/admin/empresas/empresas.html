@@ -217,14 +217,23 @@
               <label class="sm:col-span-2">
                 <span class="text-label mb-1.5 block text-xs font-semibold">Correo electrónico</span>
                 <input type="email" formControlName="owner_email" placeholder="propietario@empresa.com" class="field-control" />
+                @if (companyForm.controls.owner_email.touched && companyForm.controls.owner_email.invalid) {
+                  <span class="mt-1 block text-xs text-rose-600">Ingresa un correo electrónico válido.</span>
+                }
               </label>
               <label>
                 <span class="text-label mb-1.5 block text-xs font-semibold">Nombres</span>
                 <input type="text" formControlName="owner_nombres" class="field-control" />
+                @if (companyForm.controls.owner_nombres.touched && companyForm.controls.owner_nombres.invalid) {
+                  <span class="mt-1 block text-xs text-rose-600">Los nombres son obligatorios.</span>
+                }
               </label>
               <label>
                 <span class="text-label mb-1.5 block text-xs font-semibold">Apellidos</span>
                 <input type="text" formControlName="owner_apellidos" class="field-control" />
+                @if (companyForm.controls.owner_apellidos.touched && companyForm.controls.owner_apellidos.invalid) {
+                  <span class="mt-1 block text-xs text-rose-600">Los apellidos son obligatorios.</span>
+                }
               </label>
               <label>
                 <span class="text-label mb-1.5 block text-xs font-semibold">Teléfono</span>
@@ -233,7 +242,12 @@
               <label>
                 <span class="text-label mb-1.5 block text-xs font-semibold">Contraseña temporal</span>
                 <input type="password" formControlName="owner_password" autocomplete="new-password" class="field-control" />
-                <span class="text-text-secondary mt-1 block text-xs">Obligatoria si el correo aún no existe.</span>
+                <span class="text-text-secondary mt-1 block text-xs">
+                  Obligatoria (mín. 8 caracteres) si el correo es nuevo. Si el usuario ya existe, se conservará su clave.
+                </span>
+                @if (companyForm.controls.owner_password.touched && companyForm.controls.owner_password.invalid) {
+                  <span class="mt-1 block text-xs text-rose-600">La contraseña debe tener al menos 8 caracteres.</span>
+                }
               </label>
             </div>
           </fieldset>

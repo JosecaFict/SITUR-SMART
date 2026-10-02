@@ -84,6 +84,12 @@
             @case ('audit') {
               <svg lucideScrollText class="h-5 w-5" [strokeWidth]="2"></svg>
             }
+            @case ('explore') {
+              <svg lucideCompass class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
+            @case ('profile') {
+              <svg lucideUser class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
           }
           {{ item.label }}
         </a>
@@ -93,17 +99,24 @@
     @if (session(); as s) {
       <div class="border-t border-white/10 p-4">
         <div class="flex items-center gap-3 rounded-xl bg-black/10 p-3">
-          <span
-            class="bg-accent text-panel-bg flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+          <a
+            routerLink="/perfil"
+            (click)="closeMenu()"
+            class="flex min-w-0 flex-1 items-center gap-3 hover:opacity-90 transition group"
+            title="Ir a mi perfil"
           >
-            {{ s.user.nombres.charAt(0) }}{{ s.user.apellidos.charAt(0) }}
-          </span>
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-semibold">{{ s.user.nombres }} {{ s.user.apellidos }}</p>
-            <p class="truncate text-xs text-white/60 notranslate" translate="no">
-              {{ s.user.roles.join(', ') }}
-            </p>
-          </div>
+            <span
+              class="bg-accent text-panel-bg flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold group-hover:scale-105 transition-transform"
+            >
+              {{ s.user.nombres.charAt(0) }}{{ s.user.apellidos.charAt(0) }}
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-semibold group-hover:text-accent transition-colors">{{ s.user.nombres }} {{ s.user.apellidos }}</p>
+              <p class="truncate text-xs text-white/60 notranslate" translate="no">
+                {{ s.user.roles.includes('CLIENTE') ? 'Viajero' : s.user.roles.join(', ') }}
+              </p>
+            </div>
+          </a>
           <button
             type="button"
             (click)="logout()"
@@ -116,6 +129,7 @@
         </div>
       </div>
     }
+
   </aside>
 
   <main class="min-w-0 flex-1 p-4 sm:p-6 lg:p-8 xl:p-10">

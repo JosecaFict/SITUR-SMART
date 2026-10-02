@@ -1,10 +1,23 @@
 <div class="flex min-h-screen flex-col bg-gray-50">
   <header class="border-input-border sticky top-0 z-20 flex items-center justify-between gap-4 border-b bg-white/95 px-5 py-3.5 backdrop-blur sm:px-10">
-    <img src="/branding/situr-smart-logo.png" alt="SITUR-SMART" class="h-8 w-auto object-contain" />
+    <a routerLink="/" aria-label="Ir al inicio de SITUR-SMART" class="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-dark">
+      <img src="/branding/situr-smart-logo.png" alt="SITUR-SMART" class="h-8 w-auto object-contain" />
+    </a>
     <nav class="flex items-center gap-3 sm:gap-5">
-      <a routerLink="/planes" class="text-label hidden text-sm font-medium hover:text-title md:inline">¿Tienes un negocio turístico?</a>
-      <a routerLink="/login" class="text-label text-sm font-semibold hover:text-title">Iniciar sesión</a>
-      <a routerLink="/registro" class="btn-accent hidden rounded-xl px-5 py-2.5 text-sm font-semibold text-white sm:inline">Registrarse</a>
+      @if (isAuthenticated()) {
+        @if (session(); as currentSession) {
+          <span class="text-text-secondary hidden max-w-52 truncate text-sm md:inline">
+            {{ currentSession.user.nombres }} {{ currentSession.user.apellidos }}
+          </span>
+        }
+        <a routerLink="/dashboard" class="btn-accent rounded-xl px-4 py-2.5 text-sm font-semibold text-white sm:px-5">
+          Volver al dashboard
+        </a>
+      } @else {
+        <a routerLink="/planes" class="text-label hidden text-sm font-medium hover:text-title md:inline">¿Tienes un negocio turístico?</a>
+        <a routerLink="/login" class="text-label text-sm font-semibold hover:text-title">Iniciar sesión</a>
+        <a routerLink="/crear-cuenta" class="btn-accent hidden rounded-xl px-5 py-2.5 text-sm font-semibold text-white sm:inline">Crear cuenta</a>
+      }
     </nav>
   </header>
 

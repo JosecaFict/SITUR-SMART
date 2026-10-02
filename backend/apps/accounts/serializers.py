@@ -4,7 +4,7 @@ from rest_framework import serializers
 from apps.rbac.models import UserRole
 from apps.tenancy.models import UserTenant
 
-from .models import User
+from .models import CustomerProfile, User
 
 
 class LoginSerializer(serializers.Serializer):
@@ -25,15 +25,45 @@ class TenantContextSerializer(serializers.Serializer):
 class UserContextSerializer(serializers.ModelSerializer):
     nombres = serializers.CharField(source="first_names")
     apellidos = serializers.CharField(source="last_names")
+    telefono = serializers.CharField(source="phone", allow_null=True, required=False)
     roles = serializers.SerializerMethodField()
     permisos = serializers.SerializerMethodField()
     tenants = serializers.SerializerMethodField()
+    perfil = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ("id", "email", "nombres", "apellidos", "estado", "roles", "permisos", "tenants")
+        fields = (
+            "id",
+            "email",
+            "nombres",
+            "apellidos",
+            "telefono",
+            "estado",
+            "roles",
+            "permisos",
+            "tenants",
+            "perfil",
+        )
 
     estado = serializers.CharField(source="status")
+
+    @extend_schema_field(serializers.DictField())
+    def get_perfil(self, user):
+        profile = getattr(user, "customer_profile", None)
+        if profile is None:
+            try:
+                profile = CustomerProfile.objects.filter(user=user).first()
+            except Exception:
+                profile = None
+        if profile is None:
+            return None
+        return {
+            "tipo_documento": profile.document_type,
+            "numero_documento": profile.document_number,
+            "fecha_nacimiento": profile.birth_date.isoformat() if profile.birth_date else None,
+        }
+
 
     @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_roles(self, user):
@@ -150,4 +180,22 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
                 {"new_password_confirm": "Las contraseñas no coinciden."}
             )
         return attrs
+
+
+class CustomerRegisterSerializer(serializers.Serializer):
+    nombres = serializers.CharField(max_length=120)
+    apellidos = serializers.CharField(max_length=120)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
+    telefono = serializers.CharField(max_length=30, required=False, allow_blank=True, allow_null=True)
+
+
+class CustomerProfileUpdateSerializer(serializers.Serializer):
+    nombres = serializers.CharField(max_length=120, required=False)
+    apellidos = serializers.CharField(max_length=120, required=False)
+    telefono = serializers.CharField(max_length=30, required=False, allow_blank=True, allow_null=True)
+    tipo_documento = serializers.CharField(max_length=30, required=False, allow_blank=True, allow_null=True)
+    numero_documento = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    fecha_nacimiento = serializers.DateField(required=False, allow_null=True)
+
 

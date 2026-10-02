@@ -124,14 +124,17 @@ export class Empresas implements OnInit {
     this.selectedCompany.set(null);
     this.formMode.set('create');
     this.successMessage.set(null);
+    this.errorMessage.set(null);
+    this.updateFormValidators('create');
     this.companyForm.reset();
-    this.setOwnerValidators(true);
   }
 
   protected startEdit(company: Company): void {
     this.selectedCompany.set(company);
     this.formMode.set('edit');
     this.successMessage.set(null);
+    this.errorMessage.set(null);
+    this.updateFormValidators('edit');
     this.companyForm.reset({
       razon_social: company.razon_social,
       nombre_comercial: company.nombre_comercial,
@@ -141,20 +144,23 @@ export class Empresas implements OnInit {
       email_contacto: company.email_contacto ?? '',
       telefono: company.telefono ?? '',
     });
-    this.setOwnerValidators(false);
   }
 
   protected startOwnerChange(company: Company): void {
     this.selectedCompany.set(company);
     this.formMode.set('owner');
     this.successMessage.set(null);
+    this.errorMessage.set(null);
+    this.updateFormValidators('owner');
     this.companyForm.reset({
+      razon_social: company.razon_social,
+      nombre_comercial: company.nombre_comercial,
       owner_email: company.propietario?.email ?? '',
       owner_nombres: company.propietario?.nombres ?? '',
       owner_apellidos: company.propietario?.apellidos ?? '',
       owner_telefono: company.propietario?.telefono ?? '',
+      owner_password: '',
     });
-    this.setOwnerValidators(true);
   }
 
   protected closeForm(): void {
@@ -299,16 +305,53 @@ export class Empresas implements OnInit {
     }[status];
   }
 
-  private setOwnerValidators(required: boolean): void {
-    this.companyForm.controls.owner_email.setValidators(
-      required ? [Validators.required, Validators.email] : [],
-    );
-    this.companyForm.controls.owner_nombres.setValidators(required ? [Validators.required] : []);
-    this.companyForm.controls.owner_apellidos.setValidators(required ? [Validators.required] : []);
+  private updateFormValidators(mode: FormMode): void {
+    const isOwner = mode === 'owner';
+    const isEdit = mode === 'edit';
+    const isCreate = mode === 'create';
+
+    // Company fields: only required when creating or editing company
+    if (isOwner) {
+      this.companyForm.controls.razon_social.clearValidators();
+      this.companyForm.controls.nombre_comercial.clearValidators();
+    } else {
+      this.companyForm.controls.razon_social.setValidators([
+        Validators.required,
+        Validators.maxLength(180),
+      ]);
+      this.companyForm.controls.nombre_comercial.setValidators([
+        Validators.required,
+        Validators.maxLength(180),
+      ]);
+    }
+    this.companyForm.controls.razon_social.updateValueAndValidity();
+    this.companyForm.controls.nombre_comercial.updateValueAndValidity();
+
+    // Owner fields: required on create and owner mode
+    if (isEdit) {
+      this.companyForm.controls.owner_email.clearValidators();
+      this.companyForm.controls.owner_nombres.clearValidators();
+      this.companyForm.controls.owner_apellidos.clearValidators();
+      this.companyForm.controls.owner_password.clearValidators();
+    } else if (isOwner) {
+      this.companyForm.controls.owner_email.setValidators([Validators.required, Validators.email]);
+      this.companyForm.controls.owner_nombres.setValidators([Validators.required]);
+      this.companyForm.controls.owner_apellidos.setValidators([Validators.required]);
+      this.companyForm.controls.owner_password.setValidators([Validators.minLength(8)]);
+    } else if (isCreate) {
+      this.companyForm.controls.owner_email.setValidators([Validators.required, Validators.email]);
+      this.companyForm.controls.owner_nombres.setValidators([Validators.required]);
+      this.companyForm.controls.owner_apellidos.setValidators([Validators.required]);
+      this.companyForm.controls.owner_password.setValidators([
+        Validators.required,
+        Validators.minLength(8),
+      ]);
+    }
     [
       this.companyForm.controls.owner_email,
       this.companyForm.controls.owner_nombres,
       this.companyForm.controls.owner_apellidos,
+      this.companyForm.controls.owner_password,
     ].forEach((control) => control.updateValueAndValidity());
   }
 
@@ -338,6 +381,20 @@ export class Empresas implements OnInit {
   }
 
   private apiMessage(error: HttpErrorResponse, fallback: string): string {
-    return error.error?.error?.message ?? fallback;
+    const errorObj = error.error?.error;
+    if (errorObj?.details && typeof errorObj.details === 'object') {
+      const extractFirst = (val: unknown): string | null => {
+        if (typeof val === 'string') return val;
+        if (Array.isArray(val) && val.length > 0) return extractFirst(val[0]);
+        if (typeof val === 'object' && val !== null) {
+          const keys = Object.keys(val);
+          if (keys.length > 0) return extractFirst((val as Record<string, unknown>)[keys[0]]);
+        }
+        return null;
+      };
+      const extracted = extractFirst(errorObj.details);
+      if (extracted) return extracted;
+    }
+    return errorObj?.message ?? error.error?.detail ?? fallback;
   }
 }
