@@ -2,8 +2,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, finalize, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { apiErrorMessage } from '../http/api-error';
 import {
-  ApiErrorResponse,
   AuthSession,
   AuthUser,
   LoginPayload,
@@ -181,50 +181,11 @@ export class AuthService {
   }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
-    if (error.status === 0) {
-      return throwError(
-        () => new Error('No se pudo conectar con el backend. Verifica que Django esté iniciado.'),
-      );
-    }
-
-    const response = error.error as
-      | (ApiErrorResponse & { detail?: string; error?: { message?: string; details?: unknown } })
-      | undefined;
-
-    let fieldMsg = '';
-    const details = response?.error?.details;
-    if (typeof details === 'object' && details !== null) {
-      const record = details as Record<string, unknown>;
-      const firstKey = Object.keys(record)[0];
-      if (firstKey) {
-        const val = record[firstKey];
-        if (Array.isArray(val) && val.length > 0) {
-          fieldMsg = String(val[0]);
-        } else if (typeof val === 'string') {
-          fieldMsg = val;
-        }
-      }
-    }
-
-    let rawError = '';
-    if (typeof error.error === 'string') {
-      if (
-        error.error.includes('<html') ||
-        error.error.includes('<!doctype') ||
-        error.error.includes('<title>')
-      ) {
-        rawError = `El servidor no encontró el servicio solicitado (Error ${error.status}). El backend en Railway está actualizándose o reiniciando.`;
-      } else {
-        rawError = error.error;
-      }
-    }
-
-    const message =
-      fieldMsg ||
-      response?.error?.message ||
-      response?.detail ||
-      rawError ||
-      'Ocurrió un error inesperado al procesar la solicitud.';
-    return throwError(() => new Error(message));
+    return throwError(
+      () =>
+        new Error(
+          apiErrorMessage(error, 'Ocurrió un error inesperado al procesar la solicitud.'),
+        ),
+    );
   }
 }

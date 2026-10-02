@@ -22,6 +22,7 @@ import {
   OwnerPayload,
   Plan,
 } from '../../../core/companies/companies.models';
+import { apiErrorMessage } from '../../../core/http/api-error';
 import { CompaniesService } from '../../../core/companies/companies.service';
 
 type FormMode = 'create' | 'edit' | 'owner' | 'plan' | null;
@@ -381,20 +382,6 @@ export class Empresas implements OnInit {
   }
 
   private apiMessage(error: HttpErrorResponse, fallback: string): string {
-    const errorObj = error.error?.error;
-    if (errorObj?.details && typeof errorObj.details === 'object') {
-      const extractFirst = (val: unknown): string | null => {
-        if (typeof val === 'string') return val;
-        if (Array.isArray(val) && val.length > 0) return extractFirst(val[0]);
-        if (typeof val === 'object' && val !== null) {
-          const keys = Object.keys(val);
-          if (keys.length > 0) return extractFirst((val as Record<string, unknown>)[keys[0]]);
-        }
-        return null;
-      };
-      const extracted = extractFirst(errorObj.details);
-      if (extracted) return extracted;
-    }
-    return errorObj?.message ?? error.error?.detail ?? fallback;
+    return apiErrorMessage(error, fallback);
   }
 }

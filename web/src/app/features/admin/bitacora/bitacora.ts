@@ -10,6 +10,7 @@ import {
   LucideSearch,
 } from '@lucide/angular';
 import { AuthService } from '../../../core/auth/auth.service';
+import { apiErrorMessage } from '../../../core/http/api-error';
 import { AuditService } from '../../../core/audit/audit.service';
 import { AuditLogEntry } from '../../../core/audit/audit.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
@@ -159,7 +160,7 @@ export class Bitacora implements OnInit {
         },
         error: (error: HttpErrorResponse) => {
           this.loading.set(false);
-          this.errorMessage.set(error.error?.error?.message ?? 'No fue posible cargar la bitácora.');
+          this.errorMessage.set(apiErrorMessage(error, 'No fue posible cargar la bitácora.'));
         },
       });
   }

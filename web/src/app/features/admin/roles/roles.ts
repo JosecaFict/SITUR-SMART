@@ -16,6 +16,7 @@ import {
 } from '@lucide/angular';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { apiErrorMessage } from '../../../core/http/api-error';
 import { CompaniesService } from '../../../core/companies/companies.service';
 import { Permission, Role } from '../../../core/rbac/rbac.models';
 import { RbacService } from '../../../core/rbac/rbac.service';
@@ -242,11 +243,6 @@ export class Roles implements OnInit {
   }
 
   private apiMessage(error: HttpErrorResponse, fallback: string): string {
-    const details = error.error?.error?.details;
-    if (details && typeof details === 'object') {
-      const first = Object.values(details).flat()[0];
-      if (typeof first === 'string') return first;
-    }
-    return error.error?.error?.message ?? fallback;
+    return apiErrorMessage(error, fallback);
   }
 }

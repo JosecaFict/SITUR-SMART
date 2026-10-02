@@ -12,6 +12,7 @@ import {
 } from '@lucide/angular';
 import { AuthLayout } from '../shared/auth-layout/auth-layout';
 import { AuthService } from '../../../core/auth/auth.service';
+import { apiErrorMessage } from '../../../core/http/api-error';
 import { CompaniesService } from '../../../core/companies/companies.service';
 import { Plan } from '../../../core/companies/companies.models';
 
@@ -126,20 +127,6 @@ export class Registro implements OnInit {
   }
 
   private apiMessage(error: HttpErrorResponse): string {
-    if (error.status === 0) {
-      return 'No se pudo conectar con el backend. Verifica que Django esté iniciado.';
-    }
-    const details = error.error?.error?.details;
-    if (details && typeof details === 'object') {
-      const firstKey = Object.keys(details)[0];
-      const firstValue = (details as Record<string, unknown>)[firstKey];
-      if (typeof firstValue === 'string') {
-        return firstValue;
-      }
-      if (Array.isArray(firstValue) && typeof firstValue[0] === 'string') {
-        return firstValue[0];
-      }
-    }
-    return error.error?.error?.message ?? 'No fue posible completar el registro.';
+    return apiErrorMessage(error, 'No fue posible completar el registro.');
   }
 }

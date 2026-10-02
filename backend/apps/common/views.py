@@ -5,6 +5,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.brevo import is_configured as brevo_is_configured
+from apps.media.services import CloudinaryService
+
 
 class HealthView(APIView):
     permission_classes = (AllowAny,)
@@ -19,19 +22,42 @@ class HealthView(APIView):
             return False
         return True
 
+    @staticmethod
+    def integrations_status() -> dict[str, bool]:
+        """Indica que integraciones externas tienen credenciales cargadas.
+
+        Solo booleanos: este endpoint es publico y nunca debe exponer una
+        credencial ni parte de ella. Verifica presencia, no validez: una API key
+        vencida o mal copiada igual aparece como ``True``.
+        """
+        return {
+            "cloudinary": CloudinaryService.is_configured(),
+            "brevo": brevo_is_configured(),
+        }
+
     @extend_schema(
         responses=inline_serializer(
             name="HealthResponse",
             fields={
                 "status": serializers.CharField(),
                 "database": serializers.CharField(),
+                "integraciones": serializers.DictField(child=serializers.BooleanField()),
             },
         )
     )
     def get(self, request):
         database = "ok" if self.database_is_available() else "error"
+        # Una integracion sin credenciales no degrada el estado: Railway usa este
+        # endpoint para decidir si el contenedor esta sano y lo reiniciaria en vano.
         status_code = 200 if database == "ok" else 503
-        return Response({"status": "ok" if status_code == 200 else "degraded", "database": database}, status=status_code)
+        return Response(
+            {
+                "status": "ok" if status_code == 200 else "degraded",
+                "database": database,
+                "integraciones": self.integrations_status(),
+            },
+            status=status_code,
+        )
 
 
 class ApiRootView(APIView):

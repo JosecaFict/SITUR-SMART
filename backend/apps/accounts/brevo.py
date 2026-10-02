@@ -2,11 +2,25 @@ import json
 import logging
 import urllib.error
 import urllib.request
+
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+
+
+def is_configured() -> bool:
+    """Indica si Brevo puede enviar correos reales.
+
+    Sin estas credenciales el envio no falla: ``send_password_reset_otp_email``
+    registra el codigo OTP en los logs y devuelve exito, asi que la recuperacion
+    de contrasena se rompe en silencio. Se expone para que /api/v1/health/ lo informe.
+    """
+    return bool(
+        getattr(settings, "BREVO_API_KEY", "").strip()
+        and getattr(settings, "BREVO_SENDER_EMAIL", "").strip()
+    )
 
 
 def build_otp_email_html(recipient_name: str, otp_code: str, expiration_minutes: int) -> str:

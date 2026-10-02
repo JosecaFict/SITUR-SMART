@@ -9,6 +9,7 @@ import {
 } from '@lucide/angular';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { apiErrorMessage } from '../../../core/http/api-error';
 import { City } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
 import { MediaService } from '../../../core/media/media.service';
@@ -296,10 +297,6 @@ export class Productos implements OnInit {
   }
 
   private apiMessage(error: HttpErrorResponse, fallback: string): string {
-    const details = error.error?.error?.details;
-    if (details && typeof details === 'object') {
-      const first = Object.values(details).flat()[0]; if (typeof first === 'string') return first;
-    }
-    return error.error?.error?.message ?? fallback;
+    return apiErrorMessage(error, fallback);
   }
 }
