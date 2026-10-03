@@ -158,6 +158,12 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API compartida para Angular y Flutter.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Varios serializers comparten el estado de producto_turistico. Sin un
+    # nombre fijo, drf-spectacular genera uno con hash (Estado9dbEnum) que
+    # cambia al agregar otro serializer y rompe los clientes generados.
+    "ENUM_NAME_OVERRIDES": {
+        "EstadoProductoEnum": "apps.catalog.models.TourismProduct.Status",
+    },
 }
 
 # Brevo (Sendinblue) Email & OTP Recovery

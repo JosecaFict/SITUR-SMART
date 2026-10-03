@@ -1,1 +1,6 @@
 .pytest_cache/
+
+# Configuracion local de Claude Code: es por maquina y por persona, no del
+# proyecto. La regla vive aqui y no solo en el gitignore global de cada uno,
+# para que proteja igual a quien clone el repositorio.
+.claude/

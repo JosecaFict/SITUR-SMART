@@ -1,6 +1,7 @@
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
+  LucideBedDouble,
   LucideBuilding2,
   LucideCompass,
   LucideLayoutDashboard,
@@ -18,7 +19,7 @@ import { AuthService } from '../../auth/auth.service';
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'products' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
+  icon: 'dashboard' | 'companies' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
   superAdminOnly?: boolean;
   hideForSuperAdmin?: boolean;
   hideForCustomer?: boolean;
@@ -32,6 +33,7 @@ interface NavItem {
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
+    LucideBedDouble,
     LucideBuilding2,
     LucideCompass,
     LucideLayoutDashboard,
@@ -84,6 +86,13 @@ export class AppShell {
       label: 'Catálogo',
       path: '/productos',
       icon: 'products',
+      hideForCustomer: true,
+      permission: 'PRODUCTOS_LEER',
+    },
+    {
+      label: 'Hospedajes',
+      path: '/hospedajes',
+      icon: 'lodging',
       hideForCustomer: true,
       permission: 'PRODUCTOS_LEER',
     },

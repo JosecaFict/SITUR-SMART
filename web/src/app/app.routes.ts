@@ -81,6 +81,12 @@ export const routes: Routes = [
           import('./features/admin/productos/productos').then((m) => m.Productos),
       },
       {
+        path: 'hospedajes',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () =>
+          import('./features/admin/hospedajes/hospedajes').then((m) => m.Hospedajes),
+      },
+      {
         path: 'bitacora',
         canActivate: [permissionGuard('BITACORA_LEER')],
         loadComponent: () => import('./features/admin/bitacora/bitacora').then((m) => m.Bitacora),

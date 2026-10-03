@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
   LucideImage, LucideLink, LucideMapPin, LucidePackageOpen, LucidePencil,
@@ -19,10 +20,17 @@ import { ProductsService } from '../../../core/products/products.service';
 interface CompanyChoice { id: number; name: string; }
 type StatusFilter = 'TODOS' | ProductStatus;
 
+/**
+ * Hoteles y habitaciones se administran en /hospedajes/, donde quedan ligados a
+ * un establecimiento. El backend rechaza estos dos códigos acá, así que tampoco
+ * se ofrecen en el formulario.
+ */
+const LODGING_TYPE_CODES = ['HOTEL', 'HABITACION'];
+
 @Component({
   selector: 'situr-productos',
   imports: [
-    ReactiveFormsModule, LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
+    ReactiveFormsModule, RouterLink, LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
     LucideImage, LucideLink, LucideMapPin, LucidePackageOpen, LucidePencil, LucidePlus,
     LucideRefreshCw, LucideSearch, LucideTrash2, LucideUpload, LucideUsers, LucideX,
   ],
@@ -65,11 +73,23 @@ export class Productos implements OnInit {
     return !!user && (user.roles.includes('SUPER_ADMIN') || user.permisos.includes('PRODUCTOS_GESTIONAR'));
   });
   protected readonly selectedCompany = computed(() => this.companies().find((item) => item.id === this.selectedCompanyId()));
-  protected readonly publishedCount = computed(() => this.products().filter((item) => item.estado === 'PUBLICADO').length);
+  /**
+   * El endpoint devuelve todos los productos de la empresa, hospedajes
+   * incluidos. Se excluyen de esta pantalla porque sus botones de edición
+   * fallarían: el backend solo los acepta por /hospedajes/.
+   */
+  private readonly catalogProducts = computed(
+    () => this.products().filter((product) => !LODGING_TYPE_CODES.includes(product.tipo_codigo)),
+  );
+  protected readonly lodgingProductCount = computed(
+    () => this.products().filter((product) => LODGING_TYPE_CODES.includes(product.tipo_codigo)).length,
+  );
+  protected readonly publishedCount = computed(() => this.catalogProducts().filter((item) => item.estado === 'PUBLICADO').length);
+  protected readonly catalogCount = computed(() => this.catalogProducts().length);
   protected readonly filteredProducts = computed(() => {
     const query = this.searchTerm().trim().toLocaleLowerCase('es');
     const status = this.statusFilter();
-    return this.products().filter((product) =>
+    return this.catalogProducts().filter((product) =>
       (status === 'TODOS' || product.estado === status) &&
       [product.nombre, product.tipo, product.ciudad, product.localidad, product.codigo].join(' ').toLocaleLowerCase('es').includes(query),
     );
@@ -92,7 +112,8 @@ export class Productos implements OnInit {
     const sessionCompanies = this.auth.session()?.user.tenants.map((item) => ({ id: item.id, name: item.name })) ?? [];
     forkJoin({ types: this.productsService.listTypes(), currencies: this.productsService.listCurrencies(), cities: this.companiesService.listCities() }).subscribe({
       next: ({ types, currencies, cities }) => {
-        this.types.set(types); this.currencies.set(currencies); this.cities.set(cities);
+        this.types.set(types.filter((type) => !LODGING_TYPE_CODES.includes(type.codigo)));
+        this.currencies.set(currencies); this.cities.set(cities);
         if (this.isSuperAdmin()) {
           this.companiesService.list('', 'ACTIVO').subscribe({
             next: (companies) => this.initializeCompanies(companies.map((item) => ({ id: item.id, name: item.nombre_comercial }))),

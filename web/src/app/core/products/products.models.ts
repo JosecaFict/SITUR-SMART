@@ -20,9 +20,22 @@ export interface TourismProduct {
   descripcion: string | null;
   localidad: string | null;
   precio_base: string;
+  /**
+   * Precio de la habitación publicada más económica. Solo lo traen los
+   * hoteles, y solo en las consultas públicas; en el resto es null.
+   */
+  precio_desde: string | null;
   capacidad_maxima: number;
   estado: ProductStatus;
   imagen_url: string | null;
+  /**
+   * Establecimiento cuyo detalle corresponde abrir: la ficha propia si es un
+   * hotel, la del hotel que la aloja si es una habitación. Es el id de
+   * `establecimiento_hospedaje`, distinto del id del producto.
+   */
+  hospedaje_id: number | null;
+  /** Nombre del hotel. Solo en habitaciones. */
+  establecimiento: string | null;
   creado_en: string;
   actualizado_en: string;
 }

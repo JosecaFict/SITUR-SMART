@@ -1,0 +1,500 @@
+<section class="mx-auto max-w-7xl space-y-6">
+  <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <h1 class="font-heading text-title text-3xl font-bold tracking-tight">Hospedajes</h1>
+      <p class="text-text-secondary mt-1 max-w-2xl text-sm sm:text-base">
+        Registra tus hoteles y los tipos de habitación que cada uno ofrece. El precio que ve el viajero
+        es el de la habitación publicada más económica.
+      </p>
+    </div>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      @if (isSuperAdmin()) {
+        <label class="flex flex-col gap-1 text-xs font-semibold text-label">Empresa
+          <select [value]="selectedCompanyId()" (change)="changeCompany($event)" class="border-input-border min-w-56 rounded-xl border bg-white px-3 py-2.5 text-sm font-medium text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+            @for (company of companies(); track company.id) { <option [value]="company.id">{{ company.name }}</option> }
+          </select>
+        </label>
+      }
+      @if (canManage() && view() === 'list') {
+        <button type="button" (click)="startCreate()" [disabled]="!selectedCompanyId()" class="bg-accent hover:bg-accent-dark flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50">
+          <svg lucidePlus class="h-4 w-4"></svg>Nuevo hospedaje
+        </button>
+      }
+      @if (view() !== 'list') {
+        <button type="button" (click)="backToList()" class="border-input-border hover:bg-input-bg flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-label transition">
+          <svg lucideArrowLeft class="h-4 w-4"></svg>Volver a la lista
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (selectedCompany(); as company) {
+    @if (view() === 'list') {
+      <div class="border-input-border flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-white px-5 py-4 shadow-sm">
+        <div class="flex items-center gap-3">
+          <span class="bg-demo-bg text-accent-dark flex h-10 w-10 items-center justify-center rounded-xl"><svg lucideBuilding2 class="h-5 w-5"></svg></span>
+          <div>
+            <p class="text-xs font-medium text-text-secondary">Hospedajes de</p>
+            <p class="font-semibold text-title">{{ company.name }}</p>
+          </div>
+        </div>
+        <div class="flex gap-6 text-sm text-text-secondary">
+          <span><strong class="text-title">{{ lodgings().length }}</strong> establecimientos</span>
+          <span><strong class="text-emerald-700">{{ publishedCount() }}</strong> publicados</span>
+        </div>
+      </div>
+    }
+  }
+
+  @if (successMessage(); as message) {
+    <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+      <span>{{ message }}</span>
+      <button type="button" (click)="successMessage.set(null)" aria-label="Cerrar mensaje"><svg lucideX class="h-4 w-4"></svg></button>
+    </div>
+  }
+  @if (errorMessage(); as message) {
+    <div class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ message }}</span>
+    </div>
+  }
+
+  <!-- ============================ LISTA ============================ -->
+  @if (view() === 'list') {
+    <div class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm">
+      <div class="flex items-center justify-between border-b border-input-border p-4">
+        <p class="text-sm font-semibold text-label">Establecimientos registrados</p>
+        <button type="button" (click)="loadLodgings()" [disabled]="loading()" class="border-input-border hover:bg-input-bg flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-label disabled:opacity-60">
+          <svg lucideRefreshCw class="h-4 w-4" [class.animate-spin]="loading()"></svg>Actualizar
+        </button>
+      </div>
+
+      @if (loading()) {
+        <div class="grid gap-4 bg-gray-50/70 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          @for (_ of [1,2,3]; track _) { <div class="h-72 animate-pulse rounded-2xl bg-gray-200"></div> }
+        </div>
+      } @else if (lodgings().length === 0) {
+        <div class="p-12 text-center">
+          <svg lucideBuilding2 class="mx-auto h-10 w-10 text-text-secondary"></svg>
+          <p class="mt-3 font-semibold text-title">Todavía no hay hospedajes</p>
+          <p class="mt-1 text-sm text-text-secondary">Registra tu primer hotel y después agregá sus tipos de habitación.</p>
+        </div>
+      } @else {
+        <div class="grid gap-4 bg-gray-50/70 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          @for (lodging of lodgings(); track lodging.id) {
+            <article class="group overflow-hidden rounded-2xl border border-input-border bg-white transition hover:border-gray-300 hover:shadow-md">
+              <div class="relative h-44 overflow-hidden bg-gray-100">
+                @if (lodging.imagen_url) {
+                  <img [src]="lodging.imagen_url" (error)="imageError($event)" [alt]="lodging.nombre" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+                } @else {
+                  <div class="flex h-full items-center justify-center text-text-secondary"><svg lucideImage class="h-10 w-10"></svg></div>
+                }
+                <span class="absolute top-3 left-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-accent-dark shadow-sm">{{ lodging.tipo_hospedaje }}</span>
+                @if (lodging.estado === 'PUBLICADO') {
+                  <span class="absolute top-3 right-3 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 shadow-sm">Publicado</span>
+                } @else if (lodging.estado === 'BORRADOR') {
+                  <span class="absolute top-3 right-3 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-sm">Borrador</span>
+                } @else {
+                  <span class="absolute top-3 right-3 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700 shadow-sm">Inactivo</span>
+                }
+              </div>
+              <div class="p-4">
+                <h2 class="text-base font-bold leading-snug text-title">{{ lodging.nombre }}</h2>
+                @if (lodging.categoria_estrellas) {
+                  <p class="mt-1 flex items-center gap-0.5 text-amber-500">
+                    @for (star of stars(lodging.categoria_estrellas); track star) { <svg lucideStar class="h-3.5 w-3.5"></svg> }
+                  </p>
+                }
+                <p class="mt-1 flex items-center gap-1.5 text-xs text-text-secondary">
+                  <svg lucideMapPin class="h-3.5 w-3.5"></svg>{{ lodging.localidad ? lodging.localidad + ', ' : '' }}{{ lodging.ciudad }}
+                </p>
+                <div class="mt-4 flex items-end justify-between border-t border-input-border pt-4">
+                  <div>
+                    @if (lodging.precio_desde) {
+                      <p class="text-xs text-text-secondary">Habitaciones desde</p>
+                      <p class="text-lg font-bold text-accent-dark">{{ lodging.moneda_simbolo }} {{ lodging.precio_desde }}</p>
+                    } @else {
+                      <p class="text-xs text-text-secondary">Sin habitaciones</p>
+                      <p class="text-sm font-semibold text-amber-700">Precio no disponible</p>
+                    }
+                    <p class="mt-0.5 flex items-center gap-1 text-xs text-text-secondary">
+                      <svg lucideBedDouble class="h-3.5 w-3.5"></svg>{{ lodging.total_habitaciones }} tipo(s) de habitación
+                    </p>
+                  </div>
+                  @if (canManage()) {
+                    <div class="flex gap-1">
+                      <button type="button" (click)="openLodging(lodging, 'habitaciones')" class="rounded-lg p-2 text-text-secondary hover:bg-demo-bg hover:text-accent-dark" aria-label="Gestionar habitaciones"><svg lucideBedDouble class="h-4 w-4"></svg></button>
+                      <button type="button" (click)="openLodging(lodging)" class="rounded-lg p-2 text-text-secondary hover:bg-input-bg hover:text-title" aria-label="Editar hospedaje"><svg lucidePencil class="h-4 w-4"></svg></button>
+                      <button type="button" (click)="toggleLodgingPublication(lodging)" class="rounded-lg p-2 text-text-secondary hover:bg-demo-bg hover:text-accent-dark" [attr.aria-label]="lodging.estado === 'PUBLICADO' ? 'Retirar publicación' : 'Publicar hospedaje'">
+                        @if (lodging.estado === 'PUBLICADO') { <svg lucideEyeOff class="h-4 w-4"></svg> } @else { <svg lucideEye class="h-4 w-4"></svg> }
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ===================== CREAR / DETALLE ===================== -->
+  @if (view() === 'create' || view() === 'detail') {
+    @if (selectedLodging(); as lodging) {
+      <div class="border-input-border flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-white px-5 py-4 shadow-sm">
+        <div class="flex items-center gap-3">
+          <span class="bg-demo-bg text-accent-dark flex h-10 w-10 items-center justify-center rounded-xl"><svg lucideBuilding2 class="h-5 w-5"></svg></span>
+          <div>
+            <p class="font-semibold text-title">{{ lodging.nombre }}</p>
+            <p class="text-xs text-text-secondary">{{ lodging.tipo_hospedaje }} · {{ lodging.ciudad }} · {{ lodging.total_habitaciones }} habitación(es)</p>
+          </div>
+        </div>
+        @if (canManage()) {
+          <button type="button" (click)="deactivateLodging(lodging)" class="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100/80">
+            <svg lucideTrash2 class="h-3.5 w-3.5"></svg>Desactivar hospedaje
+          </button>
+        }
+      </div>
+    }
+
+    <!-- Pestañas: solo tienen sentido sobre un hospedaje ya creado -->
+    @if (view() === 'detail') {
+      <div class="border-input-border flex gap-1 overflow-x-auto rounded-2xl border bg-white p-1.5 shadow-sm">
+        <button type="button" (click)="selectTab('general')" class="rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition" [class]="activeTab() === 'general' ? 'bg-accent text-white' : 'text-label hover:bg-input-bg'">Información general</button>
+        <button type="button" (click)="selectTab('hospedaje')" class="rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition" [class]="activeTab() === 'hospedaje' ? 'bg-accent text-white' : 'text-label hover:bg-input-bg'">Datos del hospedaje</button>
+        <button type="button" (click)="selectTab('habitaciones')" class="rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition" [class]="activeTab() === 'habitaciones' ? 'bg-accent text-white' : 'text-label hover:bg-input-bg'">Habitaciones ({{ rooms().length }})</button>
+      </div>
+    }
+
+    <!-- Formulario del hospedaje (información general + datos del hospedaje) -->
+    @if (view() === 'create' || activeTab() !== 'habitaciones') {
+      <form [formGroup]="lodgingForm" (ngSubmit)="submitLodging()" class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+        @if (view() === 'create') {
+          <div>
+            <h2 class="text-xl font-bold text-title">Registrar hospedaje</h2>
+            <p class="mt-1 text-sm text-text-secondary">No se pide precio: el del hotel sale de sus habitaciones. Una vez guardado podrás registrarlas.</p>
+          </div>
+        }
+
+        @if (lodgingFormError(); as message) {
+          <div class="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ message }}</span>
+          </div>
+        }
+
+        <!-- ---- Información general ---- -->
+        @if (view() === 'create' || activeTab() === 'general') {
+          <fieldset class="mt-6">
+            <legend class="text-sm font-bold text-title">Información general</legend>
+            <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2">Nombre del establecimiento
+                <input formControlName="nombre" placeholder="Ej. Hotel Kachi Wasi" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Ciudad
+                <select formControlName="ciudad_id" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+                  @for (city of cities(); track city.id) { <option [value]="city.id">{{ city.nombre }} · {{ city.pais }}</option> }
+                </select>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Localidad o zona
+                <input formControlName="localidad" placeholder="Ej. Zona Sur, Equipetrol" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Moneda
+                <select formControlName="moneda_codigo" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+                  @for (currency of currencies(); track currency.id) { <option [value]="currency.codigo">{{ currency.codigo }} — {{ currency.nombre }}</option> }
+                </select>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Capacidad total del hotel
+                <input type="number" min="1" formControlName="capacidad_maxima" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                <span class="text-xs font-normal text-text-secondary">Huéspedes que admite el establecimiento completo.</span>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Estado
+                <select formControlName="estado" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+                  <option value="BORRADOR">Borrador</option>
+                  <!-- Un hospedaje nuevo no tiene habitaciones, así que no puede
+                       nacer publicado; y uno existente necesita al menos una
+                       publicada con precio para que su tarjeta tenga precio. -->
+                  @if (view() === 'detail') {
+                    <option value="PUBLICADO" [disabled]="!canPublishLodging()">Publicado</option>
+                  }
+                  <option value="INACTIVO">Inactivo</option>
+                </select>
+                @if (view() === 'create') {
+                  <span class="text-xs font-normal text-text-secondary">Se guarda como borrador. Podrás publicarlo cuando tenga su primera habitación publicada con precio.</span>
+                } @else if (!canPublishLodging()) {
+                  <span class="text-xs font-normal text-amber-700">Para publicarlo necesita al menos una habitación publicada con precio mayor a 0.</span>
+                }
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2 lg:col-span-3">Descripción
+                <textarea formControlName="descripcion" rows="3" placeholder="Describe el establecimiento, su ubicación y lo que lo distingue" class="border-input-border resize-y rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"></textarea>
+              </label>
+
+              <div class="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
+                <span class="text-sm font-semibold text-label">Fotografía del establecimiento</span>
+                <div class="border-input-border flex flex-wrap items-center gap-4 rounded-2xl border border-dashed bg-gray-50/50 p-4">
+                  @if (lodgingForm.controls.imagen_url.value) {
+                    <div class="border-input-border relative h-24 w-32 shrink-0 overflow-hidden rounded-xl border bg-gray-100">
+                      <img [src]="lodgingForm.controls.imagen_url.value" (error)="imageError($event)" alt="Vista previa" class="h-full w-full object-cover" />
+                    </div>
+                  }
+                  <div class="flex flex-1 flex-wrap items-center gap-2">
+                    <input #lodgingFile type="file" class="hidden" accept="image/jpeg,image/png,image/webp,image/avif" (change)="uploadLodgingImage($event)" />
+                    <button type="button" (click)="lodgingFile.click()" [disabled]="uploadingImage()" class="border-input-border flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-title transition hover:bg-input-bg disabled:opacity-60">
+                      @if (uploadingImage()) { <svg lucideRefreshCw class="h-3.5 w-3.5 animate-spin"></svg>Subiendo… } @else { <svg lucideUpload class="h-3.5 w-3.5"></svg>{{ lodgingForm.controls.imagen_url.value ? 'Cambiar foto' : 'Subir foto' }} }
+                    </button>
+                    @if (lodgingForm.controls.imagen_url.value) {
+                      <button type="button" (click)="removeLodgingImage()" class="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100/80">
+                        <svg lucideTrash2 class="h-3.5 w-3.5"></svg>Quitar
+                      </button>
+                    }
+                    <span class="text-xs text-text-secondary">JPG, PNG, WEBP o AVIF de hasta 10 MB.</span>
+                  </div>
+                </div>
+                @if (imageUploadError(); as err) {
+                  <div class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700">
+                    <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ err }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </fieldset>
+        }
+
+        <!-- ---- Datos del hospedaje ---- -->
+        @if (view() === 'create' || activeTab() === 'hospedaje') {
+          <fieldset class="mt-8">
+            <legend class="text-sm font-bold text-title">Datos del hospedaje</legend>
+            <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Tipo de hospedaje
+                <select formControlName="tipo_hospedaje_codigo" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+                  @for (type of lodgingTypes(); track type.id) {
+                    <option [value]="type.codigo" [disabled]="type.codigo !== 'HOTEL'">{{ type.nombre }}@if (type.codigo !== 'HOTEL') { (próximamente) }</option>
+                  }
+                </select>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2">Dirección
+                <input formControlName="direccion" placeholder="Ej. Av. Ballivián 1234, esq. calle 20" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Categoría
+                <select formControlName="categoria_estrellas" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+                  <option value="">Sin categoría</option>
+                  <option value="1">1 estrella</option>
+                  <option value="2">2 estrellas</option>
+                  <option value="3">3 estrellas</option>
+                  <option value="4">4 estrellas</option>
+                  <option value="5">5 estrellas</option>
+                </select>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Hora de check-in
+                <input type="time" formControlName="hora_check_in" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Hora de check-out
+                <input type="time" formControlName="hora_check_out" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+              </label>
+              <div class="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
+                <span class="text-sm font-semibold text-label">Servicios</span>
+                <div class="flex flex-wrap gap-2">
+                  @for (service of serviceOptions; track service) {
+                    <button type="button" (click)="toggleService(service)" class="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition" [class]="hasService(service) ? 'border-accent bg-demo-bg text-accent-dark' : 'border-input-border bg-white text-text-secondary hover:bg-input-bg'">
+                      @if (hasService(service)) { <svg lucideCheck class="h-3.5 w-3.5"></svg> }{{ service }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          </fieldset>
+        }
+
+        <div class="mt-6 flex justify-end gap-3 border-t border-input-border pt-5">
+          <button type="button" (click)="backToList()" class="border-input-border hover:bg-input-bg rounded-xl border px-4 py-2.5 text-sm font-semibold text-label">Cancelar</button>
+          <button type="submit" [disabled]="savingLodging() || !canManage()" class="bg-accent hover:bg-accent-dark rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+            {{ savingLodging() ? 'Guardando…' : (view() === 'create' ? 'Crear hospedaje' : 'Guardar cambios') }}
+          </button>
+        </div>
+      </form>
+    }
+
+    <!-- ---- Habitaciones ---- -->
+    @if (view() === 'detail' && activeTab() === 'habitaciones') {
+      @if (selectedLodging(); as lodging) {
+        <div class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-title">Habitaciones</h2>
+              <p class="mt-1 flex items-center gap-1.5 text-sm text-text-secondary">
+                <svg lucideMapPin class="h-4 w-4"></svg>
+                Heredan la ubicación de {{ lodging.nombre }}: {{ lodging.localidad ? lodging.localidad + ', ' : '' }}{{ lodging.ciudad }}, {{ lodging.pais }}
+              </p>
+            </div>
+            @if (canManage() && !showRoomForm()) {
+              <button type="button" (click)="startCreateRoom()" class="bg-accent hover:bg-accent-dark flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition">
+                <svg lucidePlus class="h-4 w-4"></svg>Nueva habitación
+              </button>
+            }
+          </div>
+
+          @if (showRoomForm()) {
+            <form [formGroup]="roomForm" (ngSubmit)="submitRoom()" class="border-input-border mt-5 rounded-2xl border bg-gray-50/60 p-4 sm:p-5">
+              <h3 class="font-bold text-title">{{ editingRoom() ? 'Editar habitación' : 'Nueva habitación' }}</h3>
+              <p class="mt-1 text-xs text-text-secondary">No se pide país, ciudad ni localidad: se toman del establecimiento.</p>
+
+              @if (roomFormError(); as message) {
+                <div class="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ message }}</span>
+                </div>
+              }
+
+              <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2">Nombre del tipo de habitación
+                  <input formControlName="nombre" placeholder="Ej. Habitación Deluxe Vista Illimani" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                </label>
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Precio por noche
+                  <div class="flex">
+                    <span class="border-input-border bg-input-bg flex items-center rounded-l-xl border border-r-0 px-3 text-sm font-medium text-label">{{ lodging.moneda_simbolo }}</span>
+                    <input type="number" min="0" step="0.01" formControlName="precio_base" class="border-input-border min-w-0 flex-1 rounded-r-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                  </div>
+                </label>
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Cantidad de habitaciones
+                  <input type="number" min="1" formControlName="cantidad_habitaciones" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                  <span class="text-xs font-normal text-text-secondary">Cuántas unidades de este tipo tiene el hotel.</span>
+                </label>
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Capacidad total
+                  <input type="number" min="1" formControlName="capacidad_maxima" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                  <span class="text-xs font-normal text-text-secondary">Máximo de personas en la habitación.</span>
+                </label>
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Máximo de adultos
+                  <input type="number" min="1" formControlName="capacidad_adultos" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                  <span class="text-xs font-normal text-text-secondary">Tope si fueran todos adultos.</span>
+                </label>
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Máximo de niños
+                  <input type="number" min="0" formControlName="capacidad_ninos" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                  <span class="text-xs font-normal text-text-secondary">Tope de niños por separado. No se suma con el de adultos.</span>
+                </label>
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Tipo de cama
+                  <input formControlName="tipo_cama" placeholder="Ej. Queen, dos camas individuales" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                </label>
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Estado
+                  <select formControlName="estado" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+                    <option value="BORRADOR">Borrador</option>
+                    <option value="PUBLICADO">Publicado</option>
+                    <option value="INACTIVO">Inactivo</option>
+                  </select>
+                </label>
+                <label class="flex items-center gap-2 self-end text-sm font-semibold text-label">
+                  <input type="checkbox" formControlName="incluye_desayuno" class="border-input-border h-4 w-4 rounded border text-accent focus:ring-accent/30" />
+                  Incluye desayuno
+                </label>
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2 lg:col-span-3">Descripción
+                  <textarea formControlName="descripcion" rows="2" placeholder="Qué incluye y qué la distingue" class="border-input-border resize-y rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"></textarea>
+                </label>
+
+                <div class="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
+                  <span class="text-sm font-semibold text-label">Fotografía de la habitación</span>
+                  <div class="border-input-border flex flex-wrap items-center gap-4 rounded-2xl border border-dashed bg-white p-4">
+                    @if (roomForm.controls.imagen_url.value) {
+                      <div class="border-input-border relative h-24 w-32 shrink-0 overflow-hidden rounded-xl border bg-gray-100">
+                        <img [src]="roomForm.controls.imagen_url.value" (error)="imageError($event)" alt="Vista previa" class="h-full w-full object-cover" />
+                      </div>
+                    }
+                    <div class="flex flex-1 flex-wrap items-center gap-2">
+                      <input #roomFile type="file" class="hidden" accept="image/jpeg,image/png,image/webp,image/avif" (change)="uploadRoomImage($event)" />
+                      <button type="button" (click)="roomFile.click()" [disabled]="uploadingImage()" class="border-input-border flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-title transition hover:bg-input-bg disabled:opacity-60">
+                        @if (uploadingImage()) { <svg lucideRefreshCw class="h-3.5 w-3.5 animate-spin"></svg>Subiendo… } @else { <svg lucideUpload class="h-3.5 w-3.5"></svg>{{ roomForm.controls.imagen_url.value ? 'Cambiar foto' : 'Subir foto' }} }
+                      </button>
+                      @if (roomForm.controls.imagen_url.value) {
+                        <button type="button" (click)="removeRoomImage()" class="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100/80">
+                          <svg lucideTrash2 class="h-3.5 w-3.5"></svg>Quitar
+                        </button>
+                      }
+                    </div>
+                  </div>
+                  @if (imageUploadError(); as err) {
+                    <div class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700">
+                      <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ err }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              @for (warning of [capacityWarning(), priceWarning()]; track warning) {
+                @if (warning) {
+                  <div class="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ warning }}</span>
+                  </div>
+                }
+              }
+
+              <div class="mt-5 flex justify-end gap-3 border-t border-input-border pt-4">
+                <button type="button" (click)="cancelRoomForm()" class="border-input-border hover:bg-input-bg rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold text-label">Cancelar</button>
+                <button type="submit" [disabled]="savingRoom() || !!capacityWarning() || !!priceWarning()" class="bg-accent hover:bg-accent-dark rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+                  {{ savingRoom() ? 'Guardando…' : 'Guardar habitación' }}
+                </button>
+              </div>
+            </form>
+          }
+
+          @if (roomsLoading()) {
+            <div class="mt-5 space-y-3">
+              @for (_ of [1,2]; track _) { <div class="h-24 animate-pulse rounded-2xl bg-gray-200"></div> }
+            </div>
+          } @else if (rooms().length === 0) {
+            <div class="mt-5 rounded-2xl border border-dashed border-input-border p-10 text-center">
+              <svg lucideBedDouble class="mx-auto h-10 w-10 text-text-secondary"></svg>
+              <p class="mt-3 font-semibold text-title">Este hospedaje no tiene habitaciones</p>
+              <p class="mt-1 text-sm text-text-secondary">Mientras no publiques al menos una, el hotel aparece sin precio en el Marketplace.</p>
+            </div>
+          } @else {
+            <div class="mt-5 space-y-3">
+              @for (room of rooms(); track room.id) {
+                <article class="border-input-border flex flex-wrap items-center gap-4 rounded-2xl border bg-white p-4">
+                  <div class="border-input-border h-20 w-28 shrink-0 overflow-hidden rounded-xl border bg-gray-100">
+                    @if (room.imagen_url) {
+                      <img [src]="room.imagen_url" (error)="imageError($event)" [alt]="room.nombre" class="h-full w-full object-cover" />
+                    } @else {
+                      <div class="flex h-full items-center justify-center text-text-secondary"><svg lucideImage class="h-7 w-7"></svg></div>
+                    }
+                  </div>
+                  <div class="min-w-48 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <h3 class="font-bold text-title">{{ room.nombre }}</h3>
+                      @if (room.estado === 'PUBLICADO') {
+                        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">Publicado</span>
+                      } @else if (room.estado === 'BORRADOR') {
+                        <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">Borrador</span>
+                      } @else {
+                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-700">Inactivo</span>
+                      }
+                      @if (room.incluye_desayuno) {
+                        <span class="bg-demo-bg text-accent-dark rounded-full px-2 py-0.5 text-xs font-semibold">Desayuno</span>
+                      }
+                    </div>
+                    <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
+                      <span class="flex items-center gap-1"><svg lucideUsers class="h-3.5 w-3.5"></svg>{{ room.capacidad_maxima }} persona(s) · {{ room.capacidad_adultos }} adulto(s), {{ room.capacidad_ninos }} niño(s)</span>
+                      <span class="flex items-center gap-1"><svg lucideBedDouble class="h-3.5 w-3.5"></svg>{{ room.cantidad_habitaciones }} unidad(es){{ room.tipo_cama ? ' · ' + room.tipo_cama : '' }}</span>
+                    </p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xs text-text-secondary">Por noche</p>
+                    <p class="text-lg font-bold text-accent-dark">{{ room.moneda_simbolo }} {{ room.precio_noche }}</p>
+                  </div>
+                  @if (canManage()) {
+                    <div class="flex gap-1">
+                      <button type="button" (click)="startEditRoom(room)" class="rounded-lg p-2 text-text-secondary hover:bg-input-bg hover:text-title" aria-label="Editar habitación"><svg lucidePencil class="h-4 w-4"></svg></button>
+                      <button type="button" (click)="toggleRoomPublication(room)" class="rounded-lg p-2 text-text-secondary hover:bg-demo-bg hover:text-accent-dark" [attr.aria-label]="room.estado === 'PUBLICADO' ? 'Retirar publicación' : 'Publicar habitación'">
+                        @if (room.estado === 'PUBLICADO') { <svg lucideEyeOff class="h-4 w-4"></svg> } @else { <svg lucideEye class="h-4 w-4"></svg> }
+                      </button>
+                      <button type="button" (click)="deactivateRoom(room)" class="rounded-lg p-2 text-text-secondary hover:bg-red-50 hover:text-red-600" aria-label="Desactivar habitación"><svg lucideTrash2 class="h-4 w-4"></svg></button>
+                    </div>
+                  }
+                </article>
+              }
+            </div>
+            <div class="mt-4 flex items-center gap-2 text-xs text-text-secondary">
+              <svg lucideClock class="h-3.5 w-3.5"></svg>
+              <span><strong class="text-title">{{ publishedRooms() }}</strong> de {{ rooms().length }} publicadas. El precio “desde” del hotel usa solo las publicadas.</span>
+            </div>
+          }
+        </div>
+      }
+    }
+  }
+</section>
