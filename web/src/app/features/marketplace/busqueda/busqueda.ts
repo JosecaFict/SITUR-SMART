@@ -3,7 +3,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
-  LucideCalendarDays,
+  LucideArrowLeft,
+  LucideArrowRight,
   LucideChevronDown,
   LucideCircleAlert,
   LucideMapPin,
@@ -22,7 +23,8 @@ import { AuthService } from '../../../core/auth/auth.service';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    LucideCalendarDays,
+    LucideArrowLeft,
+    LucideArrowRight,
     LucideChevronDown,
     LucideCircleAlert,
     LucideMapPin,
@@ -47,17 +49,26 @@ export class Busqueda implements OnInit {
   protected readonly types = signal<ProductType[]>([]);
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly validationMessage = signal<string | null>(null);
   protected readonly selectedType = signal('');
   protected readonly selectedCountryId = signal(0);
   protected readonly expandedProductId = signal<number | null>(null);
-  protected readonly today = this.localDate(new Date());
+  protected readonly total = signal(0);
+  protected readonly page = signal(1);
+  protected readonly pageSize = 9;
+  protected readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.pageSize)));
+  protected readonly hasPreviousPage = computed(() => this.page() > 1);
+  protected readonly hasNextPage = computed(() => this.page() < this.totalPages());
 
   protected readonly filterForm = this.formBuilder.nonNullable.group({
+    buscar: [''],
     pais: [''],
     ciudad: [''],
     localidad: [''],
     tipo: [''],
-    fecha: [''],
+    precio_min: [''],
+    precio_max: [''],
+    orden: ['recientes' as 'recientes' | 'precio_asc' | 'precio_desc' | 'nombre'],
   });
 
   protected readonly filteredCities = computed(() => {
@@ -92,22 +103,37 @@ export class Busqueda implements OnInit {
     }
   }
 
-  protected search(): void {
+  protected search(resetPage = true): void {
+    const raw = this.filterForm.getRawValue();
+    const minimum = this.parsePrice(raw.precio_min);
+    const maximum = this.parsePrice(raw.precio_max);
+
+    this.validationMessage.set(null);
+    if (minimum !== undefined && maximum !== undefined && minimum > maximum) {
+      this.validationMessage.set('El precio máximo debe ser mayor o igual que el precio mínimo.');
+      return;
+    }
+    if (resetPage) this.page.set(1);
     this.loading.set(true);
     this.errorMessage.set(null);
-    const raw = this.filterForm.getRawValue();
     this.selectedType.set(raw.tipo);
     this.productsService
       .listMarketplace({
+        buscar: raw.buscar.trim() || undefined,
         pais: raw.pais ? Number(raw.pais) : undefined,
         ciudad: raw.ciudad ? Number(raw.ciudad) : undefined,
         localidad: raw.localidad.trim() || undefined,
         tipo: raw.tipo || undefined,
-        fecha: raw.fecha || undefined,
+        precio_min: minimum,
+        precio_max: maximum,
+        orden: raw.orden,
+        page: this.page(),
+        page_size: this.pageSize,
       })
       .subscribe({
-        next: (products) => {
-          this.products.set(products);
+        next: (response) => {
+          this.products.set(response.results);
+          this.total.set(response.count);
           this.loading.set(false);
         },
         error: (error: HttpErrorResponse) => {
@@ -127,9 +153,24 @@ export class Busqueda implements OnInit {
   }
 
   protected clearFilters(): void {
-    this.filterForm.reset();
+    this.filterForm.reset({
+      buscar: '', pais: '', ciudad: '', localidad: '', tipo: '',
+      precio_min: '', precio_max: '', orden: 'recientes',
+    });
     this.selectedCountryId.set(0);
     this.search();
+  }
+
+  protected previousPage(): void {
+    if (!this.hasPreviousPage() || this.loading()) return;
+    this.page.update((value) => value - 1);
+    this.search(false);
+  }
+
+  protected nextPage(): void {
+    if (!this.hasNextPage() || this.loading()) return;
+    this.page.update((value) => value + 1);
+    this.search(false);
   }
 
   protected toggleDetails(productId: number): void {
@@ -144,10 +185,9 @@ export class Busqueda implements OnInit {
     (event.target as HTMLImageElement).src = '/images/auth-carousel/Hotel4.webp';
   }
 
-  private localDate(value: Date): string {
-    const year = value.getFullYear();
-    const month = String(value.getMonth() + 1).padStart(2, '0');
-    const day = String(value.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  private parsePrice(value: string): number | undefined {
+    if (!value.trim()) return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 }

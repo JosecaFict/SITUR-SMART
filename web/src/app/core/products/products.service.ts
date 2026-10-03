@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Currency, MarketplaceFilters, ProductPayload, ProductType, TourismProduct } from './products.models';
+import { Currency, MarketplaceFilters, MarketplacePage, ProductPayload, ProductType, TourismProduct } from './products.models';
 
 @Injectable({ providedIn: 'root' })
 export class ProductsService {
@@ -44,11 +44,11 @@ export class ProductsService {
     return this.http.get<Currency[]>(`${environment.apiUrl}/catalogos/monedas/`);
   }
 
-  listMarketplace(filters: MarketplaceFilters = {}): Observable<TourismProduct[]> {
+  listMarketplace(filters: MarketplaceFilters = {}): Observable<MarketplacePage> {
     let params = new HttpParams();
     for (const [key, value] of Object.entries(filters)) {
       if (value !== undefined && value !== null && value !== '') params = params.set(key, String(value));
     }
-    return this.http.get<TourismProduct[]>(`${environment.apiUrl}/marketplace/productos/`, { params });
+    return this.http.get<MarketplacePage>(`${environment.apiUrl}/marketplace/productos/`, { params });
   }
 }

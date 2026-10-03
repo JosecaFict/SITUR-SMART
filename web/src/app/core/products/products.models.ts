@@ -49,4 +49,14 @@ export interface MarketplaceFilters {
   buscar?: string;
   precio_min?: number;
   precio_max?: number;
+  orden?: 'recientes' | 'precio_asc' | 'precio_desc' | 'nombre';
+  page?: number;
+  page_size?: number;
+}
+
+export interface MarketplacePage {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: TourismProduct[];
 }

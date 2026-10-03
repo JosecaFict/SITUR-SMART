@@ -56,6 +56,37 @@ class ProductSerializer(serializers.ModelSerializer):
         )
 
 
+class MarketplaceQuerySerializer(serializers.Serializer):
+    pais = serializers.IntegerField(min_value=1, required=False)
+    ciudad = serializers.IntegerField(min_value=1, required=False)
+    localidad = serializers.CharField(max_length=180, required=False, allow_blank=False)
+    tipo = serializers.CharField(max_length=50, required=False, allow_blank=False)
+    fecha = serializers.DateField(required=False)
+    buscar = serializers.CharField(max_length=180, required=False, allow_blank=False)
+    precio_min = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=0, required=False
+    )
+    precio_max = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=0, required=False
+    )
+    orden = serializers.ChoiceField(
+        choices=("recientes", "precio_asc", "precio_desc", "nombre"),
+        default="recientes",
+        required=False,
+    )
+    page = serializers.IntegerField(min_value=1, required=False)
+    page_size = serializers.IntegerField(min_value=1, max_value=50, required=False)
+
+    def validate(self, attrs):
+        minimum = attrs.get("precio_min")
+        maximum = attrs.get("precio_max")
+        if minimum is not None and maximum is not None and minimum > maximum:
+            raise serializers.ValidationError(
+                {"precio_max": "Debe ser mayor o igual que el precio mínimo."}
+            )
+        return attrs
+
+
 class ProductWriteSerializer(serializers.Serializer):
     tipo_codigo = serializers.CharField(max_length=50, required=False)
     ciudad_id = serializers.IntegerField(min_value=1, required=False)

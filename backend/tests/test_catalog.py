@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase
 from rest_framework.test import APIRequestFactory
 
-from apps.catalog.serializers import ProductWriteSerializer
+from apps.catalog.serializers import MarketplaceQuerySerializer, ProductWriteSerializer
 from apps.catalog.services import _unique_product_code
 from apps.catalog.views import PublicProductListView
 
@@ -67,3 +67,33 @@ class PublicMarketplaceValidationTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("fecha", response.data["error"]["details"])
+
+
+class MarketplaceQuerySerializerTests(SimpleTestCase):
+    def test_rejects_minimum_price_greater_than_maximum(self):
+        serializer = MarketplaceQuerySerializer(
+            data={"precio_min": "200", "precio_max": "100"}
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("precio_max", serializer.errors)
+
+    def test_rejects_unknown_ordering(self):
+        serializer = MarketplaceQuerySerializer(data={"orden": "popularidad"})
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("orden", serializer.errors)
+
+    def test_accepts_complete_marketplace_query(self):
+        serializer = MarketplaceQuerySerializer(
+            data={
+                "buscar": "hotel",
+                "precio_min": "50",
+                "precio_max": "250",
+                "orden": "precio_asc",
+                "page": "2",
+                "page_size": "12",
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
