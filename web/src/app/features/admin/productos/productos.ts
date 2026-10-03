@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import {
   LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
   LucideImage, LucideLink, LucideMapPin, LucidePackageOpen, LucidePencil,
@@ -30,7 +30,7 @@ const LODGING_TYPE_CODES = ['HOTEL', 'HABITACION'];
 @Component({
   selector: 'situr-productos',
   imports: [
-    ReactiveFormsModule, RouterLink, LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
+    ReactiveFormsModule, LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
     LucideImage, LucideLink, LucideMapPin, LucidePackageOpen, LucidePencil, LucidePlus,
     LucideRefreshCw, LucideSearch, LucideTrash2, LucideUpload, LucideUsers, LucideX,
   ],
@@ -43,6 +43,7 @@ export class Productos implements OnInit {
   private readonly productsService = inject(ProductsService);
   private readonly mediaService = inject(MediaService);
   private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
 
   protected readonly companies = signal<CompanyChoice[]>([]);
   protected readonly selectedCompanyId = signal<number | null>(null);
@@ -74,26 +75,77 @@ export class Productos implements OnInit {
   });
   protected readonly selectedCompany = computed(() => this.companies().find((item) => item.id === this.selectedCompanyId()));
   /**
-   * El endpoint devuelve todos los productos de la empresa, hospedajes
-   * incluidos. Se excluyen de esta pantalla porque sus botones de edición
-   * fallarían: el backend solo los acepta por /hospedajes/.
+   * Catálogo es la vista general de toda la oferta, hospedajes incluidos. Los
+   * de hospedaje se muestran de lectura: su creación y edición vive en
+   * /hospedajes, que es donde la relación hotel–habitación tiene sentido.
    */
-  private readonly catalogProducts = computed(
-    () => this.products().filter((product) => !LODGING_TYPE_CODES.includes(product.tipo_codigo)),
-  );
+  protected readonly publishedCount = computed(() => this.products().filter((item) => item.estado === 'PUBLICADO').length);
+  protected readonly catalogCount = computed(() => this.products().length);
   protected readonly lodgingProductCount = computed(
     () => this.products().filter((product) => LODGING_TYPE_CODES.includes(product.tipo_codigo)).length,
   );
-  protected readonly publishedCount = computed(() => this.catalogProducts().filter((item) => item.estado === 'PUBLICADO').length);
-  protected readonly catalogCount = computed(() => this.catalogProducts().length);
   protected readonly filteredProducts = computed(() => {
     const query = this.searchTerm().trim().toLocaleLowerCase('es');
     const status = this.statusFilter();
-    return this.catalogProducts().filter((product) =>
+    return this.products().filter((product) =>
       (status === 'TODOS' || product.estado === status) &&
       [product.nombre, product.tipo, product.ciudad, product.localidad, product.codigo].join(' ').toLocaleLowerCase('es').includes(query),
     );
   });
+
+  /** Un producto de hospedaje no se edita desde acá. */
+  protected isLodging(product: TourismProduct): boolean {
+    return LODGING_TYPE_CODES.includes(product.tipo_codigo);
+  }
+
+  /**
+   * Registro anterior al módulo de Hospedaje que quedó sin ficha. Una
+   * habitación así no tiene hotel, ni ubicación heredada, ni empresa visible, y
+   * no se puede reparar automáticamente porque no hay dato que indique a qué
+   * hotel pertenecía.
+   */
+  protected isOrphanLodging(product: TourismProduct): boolean {
+    return this.isLodging(product) && product.hospedaje_id === null;
+  }
+
+  protected orphanExplanation(product: TourismProduct): string {
+    return product.tipo_codigo === 'HABITACION'
+      ? 'Registro antiguo sin hotel asignado. Se creó antes del módulo de Hospedajes, así que no está vinculada a ningún hotel: no hereda ubicación, no se puede editar como habitación y no aparece en el Marketplace. Para ofrecerla, regístrala de nuevo dentro de su hotel en Hospedajes y desactiva este registro.'
+      : 'Registro antiguo sin ficha de hospedaje. No se puede administrar ni aparece en el Marketplace. Contacta al administrador de la plataforma para regularizarlo.';
+  }
+
+  /** Lleva al módulo de Hospedajes, que ya sabe mostrar el estado correcto. */
+  protected manageLodging(product: TourismProduct): void {
+    const companyId = this.selectedCompanyId();
+    const queryParams = companyId ? { empresa: companyId } : undefined;
+    if (product.tipo_codigo === 'HOTEL' && product.hospedaje_id !== null) {
+      this.router.navigate(['/hospedajes', product.hospedaje_id], { queryParams });
+      return;
+    }
+    if (product.tipo_codigo === 'HABITACION' && product.hospedaje_id !== null) {
+      this.router.navigate(['/hospedajes', product.hospedaje_id, 'habitaciones'], { queryParams });
+      return;
+    }
+    this.router.navigate(['/hospedajes'], { queryParams });
+  }
+
+  /**
+   * Alta de hospedaje desde Catálogo. No se duplica acá la comprobación de si
+   * la empresa tiene hoteles: /hospedajes ya distingue lista de estado vacío.
+   */
+  protected goToNewLodging(): void {
+    const companyId = this.selectedCompanyId();
+    this.router.navigate(['/hospedajes/nuevo'], {
+      queryParams: companyId ? { empresa: companyId } : undefined,
+    });
+  }
+
+  protected goToLodgingModule(): void {
+    const companyId = this.selectedCompanyId();
+    this.router.navigate(['/hospedajes'], {
+      queryParams: companyId ? { empresa: companyId } : undefined,
+    });
+  }
 
   protected readonly productForm = this.fb.nonNullable.group({
     nombre: ['', Validators.required],

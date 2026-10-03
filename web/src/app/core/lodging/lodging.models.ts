@@ -27,7 +27,12 @@ export interface LodgingEstablishment {
   localidad: string | null;
   moneda_codigo: string;
   moneda_simbolo: string;
-  capacidad_maxima: number;
+  /**
+   * Capacidad derivada: suma de `cantidad_habitaciones × capacidad_maxima` de
+   * sus habitaciones. Nula mientras no tenga ninguna que sumar. No existe un
+   * `capacidad_maxima` del hotel: la columna guarda un centinela y no se expone.
+   */
+  capacidad_total: number | null;
   estado: ProductStatus;
   imagen_url: string | null;
   direccion: string | null;
@@ -72,7 +77,10 @@ export interface Room {
   actualizado_en: string;
 }
 
-/** No incluye precio: el de un hotel se deriva de sus habitaciones. */
+/**
+ * No incluye precio ni capacidad: los dos se derivan de las habitaciones. El
+ * backend los rechaza si llegan.
+ */
 export interface LodgingPayload {
   tipo_hospedaje_codigo?: string;
   nombre: string;
@@ -80,7 +88,6 @@ export interface LodgingPayload {
   ciudad_id: number;
   localidad?: string;
   moneda_codigo: string;
-  capacidad_maxima: number;
   estado: ProductStatus;
   imagen_url?: string;
   direccion?: string;

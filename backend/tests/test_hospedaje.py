@@ -18,7 +18,7 @@ from typing import ClassVar
 from unittest.mock import MagicMock, PropertyMock, patch
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Count, Min, Q
+from django.db.models import Count, Exists, F, Min, OuterRef, Q, Sum
 from django.test import SimpleTestCase
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -36,11 +36,14 @@ from apps.catalog.services import (
     _check_lodging_publishable,
     _check_room_capacity,
     _check_room_price,
+    _company_lodgings,
     _lodging_type,
+    _publishable_room_exists,
     create_lodging,
     create_room,
     get_company_lodging,
     get_company_room,
+    list_company_products,
     only_complete_lodging_products,
     public_lodgings,
     public_rooms,
@@ -58,12 +61,12 @@ ACTIVE = "ACTIVO"
 
 class LodgingWriteSerializerTests(SimpleTestCase):
     def test_create_requires_core_fields(self):
+        """No pide capacidad: se deriva de las habitaciones."""
         serializer = LodgingWriteSerializer(data={})
 
         self.assertFalse(serializer.is_valid())
         self.assertEqual(
-            set(serializer.errors),
-            {"nombre", "ciudad_id", "moneda_codigo", "capacidad_maxima"},
+            set(serializer.errors), {"nombre", "ciudad_id", "moneda_codigo"}
         )
 
     def test_ignores_precio_base(self):
@@ -333,10 +336,11 @@ class FromPriceAnnotationTests(SimpleTestCase):
         )
 
     def test_a_hotel_without_rooms_has_no_price(self):
-        """Min sobre cero filas es NULL, y el serializer lo expone como null."""
-        lodging = MagicMock(from_price=None)
+        """Min sobre cero filas es NULL, y el serializer lo deja pasar como null."""
+        field = LodgingSerializer().fields["precio_desde"]
 
-        self.assertIsNone(LodgingSerializer().to_representation(lodging)["precio_desde"])
+        self.assertEqual(field.source, "from_price")
+        self.assertTrue(field.allow_null)
 
 
 class PublicVisibilityTests(SimpleTestCase):
@@ -646,31 +650,23 @@ class OrphanLodgingProductsTests(SimpleTestCase):
     hotel pertenecia.
     """
 
-    def test_filter_keeps_non_lodging_products_and_complete_lodging_only(self):
-        queryset = MagicMock()
-
-        only_complete_lodging_products(queryset)
-
-        condition = queryset.filter.call_args.args[0]
-        self.assertEqual(
-            condition,
-            ~Q(product_type__code__in=LODGING_PRODUCT_CODES)
-            | Q(product_type__code="HOTEL", lodging__isnull=False)
-            | Q(
-                product_type__code="HABITACION",
-                room__isnull=False,
-                room__establishment__product__status=PUBLISHED,
-            ),
-        )
+    # La condicion completa del filtro se verifica en
+    # IncompleteHotelVisibilityTests.test_generic_marketplace_requires_it_for_hotels,
+    # que incluye la exigencia de habitacion ofertable para los hoteles.
 
     def test_uses_filter_so_pagination_and_other_filters_still_chain(self):
-        """Es un filter() sobre relaciones de un solo valor: sin distinct ni subconsulta."""
+        """Anota y filtra, sin distinct: las relaciones del OR son de un solo valor.
+
+        El unico multivaluado (rooms) entra por una subconsulta Exists, que no
+        duplica filas, asi que el count() del paginador sigue siendo exacto.
+        """
         queryset = MagicMock()
 
         result = only_complete_lodging_products(queryset)
 
-        queryset.filter.assert_called_once()
-        self.assertEqual(result, queryset.filter.return_value)
+        annotated = queryset.annotate.return_value
+        annotated.filter.assert_called_once()
+        self.assertEqual(result, annotated.filter.return_value)
         result.distinct.assert_not_called()
 
 
@@ -954,6 +950,189 @@ class CrossTenantAccessTests(SimpleTestCase):
             update_room(actor=actor, tenant_id=7, room_id=1, nombre="X")
 
         permission.assert_called_once_with(actor, "PRODUCTOS_GESTIONAR", 7)
+
+
+class DerivedHotelCapacityTests(SimpleTestCase):
+    """La capacidad del hotel se deriva: SUM(cantidad x capacidad por tipo).
+
+    producto_turistico.capacidad_maxima es NOT NULL con CHECK (> 0), asi que no
+    puede guardar el 0 que corresponderia a un hotel sin habitaciones. Se guarda
+    un centinela y el dato real se calcula.
+    """
+
+    databases: ClassVar[set[str]] = {"default"}
+
+    def test_annotates_the_sum_of_units_times_capacity(self):
+        queryset = MagicMock()
+
+        with_from_price(queryset)
+
+        annotations = queryset.annotate.call_args.kwargs
+        self.assertEqual(
+            annotations["total_capacity"],
+            Sum(
+                F("rooms__quantity") * F("rooms__product__max_capacity"),
+                filter=Q(rooms__product__status=PUBLISHED),
+            ),
+        )
+
+    def test_company_panel_sums_non_inactive_rooms(self):
+        queryset = MagicMock()
+
+        with_from_price(queryset, published_rooms_only=False)
+
+        annotations = queryset.annotate.call_args.kwargs
+        self.assertEqual(
+            annotations["total_capacity"],
+            Sum(
+                F("rooms__quantity") * F("rooms__product__max_capacity"),
+                filter=~Q(rooms__product__status="INACTIVO"),
+            ),
+        )
+
+    def test_serializer_reports_null_while_there_is_nothing_to_sum(self):
+        """Sum sobre cero filas es NULL: el hotel sin habitaciones no miente un 0."""
+        field = LodgingSerializer().fields["capacidad_total"]
+
+        self.assertEqual(field.source, "total_capacity")
+        self.assertTrue(field.allow_null)
+
+    def test_the_write_serializer_does_not_accept_a_manual_capacity(self):
+        self.assertNotIn("capacidad_maxima", LodgingWriteSerializer().fields)
+
+    def test_the_read_serializer_does_not_expose_the_sentinel(self):
+        """capacidad_maxima del hotel vale 1 y no debe verse en ningun lado."""
+        self.assertNotIn("capacidad_maxima", LodgingSerializer().fields)
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services.ensure_product_quota_available")
+    @patch("apps.catalog.services.require_permission")
+    @patch("apps.catalog.services.require_tenant_access")
+    def test_create_stores_the_sentinel(self, tenant_access, permission, quota, audit):
+        with (
+            patch("apps.catalog.services.City.objects.get"),
+            patch("apps.catalog.services.Currency.objects.get"),
+            patch("apps.catalog.services.ProductType.objects.get"),
+            patch("apps.catalog.services.LodgingType.objects.get"),
+            patch("apps.catalog.services._unique_product_code", return_value="X"),
+            patch("apps.catalog.services.TourismProduct.objects.create") as create,
+            patch("apps.catalog.services.LodgingEstablishment.objects.create"),
+            patch("apps.catalog.services._company_lodgings"),
+        ):
+            create_lodging(
+                actor=MagicMock(), tenant_id=7, nombre="QA Hotel",
+                ciudad_id=2, moneda_codigo="BOB",
+            )
+
+            # 1 es el minimo que admite CHECK (capacidad_maxima > 0).
+            self.assertEqual(create.call_args.kwargs["max_capacity"], 1)
+
+
+class IncompleteHotelVisibilityTests(SimpleTestCase):
+    """Un hotel sin habitacion ofertable no se muestra en el Marketplace.
+
+    La migracion 0006 repara los heredados una vez, pero el estado se vuelve a
+    alcanzar despublicando la ultima habitacion: por eso la consulta publica lo
+    exige en cada pedido.
+    """
+
+    @patch("apps.catalog.services.LodgingEstablishment.objects.select_related")
+    def test_public_lodgings_require_a_publishable_room(self, select_related):
+        primero = MagicMock()
+        select_related.return_value.filter.return_value = primero
+
+        public_lodgings()
+
+        # Primero el estado y la empresa, despues la existencia de habitacion.
+        select_related.return_value.filter.assert_called_once_with(
+            product__status=PUBLISHED, product__tenant__status=ACTIVE
+        )
+        primero.filter.assert_called_once()
+        condition = primero.filter.call_args.args[0]
+        self.assertIsInstance(condition, Exists)
+
+    def test_the_company_panel_still_shows_them(self):
+        """La empresa tiene que ver lo que le falta arreglar."""
+        with patch(
+            "apps.catalog.services.LodgingEstablishment.objects.select_related"
+        ) as select_related:
+            queryset = MagicMock()
+            select_related.return_value.filter.return_value = queryset
+
+            _company_lodgings(7)
+
+            # Un solo filter, el del tenant: sin exigir habitacion ofertable.
+            select_related.return_value.filter.assert_called_once_with(tenant_id=7)
+            queryset.filter.assert_not_called()
+
+    def test_generic_marketplace_requires_it_for_hotels(self):
+        queryset = MagicMock()
+
+        only_complete_lodging_products(queryset)
+
+        annotated = queryset.annotate.return_value
+        condition = annotated.filter.call_args.args[0]
+        self.assertEqual(
+            condition,
+            ~Q(product_type__code__in=LODGING_PRODUCT_CODES)
+            | Q(
+                product_type__code="HOTEL",
+                lodging__isnull=False,
+                has_publishable_room=True,
+            )
+            | Q(
+                product_type__code="HABITACION",
+                room__isnull=False,
+                room__establishment__product__status=PUBLISHED,
+            ),
+        )
+
+    def test_the_exists_subquery_only_counts_published_priced_rooms(self):
+        with patch("apps.catalog.services.Room.objects.filter") as room_filter:
+            _publishable_room_exists(establishment=OuterRef("pk"))
+
+        self.assertEqual(
+            room_filter.call_args.kwargs["product__status"], PUBLISHED
+        )
+        self.assertEqual(room_filter.call_args.kwargs["product__base_price__gt"], 0)
+
+
+class CompanyCatalogShowsLodgingTests(SimpleTestCase):
+    """Catalogo es la vista general: los hospedajes vuelven a aparecer.
+
+    Pero sin los filtros del Marketplace: la empresa debe ver sus hoteles
+    incompletos y sus habitaciones huerfanas para poder arreglarlos.
+    """
+
+    @patch("apps.catalog.services.require_permission")
+    @patch("apps.catalog.services.require_tenant_access")
+    def test_annotates_from_price_so_a_hotel_card_has_a_price(
+        self, tenant_access, permission
+    ):
+        with patch(
+            "apps.catalog.services.TourismProduct.objects.select_related"
+        ) as select_related:
+            list_company_products(actor=MagicMock(), tenant_id=7)
+
+            annotations = select_related.return_value.annotate.call_args.kwargs
+            self.assertIn("from_price", annotations)
+            # Y trae las relaciones para nombrar el hotel sin N+1.
+            related = select_related.call_args.args
+            self.assertIn("room__establishment__product", related)
+            self.assertIn("lodging", related)
+
+    @patch("apps.catalog.services.require_permission")
+    @patch("apps.catalog.services.require_tenant_access")
+    def test_does_not_hide_incomplete_lodging_from_the_company(
+        self, tenant_access, permission
+    ):
+        with patch("apps.catalog.services.TourismProduct.objects.select_related") as sr:
+            result = list_company_products(actor=MagicMock(), tenant_id=7)
+
+            # Un solo filter, el del tenant. Nada de only_complete_*.
+            annotated = sr.return_value.annotate.return_value
+            annotated.filter.assert_called_once_with(tenant_id=7)
+            self.assertEqual(result, annotated.filter.return_value)
 
 
 class PublicRoomQueryTests(SimpleTestCase):

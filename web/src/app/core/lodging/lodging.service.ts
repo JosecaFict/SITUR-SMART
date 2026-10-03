@@ -42,6 +42,12 @@ export class LodgingService {
     });
   }
 
+  getCompanyLodging(tenantId: number, lodgingId: number): Observable<LodgingEstablishment> {
+    return this.http.get<LodgingEstablishment>(`${environment.apiUrl}/hospedajes/${lodgingId}/`, {
+      headers: this.tenantHeaders(tenantId),
+    });
+  }
+
   createLodging(tenantId: number, payload: LodgingPayload): Observable<LodgingEstablishment> {
     return this.http.post<LodgingEstablishment>(`${environment.apiUrl}/hospedajes/`, payload, {
       headers: this.tenantHeaders(tenantId),

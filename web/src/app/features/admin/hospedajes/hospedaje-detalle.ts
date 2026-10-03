@@ -1,11 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCheck, LucideCircleAlert,
   LucideClock, LucideEye, LucideEyeOff, LucideImage, LucideMapPin, LucidePencil,
-  LucidePlus, LucideRefreshCw, LucideStar, LucideTrash2, LucideUpload, LucideUsers,
-  LucideX,
+  LucidePlus, LucideRefreshCw, LucideTrash2, LucideUpload, LucideUsers, LucideX,
 } from '@lucide/angular';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -20,40 +20,47 @@ import { MediaService } from '../../../core/media/media.service';
 import { Currency, ProductStatus } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
 
-interface CompanyChoice { id: number; name: string; }
-type View = 'list' | 'create' | 'detail';
 type Tab = 'general' | 'hospedaje' | 'habitaciones';
 
-/** Servicios ofrecidos como casillas. Los que lleguen de la API y no estén acá
- *  se conservan igual, porque la lista se inicializa con lo que vino. */
+/** Los que no estén acá se conservan si vinieron de la API. */
 const SERVICE_OPTIONS = [
   'Wi-Fi', 'Piscina', 'Desayuno incluido', 'Estacionamiento', 'Aire acondicionado',
   'Gimnasio', 'Restaurante', 'Spa', 'Recepción 24 h', 'Admite mascotas',
 ];
 
+/**
+ * Alta y ficha de un hospedaje. Sirve a cuatro rutas:
+ *
+ *   /hospedajes/nuevo                 -> alta
+ *   /hospedajes/:id                   -> ficha, pestaña Información general
+ *   /hospedajes/:id/habitaciones      -> ficha, pestaña Habitaciones
+ *
+ * La empresa llega como `?empresa=`, para que la ficha funcione con enlace
+ * directo y tras un recargado sin depender de estado en memoria.
+ */
 @Component({
-  selector: 'situr-hospedajes',
+  selector: 'situr-hospedaje-detalle',
   imports: [
     ReactiveFormsModule, LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCheck,
     LucideCircleAlert, LucideClock, LucideEye, LucideEyeOff, LucideImage, LucideMapPin,
-    LucidePencil, LucidePlus, LucideRefreshCw, LucideStar, LucideTrash2, LucideUpload,
-    LucideUsers, LucideX,
+    LucidePencil, LucidePlus, LucideRefreshCw, LucideTrash2, LucideUpload, LucideUsers,
+    LucideX,
   ],
-  templateUrl: './hospedajes.html',
+  templateUrl: './hospedaje-detalle.html',
 })
-export class Hospedajes implements OnInit {
+export class HospedajeDetalle implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly companiesService = inject(CompaniesService);
   private readonly productsService = inject(ProductsService);
   private readonly lodgingService = inject(LodgingService);
   private readonly mediaService = inject(MediaService);
   private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected readonly serviceOptions = SERVICE_OPTIONS;
 
-  protected readonly companies = signal<CompanyChoice[]>([]);
-  protected readonly selectedCompanyId = signal<number | null>(null);
-  protected readonly lodgings = signal<LodgingEstablishment[]>([]);
+  private readonly companyId = signal<number | null>(null);
   protected readonly lodgingTypes = signal<LodgingType[]>([]);
   protected readonly currencies = signal<Currency[]>([]);
   protected readonly cities = signal<City[]>([]);
@@ -62,12 +69,15 @@ export class Hospedajes implements OnInit {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly successMessage = signal<string | null>(null);
 
-  protected readonly view = signal<View>('list');
+  /** Nulo mientras se carga, y en el alta hasta que se guarda. */
+  protected readonly lodging = signal<LodgingEstablishment | null>(null);
+  protected readonly isNew = signal(false);
   protected readonly activeTab = signal<Tab>('general');
-  protected readonly selectedLodging = signal<LodgingEstablishment | null>(null);
   protected readonly savingLodging = signal(false);
   protected readonly lodgingFormError = signal<string | null>(null);
   protected readonly selectedServices = signal<string[]>([]);
+  /** Llega como ?creado=1 tras el alta, para guiar al paso siguiente. */
+  protected readonly justCreated = signal(false);
 
   protected readonly rooms = signal<Room[]>([]);
   protected readonly roomsLoading = signal(false);
@@ -79,31 +89,24 @@ export class Hospedajes implements OnInit {
   protected readonly uploadingImage = signal(false);
   protected readonly imageUploadError = signal<string | null>(null);
 
-  protected readonly isSuperAdmin = computed(
-    () => this.auth.session()?.user.roles.includes('SUPER_ADMIN') ?? false,
-  );
   protected readonly canManage = computed(() => {
     const user = this.auth.session()?.user;
     return !!user && (user.roles.includes('SUPER_ADMIN') || user.permisos.includes('PRODUCTOS_GESTIONAR'));
   });
-  protected readonly selectedCompany = computed(
-    () => this.companies().find((item) => item.id === this.selectedCompanyId()),
-  );
-  protected readonly publishedCount = computed(
-    () => this.lodgings().filter((item) => item.estado === 'PUBLICADO').length,
-  );
   protected readonly publishedRooms = computed(
     () => this.rooms().filter((room) => room.estado === 'PUBLICADO').length,
   );
+  protected readonly canPublishLodging = computed(() =>
+    this.rooms().some((room) => room.estado === 'PUBLICADO' && Number(room.precio_noche) > 0),
+  );
+  protected readonly hasNoRooms = computed(() => !this.roomsLoading() && this.rooms().length === 0);
 
-  /** Todos los campos del hospedaje. Las pestañas solo deciden qué mostrar. */
   protected readonly lodgingForm = this.fb.nonNullable.group({
     nombre: ['', Validators.required],
     descripcion: [''],
     ciudad_id: [0, [Validators.required, Validators.min(1)]],
     localidad: [''],
     moneda_codigo: ['BOB', Validators.required],
-    capacidad_maxima: [1, [Validators.required, Validators.min(1)]],
     estado: ['BORRADOR' as ProductStatus, Validators.required],
     imagen_url: [''],
     tipo_hospedaje_codigo: ['HOTEL', Validators.required],
@@ -129,9 +132,8 @@ export class Hospedajes implements OnInit {
 
   /**
    * Los tres campos son topes alternativos, no un desglose: cada uno debe caber
-   * en la capacidad total, pero su suma no se valida acá. Una habitación de 4
-   * plazas con hasta 4 adultos y hasta 3 niños es válida — son combinaciones que
-   * nunca se dan al mismo tiempo. La suma se comprueba al reservar.
+   * en el total, pero su suma no se valida acá. Una habitación de 4 plazas con
+   * hasta 4 adultos y hasta 3 niños es válida — nunca se ocupan a la vez.
    */
   protected readonly capacityWarning = computed(() => {
     const { capacidad_maxima, capacidad_adultos, capacidad_ninos } = this.roomForm.getRawValue();
@@ -145,7 +147,6 @@ export class Hospedajes implements OnInit {
     return null;
   });
 
-  /** Una habitación publicada no puede costar 0: fijaría el precio del hotel en 0. */
   protected readonly priceWarning = computed(() => {
     const { precio_base, estado } = this.roomForm.getRawValue();
     return estado === 'PUBLICADO' && Number(precio_base) <= 0
@@ -153,13 +154,18 @@ export class Hospedajes implements OnInit {
       : null;
   });
 
-  /** Si no hay ninguna habitación publicada con precio, el hotel no se puede publicar. */
-  protected readonly canPublishLodging = computed(() =>
-    this.rooms().some((room) => room.estado === 'PUBLICADO' && Number(room.precio_noche) > 0),
-  );
-
   ngOnInit(): void {
-    const sessionCompanies = this.auth.session()?.user.tenants.map((item) => ({ id: item.id, name: item.name })) ?? [];
+    const params = this.route.snapshot.paramMap;
+    const query = this.route.snapshot.queryParamMap;
+    const lodgingId = params.get('id');
+    this.isNew.set(lodgingId === null);
+    this.activeTab.set((this.route.snapshot.data['tab'] as Tab) ?? 'general');
+    this.justCreated.set(query.get('creado') === '1');
+
+    const fromQuery = Number(query.get('empresa'));
+    const sessionCompany = this.auth.session()?.user.tenants[0]?.id ?? null;
+    this.companyId.set(fromQuery || sessionCompany);
+
     forkJoin({
       types: this.lodgingService.listTypes(),
       currencies: this.productsService.listCurrencies(),
@@ -169,90 +175,56 @@ export class Hospedajes implements OnInit {
         this.lodgingTypes.set(types);
         this.currencies.set(currencies);
         this.cities.set(cities);
-        if (this.isSuperAdmin()) {
-          this.companiesService.list('', 'ACTIVO').subscribe({
-            next: (companies) => this.initializeCompanies(
-              companies.map((item) => ({ id: item.id, name: item.nombre_comercial })),
-            ),
-            error: () => this.failLoading('No fue posible cargar las empresas.'),
-          });
-        } else this.initializeCompanies(sessionCompanies);
+        if (lodgingId) this.loadLodging(Number(lodgingId));
+        else this.prepareNew();
       },
-      error: () => this.failLoading('No fue posible cargar los catálogos de hospedaje. Verifica que las migraciones estén aplicadas.'),
-    });
-  }
-
-  private initializeCompanies(companies: CompanyChoice[]): void {
-    this.companies.set(companies);
-    if (!companies.length) return this.failLoading('Tu cuenta no tiene una empresa activa asignada.');
-    this.selectedCompanyId.set(companies[0].id);
-    this.loadLodgings();
-  }
-
-  private failLoading(message: string): void {
-    this.loading.set(false);
-    this.errorMessage.set(message);
-  }
-
-  protected changeCompany(event: Event): void {
-    this.selectedCompanyId.set(Number((event.target as HTMLSelectElement).value));
-    this.backToList();
-    this.loadLodgings();
-  }
-
-  protected loadLodgings(): void {
-    const companyId = this.selectedCompanyId();
-    if (!companyId) return;
-    this.loading.set(true);
-    this.errorMessage.set(null);
-    this.lodgingService.listCompanyLodgings(companyId).subscribe({
-      next: (lodgings) => { this.lodgings.set(lodgings); this.loading.set(false); },
-      error: (error: HttpErrorResponse) => {
+      error: () => {
         this.loading.set(false);
-        this.errorMessage.set(apiErrorMessage(error, 'No fue posible cargar los hospedajes.'));
+        this.errorMessage.set('No fue posible cargar los catálogos de hospedaje.');
       },
     });
   }
 
-  // --- Navegación ---------------------------------------------------------
-
-  protected backToList(): void {
-    this.view.set('list');
-    this.selectedLodging.set(null);
-    this.showRoomForm.set(false);
-    this.editingRoom.set(null);
-    this.rooms.set([]);
-    this.lodgingFormError.set(null);
-    this.imageUploadError.set(null);
-  }
-
-  protected startCreate(): void {
-    this.selectedLodging.set(null);
-    this.selectedServices.set([]);
-    this.lodgingFormError.set(null);
-    this.imageUploadError.set(null);
+  private prepareNew(): void {
     this.lodgingForm.reset({
       ciudad_id: this.cities()[0]?.id ?? 0,
       moneda_codigo: this.currencies()[0]?.codigo ?? 'BOB',
-      capacidad_maxima: 1,
       estado: 'BORRADOR',
       tipo_hospedaje_codigo: 'HOTEL',
     });
-    this.view.set('create');
+    this.selectedServices.set([]);
+    this.loading.set(false);
   }
 
-  protected openLodging(lodging: LodgingEstablishment, tab: Tab = 'general'): void {
-    this.selectedLodging.set(lodging);
+  private loadLodging(lodgingId: number): void {
+    const companyId = this.companyId();
+    if (!companyId) {
+      this.loading.set(false);
+      this.errorMessage.set('No fue posible determinar la empresa de este hospedaje.');
+      return;
+    }
+    this.lodgingService.getCompanyLodging(companyId, lodgingId).subscribe({
+      next: (lodging) => {
+        this.applyLodging(lodging);
+        this.loading.set(false);
+        this.loadRooms(lodging.id);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.loading.set(false);
+        this.errorMessage.set(apiErrorMessage(error, 'No fue posible cargar el hospedaje.'));
+      },
+    });
+  }
+
+  private applyLodging(lodging: LodgingEstablishment): void {
+    this.lodging.set(lodging);
     this.selectedServices.set([...lodging.servicios]);
-    this.lodgingFormError.set(null);
-    this.imageUploadError.set(null);
     this.lodgingForm.setValue({
       nombre: lodging.nombre,
       descripcion: lodging.descripcion ?? '',
       ciudad_id: lodging.ciudad_id,
       localidad: lodging.localidad ?? '',
       moneda_codigo: lodging.moneda_codigo,
-      capacidad_maxima: lodging.capacidad_maxima,
       estado: lodging.estado,
       imagen_url: lodging.imagen_url ?? '',
       tipo_hospedaje_codigo: lodging.tipo_hospedaje_codigo,
@@ -261,12 +233,25 @@ export class Hospedajes implements OnInit {
       hora_check_in: this.toTimeInput(lodging.hora_check_in),
       hora_check_out: this.toTimeInput(lodging.hora_check_out),
     });
-    this.activeTab.set(tab);
-    this.view.set('detail');
-    this.loadRooms(lodging.id);
   }
 
+  // --- Navegación ---------------------------------------------------------
+
+  protected backToList(): void {
+    this.router.navigate(['/hospedajes']);
+  }
+
+  /** Cambiar de pestaña cambia la URL, así el botón atrás del navegador sirve. */
   protected selectTab(tab: Tab): void {
+    const lodging = this.lodging();
+    if (!lodging) return;
+    const path = tab === 'habitaciones'
+      ? ['/hospedajes', lodging.id, 'habitaciones']
+      : ['/hospedajes', lodging.id];
+    this.router.navigate(path, {
+      queryParams: { empresa: this.companyId() },
+      replaceUrl: true,
+    });
     this.activeTab.set(tab);
   }
 
@@ -283,16 +268,16 @@ export class Hospedajes implements OnInit {
   }
 
   protected submitLodging(): void {
-    const companyId = this.selectedCompanyId();
+    const companyId = this.companyId();
     if (!companyId || this.lodgingForm.invalid) { this.lodgingForm.markAllAsTouched(); return; }
     const raw = this.lodgingForm.getRawValue();
+    // Sin precio ni capacidad: los dos se derivan de las habitaciones.
     const payload: LodgingPayload = {
       nombre: raw.nombre.trim(),
       descripcion: raw.descripcion.trim() || undefined,
       ciudad_id: Number(raw.ciudad_id),
       localidad: raw.localidad.trim() || undefined,
       moneda_codigo: raw.moneda_codigo,
-      capacidad_maxima: Number(raw.capacidad_maxima),
       estado: raw.estado,
       imagen_url: raw.imagen_url.trim() || undefined,
       tipo_hospedaje_codigo: raw.tipo_hospedaje_codigo,
@@ -303,22 +288,26 @@ export class Hospedajes implements OnInit {
       servicios: this.selectedServices(),
     };
 
-    const editing = this.selectedLodging();
+    const existing = this.lodging();
     this.savingLodging.set(true);
     this.lodgingFormError.set(null);
-    const request = editing
-      ? this.lodgingService.updateLodging(companyId, editing.id, payload)
+    const request = existing
+      ? this.lodgingService.updateLodging(companyId, existing.id, payload)
       : this.lodgingService.createLodging(companyId, payload);
 
     request.subscribe({
       next: (lodging) => {
-        this.lodgings.update((items) =>
-          editing ? items.map((item) => (item.id === lodging.id ? lodging : item)) : [lodging, ...items],
-        );
         this.savingLodging.set(false);
-        this.successMessage.set(editing ? 'Hospedaje actualizado.' : 'Hospedaje creado. Ahora puedes registrar sus habitaciones.');
-        if (editing) this.selectedLodging.set(lodging);
-        else this.openLodging(lodging, 'habitaciones');
+        if (existing) {
+          this.applyLodging(lodging);
+          this.successMessage.set('Hospedaje actualizado.');
+          return;
+        }
+        // Recién creado: la URL pasa a ser la de su ficha, en Habitaciones.
+        this.router.navigate(['/hospedajes', lodging.id, 'habitaciones'], {
+          queryParams: { empresa: companyId, creado: 1 },
+          replaceUrl: true,
+        });
       },
       error: (error: HttpErrorResponse) => {
         this.savingLodging.set(false);
@@ -327,31 +316,17 @@ export class Hospedajes implements OnInit {
     });
   }
 
-  protected toggleLodgingPublication(lodging: LodgingEstablishment): void {
-    const companyId = this.selectedCompanyId();
-    if (!companyId) return;
-    const estado: ProductStatus = lodging.estado === 'PUBLICADO' ? 'BORRADOR' : 'PUBLICADO';
-    this.lodgingService.updateLodging(companyId, lodging.id, { estado }).subscribe({
-      next: (updated) => {
-        this.lodgings.update((items) => items.map((item) => (item.id === updated.id ? updated : item)));
-        if (this.selectedLodging()?.id === updated.id) this.selectedLodging.set(updated);
-      },
-      error: (error: HttpErrorResponse) =>
-        this.errorMessage.set(apiErrorMessage(error, 'No fue posible cambiar la publicación.')),
-    });
-  }
-
-  protected deactivateLodging(lodging: LodgingEstablishment): void {
-    const companyId = this.selectedCompanyId();
-    if (!companyId) return;
+  protected deactivateLodging(): void {
+    const companyId = this.companyId();
+    const lodging = this.lodging();
+    if (!companyId || !lodging) return;
     const confirmed = confirm(
       `¿Desactivar “${lodging.nombre}”?\n\nSus habitaciones dejarán de aparecer en el Marketplace mientras el hospedaje esté inactivo.`,
     );
     if (!confirmed) return;
     this.lodgingService.deactivateLodging(companyId, lodging.id).subscribe({
       next: (updated) => {
-        this.lodgings.update((items) => items.map((item) => (item.id === updated.id ? updated : item)));
-        if (this.selectedLodging()?.id === updated.id) this.selectedLodging.set(updated);
+        this.applyLodging(updated);
         this.successMessage.set('Hospedaje desactivado.');
       },
       error: (error: HttpErrorResponse) =>
@@ -362,7 +337,7 @@ export class Hospedajes implements OnInit {
   // --- Habitaciones -------------------------------------------------------
 
   protected loadRooms(lodgingId: number): void {
-    const companyId = this.selectedCompanyId();
+    const companyId = this.companyId();
     if (!companyId) return;
     this.roomsLoading.set(true);
     this.lodgingService.listRooms(companyId, lodgingId).subscribe({
@@ -383,6 +358,7 @@ export class Hospedajes implements OnInit {
       cantidad_habitaciones: 1, incluye_desayuno: false, estado: 'BORRADOR',
     });
     this.showRoomForm.set(true);
+    this.justCreated.set(false);
   }
 
   protected startEditRoom(room: Room): void {
@@ -413,8 +389,8 @@ export class Hospedajes implements OnInit {
   }
 
   protected submitRoom(): void {
-    const companyId = this.selectedCompanyId();
-    const lodging = this.selectedLodging();
+    const companyId = this.companyId();
+    const lodging = this.lodging();
     if (!companyId || !lodging || this.roomForm.invalid) { this.roomForm.markAllAsTouched(); return; }
     const raw = this.roomForm.getRawValue();
     const payload: RoomPayload = {
@@ -446,7 +422,7 @@ export class Hospedajes implements OnInit {
         this.savingRoom.set(false);
         this.successMessage.set(editing ? 'Habitación actualizada.' : 'Habitación registrada.');
         this.cancelRoomForm();
-        this.refreshSelectedLodging();
+        this.refreshLodging();
       },
       error: (error: HttpErrorResponse) => {
         this.savingRoom.set(false);
@@ -456,13 +432,14 @@ export class Hospedajes implements OnInit {
   }
 
   protected toggleRoomPublication(room: Room): void {
-    const companyId = this.selectedCompanyId();
+    const companyId = this.companyId();
     if (!companyId) return;
     const estado: ProductStatus = room.estado === 'PUBLICADO' ? 'BORRADOR' : 'PUBLICADO';
+    this.errorMessage.set(null);
     this.lodgingService.updateRoom(companyId, room.id, { estado }).subscribe({
       next: (updated) => {
         this.rooms.update((items) => items.map((item) => (item.id === updated.id ? updated : item)));
-        this.refreshSelectedLodging();
+        this.refreshLodging();
       },
       error: (error: HttpErrorResponse) =>
         this.errorMessage.set(apiErrorMessage(error, 'No fue posible cambiar la publicación.')),
@@ -470,12 +447,12 @@ export class Hospedajes implements OnInit {
   }
 
   protected deactivateRoom(room: Room): void {
-    const companyId = this.selectedCompanyId();
+    const companyId = this.companyId();
     if (!companyId || !confirm(`¿Desactivar “${room.nombre}”?`)) return;
     this.lodgingService.deactivateRoom(companyId, room.id).subscribe({
       next: (updated) => {
         this.rooms.update((items) => items.map((item) => (item.id === updated.id ? updated : item)));
-        this.refreshSelectedLodging();
+        this.refreshLodging();
         this.successMessage.set('Habitación desactivada.');
       },
       error: (error: HttpErrorResponse) =>
@@ -483,17 +460,13 @@ export class Hospedajes implements OnInit {
     });
   }
 
-  /** El precio "desde" y el conteo los calcula el backend: hay que releerlos. */
-  private refreshSelectedLodging(): void {
-    const companyId = this.selectedCompanyId();
-    const lodging = this.selectedLodging();
+  /** El precio "desde", la capacidad y el conteo los calcula el backend. */
+  private refreshLodging(): void {
+    const companyId = this.companyId();
+    const lodging = this.lodging();
     if (!companyId || !lodging) return;
-    this.lodgingService.listCompanyLodgings(companyId).subscribe({
-      next: (lodgings) => {
-        this.lodgings.set(lodgings);
-        const updated = lodgings.find((item) => item.id === lodging.id);
-        if (updated) this.selectedLodging.set(updated);
-      },
+    this.lodgingService.getCompanyLodging(companyId, lodging.id).subscribe({
+      next: (updated) => this.lodging.set(updated),
       error: () => undefined,
     });
   }
@@ -547,16 +520,9 @@ export class Hospedajes implements OnInit {
     (event.target as HTMLImageElement).style.display = 'none';
   }
 
-  // --- Utilidades de presentación ----------------------------------------
-
   /** El backend devuelve "14:00:00"; <input type="time"> espera "14:00". */
   private toTimeInput(value: string | null): string {
     return value ? value.slice(0, 5) : '';
-  }
-
-  protected cityLabel(cityId: number): string {
-    const city = this.cities().find((item) => item.id === cityId);
-    return city ? `${city.nombre}, ${city.pais}` : '—';
   }
 
   protected stars(count: number | null): number[] {

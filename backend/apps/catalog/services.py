@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Count, Min, Q
+from django.db.models import Count, Exists, F, Min, OuterRef, Q, Sum
 from django.utils.text import slugify
 from rest_framework.exceptions import NotFound, ValidationError
 
@@ -24,10 +24,25 @@ from .models import (
 
 
 def list_company_products(*, actor, tenant_id: int):
+    """Toda la oferta de la empresa, hospedajes incluidos.
+
+    A diferencia del Marketplace, aqui NO se filtran los hospedajes incompletos
+    ni las habitaciones huerfanas: la empresa tiene que ver lo que le falta
+    arreglar. El Catalogo los muestra como lectura y enlaza al modulo
+    especializado.
+
+    Se anota el precio "desde" para que una tarjeta de hotel no muestre su
+    precio_base, que es 0.
+    """
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "PRODUCTOS_LEER", tenant_id)
-    return TourismProduct.objects.select_related(
-        "tenant", "product_type", "city__country", "currency"
+    return with_lodging_from_price(
+        TourismProduct.objects.select_related(
+            "tenant", "product_type", "city__country", "currency",
+            # Evitan una consulta por fila al resolver el hotel de cada
+            # habitacion en el serializer.
+            "room__establishment__product", "lodging",
+        )
     ).filter(tenant_id=tenant_id)
 
 
@@ -135,6 +150,12 @@ def deactivate_product(*, actor, tenant_id: int, product_id: int, request=None) 
 # dentro de una transaccion, para que no quede un producto HOTEL sin
 # establecimiento ni un producto HABITACION colgando de la nada.
 
+# Valor que se guarda en producto_turistico.capacidad_maxima de un hotel. La
+# columna es NOT NULL con CHECK (> 0), asi que no puede quedar en 0 ni nula; 1 es
+# el minimo que la restriccion admite. No se muestra en ningun lado: la capacidad
+# del hotel se calcula sumando sus habitaciones.
+_HOTEL_CAPACITY_SENTINEL = 1
+
 _LODGING_FIELDS = {
     "direccion": "address",
     "categoria_estrellas": "star_rating",
@@ -235,6 +256,32 @@ def _has_publishable_room(lodging_id: int) -> bool:
     ).exists()
 
 
+def _publishable_room_exists(**lookup) -> Exists:
+    """Subconsulta: existe una habitacion ofertable para el establecimiento.
+
+    ``lookup`` ata la subconsulta a la consulta externa, que puede ser de
+    establecimientos (``establishment=OuterRef("pk")``) o de productos
+    (``establishment__product=OuterRef("pk")``). En los dos casos el camino se
+    recorre con claves foraneas directas desde Room.
+
+    Se usa ``Exists`` y no un JOIN porque ``rooms`` es multivaluado: un JOIN en
+    una rama OR duplicaria filas y descuadraria el conteo de la paginacion.
+
+    Es la condicion que hace ofertable a un hospedaje. La migracion 0006 repara
+    de una vez los hoteles heredados que quedaron publicados sin habitaciones,
+    pero ese estado se vuelve a alcanzar despublicando la ultima habitacion de
+    un hotel publicado: por eso la regla vive tambien aqui, en la consulta, y no
+    solo en el arreglo puntual de datos.
+    """
+    return Exists(
+        Room.objects.filter(
+            product__status=TourismProduct.Status.PUBLISHED,
+            product__base_price__gt=0,
+            **lookup,
+        )
+    )
+
+
 def _check_lodging_publishable(lodging_id: int) -> None:
     """Un hotel solo se publica si tiene de donde sacar su precio.
 
@@ -275,6 +322,14 @@ def with_from_price(queryset, *, published_rooms_only: bool = True):
             filter=status_filter & Q(rooms__product__base_price__gt=0),
         ),
         rooms_count=Count("rooms", filter=status_filter, distinct=True),
+        # Capacidad del hotel derivada de sus habitaciones, no declarada a mano:
+        # cuantas unidades hay de cada tipo por cuantas personas entran en una.
+        # producto_turistico.capacidad_maxima del hotel guarda un centinela y no
+        # se muestra, igual que su precio_base.
+        total_capacity=Sum(
+            F("rooms__quantity") * F("rooms__product__max_capacity"),
+            filter=status_filter,
+        ),
     )
 
 
@@ -321,9 +376,19 @@ def only_complete_lodging_products(queryset):
     multiplica filas: no hace falta distinct() y la paginacion, el orden y el
     resto de los filtros siguen funcionando igual.
     """
-    return queryset.filter(
+    return queryset.annotate(
+        # Se anota y luego se filtra en vez de meter el Exists dentro del OR,
+        # que no es combinable con Q de forma portable.
+        has_publishable_room=_publishable_room_exists(
+            establishment__product=OuterRef("pk")
+        ),
+    ).filter(
         ~Q(product_type__code__in=LODGING_PRODUCT_CODES)
-        | Q(product_type__code=HOTEL_PRODUCT_CODE, lodging__isnull=False)
+        | Q(
+            product_type__code=HOTEL_PRODUCT_CODE,
+            lodging__isnull=False,
+            has_publishable_room=True,
+        )
         | Q(
             product_type__code=ROOM_PRODUCT_CODE,
             room__isnull=False,
@@ -362,6 +427,11 @@ def create_lodging(*, actor, tenant_id: int, request=None, **data) -> LodgingEst
     values["product_type"] = ProductType.objects.get(code=HOTEL_PRODUCT_CODE)
     values["code"] = _unique_product_code(tenant_id, values["name"], requested_code)
     values.setdefault("status", TourismProduct.Status.DRAFT)
+    # La capacidad de un hotel se deriva de sus habitaciones, pero la columna es
+    # NOT NULL con CHECK (capacidad_maxima > 0): no admite 0, que es lo que
+    # corresponderia a un hotel sin habitaciones. Se guarda 1 como centinela y
+    # nunca se expone; el dato real viaja en capacidad_total, calculado.
+    values["max_capacity"] = _HOTEL_CAPACITY_SENTINEL
     # Un hospedaje recien creado no tiene habitaciones, asi que no hay precio
     # que mostrar: no puede nacer publicado.
     if values["status"] == TourismProduct.Status.PUBLISHED:
@@ -402,7 +472,10 @@ def update_lodging(*, actor, tenant_id: int, lodging_id: int, request=None, **da
         lodging.lodging_type = _lodging_type(type_code)
     specifics = _split_specifics(data, _LODGING_FIELDS)
     data.pop("codigo", None)
-    data.pop("precio_base", None)  # El hotel no fija precio propio.
+    # Ni el precio ni la capacidad de un hotel se declaran: se derivan de sus
+    # habitaciones. El serializer ya no los acepta; esto cubre a otros llamadores.
+    data.pop("precio_base", None)
+    data.pop("capacidad_maxima", None)
 
     # Solo se comprueba en la transicion a publicado: un hotel ya publicado
     # puede seguir editandose aunque sus habitaciones hayan cambiado.
@@ -565,11 +638,18 @@ def deactivate_room(*, actor, tenant_id: int, room_id: int, request=None) -> Roo
 # siga publicado, de modo que al desactivar un hotel desaparezcan con el.
 
 def public_lodgings():
+    """Hospedajes ofertables: publicados, de empresa activa y con habitacion.
+
+    Un hotel sin ninguna habitacion publicada con precio positivo no tiene
+    precio que mostrar, asi que no se oferta aunque su producto este publicado.
+    """
     return with_from_price(
-        LodgingEstablishment.objects.select_related(*_LODGING_RELATED).filter(
+        LodgingEstablishment.objects.select_related(*_LODGING_RELATED)
+        .filter(
             product__status=TourismProduct.Status.PUBLISHED,
             product__tenant__status="ACTIVO",
         )
+        .filter(_publishable_room_exists(establishment=OuterRef("pk")))
     )
 
 

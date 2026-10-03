@@ -80,11 +80,34 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/productos/productos').then((m) => m.Productos),
       },
+      // El orden importa: 'nuevo' va antes de ':id' para que no lo capture como
+      // identificador. La ficha y su pestaña de habitaciones son el mismo
+      // componente; 'tab' decide cuál se abre, y así cada una tiene su URL.
       {
         path: 'hospedajes',
         canActivate: [permissionGuard('PRODUCTOS_LEER')],
         loadComponent: () =>
-          import('./features/admin/hospedajes/hospedajes').then((m) => m.Hospedajes),
+          import('./features/admin/hospedajes/hospedajes-lista').then((m) => m.HospedajesLista),
+      },
+      {
+        path: 'hospedajes/nuevo',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () =>
+          import('./features/admin/hospedajes/hospedaje-detalle').then((m) => m.HospedajeDetalle),
+      },
+      {
+        path: 'hospedajes/:id',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        data: { tab: 'general' },
+        loadComponent: () =>
+          import('./features/admin/hospedajes/hospedaje-detalle').then((m) => m.HospedajeDetalle),
+      },
+      {
+        path: 'hospedajes/:id/habitaciones',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        data: { tab: 'habitaciones' },
+        loadComponent: () =>
+          import('./features/admin/hospedajes/hospedaje-detalle').then((m) => m.HospedajeDetalle),
       },
       {
         path: 'bitacora',

@@ -235,7 +235,6 @@ class LodgingSerializer(serializers.ModelSerializer):
     localidad = serializers.CharField(source="product.locality", allow_null=True)
     moneda_codigo = serializers.CharField(source="product.currency.iso_code")
     moneda_simbolo = serializers.CharField(source="product.currency.symbol")
-    capacidad_maxima = serializers.IntegerField(source="product.max_capacity")
     estado = serializers.CharField(source="product.status")
     imagen_url = serializers.CharField(source="product.image_url", allow_null=True)
     direccion = serializers.CharField(source="address", allow_null=True)
@@ -249,6 +248,10 @@ class LodgingSerializer(serializers.ModelSerializer):
         source="from_price", max_digits=12, decimal_places=2, allow_null=True
     )
     total_habitaciones = serializers.IntegerField(source="rooms_count")
+    # Capacidad derivada de las habitaciones, no declarada a mano. Nula mientras
+    # el hotel no tenga ninguna que sumar. No se expone
+    # producto_turistico.capacidad_maxima del hotel: guarda un centinela.
+    capacidad_total = serializers.IntegerField(source="total_capacity", allow_null=True)
     creado_en = serializers.DateTimeField(source="created_at")
     actualizado_en = serializers.DateTimeField(source="updated_at")
 
@@ -257,7 +260,7 @@ class LodgingSerializer(serializers.ModelSerializer):
         fields = (
             "id", "producto_id", "empresa_id", "empresa", "tipo_hospedaje_codigo",
             "tipo_hospedaje", "nombre", "descripcion", "ciudad_id", "ciudad", "pais_id",
-            "pais", "localidad", "moneda_codigo", "moneda_simbolo", "capacidad_maxima",
+            "pais", "localidad", "moneda_codigo", "moneda_simbolo", "capacidad_total",
             "estado", "imagen_url", "direccion", "categoria_estrellas", "hora_check_in",
             "hora_check_out", "servicios", "precio_desde", "total_habitaciones",
             "creado_en", "actualizado_en",
@@ -310,8 +313,9 @@ class RoomSerializer(serializers.ModelSerializer):
 class LodgingWriteSerializer(serializers.Serializer):
     """Alta y edicion de un establecimiento.
 
-    No acepta ``precio_base``: el precio de un hotel se deriva de su habitacion
-    publicada mas economica.
+    No acepta ``precio_base`` ni ``capacidad_maxima``: los dos se derivan de las
+    habitaciones. El precio es el de la mas economica publicada; la capacidad, la
+    suma de unidades por personas de cada tipo.
     """
 
     tipo_hospedaje_codigo = serializers.CharField(max_length=50, required=False)
@@ -320,7 +324,6 @@ class LodgingWriteSerializer(serializers.Serializer):
     ciudad_id = serializers.IntegerField(min_value=1, required=False)
     localidad = serializers.CharField(max_length=180, required=False, allow_blank=True, allow_null=True)
     moneda_codigo = serializers.CharField(max_length=3, required=False)
-    capacidad_maxima = serializers.IntegerField(min_value=1, required=False)
     estado = serializers.ChoiceField(choices=TourismProduct.Status.choices, required=False)
     imagen_url = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
     codigo = serializers.RegexField(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,59}$", required=False, allow_blank=True)
@@ -356,7 +359,7 @@ class LodgingWriteSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if not self.partial:
-            required = ("nombre", "ciudad_id", "moneda_codigo", "capacidad_maxima")
+            required = ("nombre", "ciudad_id", "moneda_codigo")
             missing = [field for field in required if field not in attrs]
             if missing:
                 raise serializers.ValidationError(
