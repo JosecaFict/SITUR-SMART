@@ -1,12 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   LucideArrowLeft,
   LucideArrowRight,
-  LucideBedDouble,
-  LucideBuilding2,
   LucideChevronDown,
   LucideCircleAlert,
   LucideMapPin,
@@ -17,7 +15,7 @@ import {
 import { Observable, forkJoin, map } from 'rxjs';
 import { City, Country } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
-import { LodgingEstablishment, Room } from '../../../core/lodging/lodging.models';
+import { LodgingEstablishment } from '../../../core/lodging/lodging.models';
 import { LodgingService } from '../../../core/lodging/lodging.service';
 import { ProductType, TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
@@ -38,6 +36,9 @@ const PUBLIC_TYPE_LABELS: Record<string, string> = { HOTEL: 'Hospedajes' };
  * para el móvil y para las búsquedas por huéspedes y disponibilidad.
  */
 const HIDDEN_PUBLIC_TYPES = ['HABITACION'];
+
+/** Imagen que se muestra cuando la del producto no carga. */
+const FALLBACK_IMAGE = '/images/auth-carousel/Hotel4.webp';
 
 /**
  * Las tres consultas públicas (productos, hospedajes y habitaciones) devuelven
@@ -76,8 +77,6 @@ interface MarketplaceCard {
     RouterLink,
     LucideArrowLeft,
     LucideArrowRight,
-    LucideBedDouble,
-    LucideBuilding2,
     LucideChevronDown,
     LucideCircleAlert,
     LucideMapPin,
@@ -94,6 +93,8 @@ export class Busqueda implements OnInit {
   private readonly companiesService = inject(CompaniesService);
   private readonly lodgingService = inject(LodgingService);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly session = this.auth.session;
   protected readonly isAuthenticated = this.auth.isAuthenticated;
@@ -107,16 +108,17 @@ export class Busqueda implements OnInit {
   protected readonly validationMessage = signal<string | null>(null);
   protected readonly selectedType = signal('');
   protected readonly selectedCountryId = signal(0);
+  /**
+   * Producto no hospedaje con su descripción desplegada.
+   *
+   * Solo aplica a tours, experiencias, atracciones, restaurantes y paquetes: un
+   * hospedaje no se despliega, navega a su página. La descripción ya viene en la
+   * tarjeta, así que desplegar no consulta nada.
+   */
   protected readonly expandedCardId = signal<number | null>(null);
   protected readonly total = signal(0);
   protected readonly page = signal(1);
   protected readonly pageSize = 9;
-
-  // Detalle del establecimiento que se abre al expandir un hotel o habitación.
-  protected readonly detailLodging = signal<LodgingEstablishment | null>(null);
-  protected readonly detailRooms = signal<Room[]>([]);
-  protected readonly detailLoading = signal(false);
-  protected readonly highlightedRoomId = signal<number | null>(null);
 
   protected readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.pageSize)));
   protected readonly hasPreviousPage = computed(() => this.page() > 1);
@@ -146,6 +148,7 @@ export class Busqueda implements OnInit {
   );
 
   ngOnInit(): void {
+    this.restoreFiltersFromUrl();
     forkJoin({
       countries: this.companiesService.listCountries(),
       cities: this.companiesService.listCities(),
@@ -186,7 +189,8 @@ export class Busqueda implements OnInit {
     this.loading.set(true);
     this.errorMessage.set(null);
     this.selectedType.set(raw.tipo);
-    this.closeDetail();
+    this.expandedCardId.set(null);
+    this.syncUrl();
 
     const common = {
       buscar: raw.buscar.trim() || undefined,
@@ -208,10 +212,6 @@ export class Busqueda implements OnInit {
       request = this.lodgingService
         .listPublicLodgings(common)
         .pipe(map((page) => ({ count: page.count, results: page.results.map((item) => this.lodgingCard(item)) })));
-    } else if (raw.tipo === 'HABITACION') {
-      request = this.lodgingService
-        .listPublicRooms(common)
-        .pipe(map((page) => ({ count: page.count, results: page.results.map((item) => this.roomCard(item)) })));
     } else {
       request = this.productsService
         .listMarketplace({ ...common, tipo: raw.tipo || undefined })
@@ -232,6 +232,49 @@ export class Busqueda implements OnInit {
             : 'No se pudieron obtener los resultados. Revisa los filtros e inténtalo otra vez.',
         );
       },
+    });
+  }
+
+  /**
+   * Siembra el formulario con los filtros de la URL.
+   *
+   * Es lo que hace que el botón atrás desde la página de un hospedaje devuelva
+   * la búsqueda tal como estaba, y que una búsqueda se pueda compartir.
+   */
+  private restoreFiltersFromUrl(): void {
+    const query = this.route.snapshot.queryParamMap;
+    const valor = (clave: string) => query.get(clave) ?? '';
+    // Un enlace guardado puede traer una categoría que ya no se ofrece. Se
+    // ignora en lugar de dejar el filtro en un valor que el desplegable no
+    // tiene y que devolvería cero resultados sin explicación.
+    const tipo = valor('tipo');
+    this.filterForm.patchValue({
+      buscar: valor('buscar'),
+      pais: valor('pais'),
+      ciudad: valor('ciudad'),
+      localidad: valor('localidad'),
+      tipo: HIDDEN_PUBLIC_TYPES.includes(tipo) ? '' : tipo,
+      precio_min: valor('precio_min'),
+      precio_max: valor('precio_max'),
+      orden: (query.get('orden') as SortOrder) ?? 'recientes',
+    });
+    this.selectedCountryId.set(Number(valor('pais')));
+    const pagina = Number(query.get('page'));
+    if (pagina > 0) this.page.set(pagina);
+  }
+
+  /** Refleja los filtros activos en la URL, sin apilar entradas de historial. */
+  private syncUrl(): void {
+    const raw = this.filterForm.getRawValue();
+    const queryParams: Record<string, string | number> = {};
+    for (const [clave, valor] of Object.entries(raw)) {
+      if (valor !== '' && valor !== 'recientes') queryParams[clave] = valor as string;
+    }
+    if (this.page() > 1) queryParams['page'] = this.page();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams,
+      replaceUrl: true,
     });
   }
 
@@ -262,7 +305,7 @@ export class Busqueda implements OnInit {
       ciudad: product.ciudad,
       pais: product.pais,
       empresa: product.empresa,
-      imagen: product.imagen_url || '/images/auth-carousel/Hotel4.webp',
+      imagen: product.imagen_url || FALLBACK_IMAGE,
       precioEtiqueta,
       precio,
       // Un hospedaje no muestra la capacidad de su producto: en los heredados es
@@ -289,7 +332,7 @@ export class Busqueda implements OnInit {
       ciudad: lodging.ciudad,
       pais: lodging.pais,
       empresa: lodging.empresa,
-      imagen: lodging.imagen_url || '/images/auth-carousel/Hotel4.webp',
+      imagen: lodging.imagen_url || FALLBACK_IMAGE,
       precioEtiqueta: 'Habitaciones desde',
       precio: lodging.precio_desde ? `${lodging.moneda_simbolo} ${lodging.precio_desde}` : null,
       capacidad: null,
@@ -297,27 +340,6 @@ export class Busqueda implements OnInit {
       hospedajeId: lodging.id,
       estrellas: lodging.categoria_estrellas,
       esHospedaje: true,
-    };
-  }
-
-  private roomCard(room: Room): MarketplaceCard {
-    return {
-      id: room.id,
-      tipo: 'Habitación',
-      nombre: room.nombre,
-      descripcion: room.descripcion,
-      localidad: room.localidad,
-      ciudad: room.ciudad,
-      pais: room.pais,
-      empresa: room.empresa,
-      imagen: room.imagen_url || '/images/auth-carousel/Hotel4.webp',
-      precioEtiqueta: 'Por noche',
-      precio: `${room.moneda_simbolo} ${room.precio_noche}`,
-      capacidad: room.capacidad_maxima,
-      establecimiento: room.establecimiento,
-      hospedajeId: room.establecimiento_id,
-      estrellas: null,
-      esHospedaje: false,
     };
   }
 
@@ -349,44 +371,21 @@ export class Busqueda implements OnInit {
     this.search(false);
   }
 
-  /**
-   * Expande la tarjeta. Si es un hotel o una habitación, trae el detalle del
-   * establecimiento con todas sus habitaciones y deja marcada la elegida.
-   */
   protected toggleDetails(card: MarketplaceCard): void {
-    if (this.expandedCardId() === card.id) return this.closeDetail();
-
-    this.expandedCardId.set(card.id);
-    this.detailLodging.set(null);
-    this.detailRooms.set([]);
-    this.highlightedRoomId.set(card.establecimiento ? card.id : null);
-
-    if (card.hospedajeId === null) return;
-
-    this.detailLoading.set(true);
-    forkJoin({
-      lodging: this.lodgingService.getPublicLodging(card.hospedajeId),
-      rooms: this.lodgingService.listPublicLodgingRooms(card.hospedajeId),
-    }).subscribe({
-      next: ({ lodging, rooms }) => {
-        this.detailLodging.set(lodging);
-        this.detailRooms.set(rooms);
-        this.detailLoading.set(false);
-      },
-      error: () => this.detailLoading.set(false),
-    });
+    this.expandedCardId.update((actual) => (actual === card.id ? null : card.id));
   }
 
-  private closeDetail(): void {
-    this.expandedCardId.set(null);
-    this.detailLodging.set(null);
-    this.detailRooms.set([]);
-    this.highlightedRoomId.set(null);
-    this.detailLoading.set(false);
-  }
-
+  /**
+   * Cae a la imagen por defecto del proyecto una sola vez.
+   *
+   * El guardado importa: si la imagen por defecto tambien falla, reasignar el
+   * `src` vuelve a disparar `error` y el ciclo no termina.
+   */
   protected imageError(event: Event): void {
-    (event.target as HTMLImageElement).src = '/images/auth-carousel/Hotel4.webp';
+    const img = event.target as HTMLImageElement;
+    if (img.dataset['fallback'] === 'done') return;
+    img.dataset['fallback'] = 'done';
+    img.src = FALLBACK_IMAGE;
   }
 
   protected stars(count: number | null): number[] {

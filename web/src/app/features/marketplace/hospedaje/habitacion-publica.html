@@ -1,0 +1,138 @@
+<div class="flex min-h-screen flex-col bg-gray-50">
+  <header class="border-input-border sticky top-0 z-20 flex items-center justify-between gap-4 border-b bg-white/95 px-5 py-3.5 backdrop-blur sm:px-10">
+    <a routerLink="/" aria-label="Ir al inicio de SITUR-SMART" class="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-dark">
+      <img src="/branding/situr-smart-logo.png" alt="SITUR-SMART" class="h-8 w-auto object-contain" />
+    </a>
+    <a [routerLink]="['/marketplace/hospedajes', lodgingId]" class="text-label flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition hover:text-title focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark">
+      <svg lucideArrowLeft class="h-4 w-4"></svg>Volver al hospedaje
+    </a>
+  </header>
+
+  <main class="mx-auto w-full max-w-5xl flex-1 px-5 py-7 sm:px-8">
+    @if (loading()) {
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <div class="aspect-[4/3] animate-pulse rounded-2xl bg-gray-200"></div>
+        <div class="space-y-3">
+          @for (_ of [1,2,3,4]; track _) { <div class="h-5 animate-pulse rounded bg-gray-200"></div> }
+        </div>
+      </div>
+    }
+
+    @else if (notFound()) {
+      <div class="border-input-border rounded-2xl border border-dashed bg-white px-6 py-20 text-center">
+        <svg lucideBedDouble class="mx-auto h-12 w-12 text-text-secondary"></svg>
+        <h1 class="font-heading text-title mt-4 text-xl font-bold">Esta habitación no está disponible</h1>
+        <p class="text-text-secondary mx-auto mt-2 max-w-md text-sm">
+          Puede que ya no esté publicada o que el enlace sea incorrecto.
+        </p>
+        <div class="mt-6 flex flex-wrap justify-center gap-3">
+          <a [routerLink]="['/marketplace/hospedajes', lodgingId]" class="btn-accent inline-flex min-h-11 items-center rounded-xl px-5 py-2.5 text-sm font-semibold text-white">
+            Ver el hospedaje
+          </a>
+          <a routerLink="/" class="border-input-border text-label inline-flex min-h-11 items-center rounded-xl border bg-white px-5 py-2.5 text-sm font-semibold">
+            Explorar
+          </a>
+        </div>
+      </div>
+    }
+
+    @else if (errorMessage(); as message) {
+      <div class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+        <div class="flex items-start gap-3">
+          <svg lucideCircleAlert class="mt-0.5 h-5 w-5 shrink-0"></svg><span>{{ message }}</span>
+        </div>
+        <button type="button" (click)="loadRoom()" class="min-h-11 rounded-xl border border-red-300 bg-white px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100">
+          Reintentar
+        </button>
+      </div>
+    }
+
+    @else if (room(); as habitacion) {
+      <section class="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start">
+        <div class="relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-200">
+          @if (habitacion.imagen_url && !imageFailed()) {
+            <img [src]="habitacion.imagen_url" (error)="imageFailed.set(true)" [alt]="habitacion.nombre" class="h-full w-full object-cover" />
+          } @else {
+            <div class="flex h-full items-center justify-center text-text-secondary"><svg lucideImage class="h-12 w-12"></svg></div>
+          }
+        </div>
+
+        <div class="min-w-0">
+          <h1 class="font-heading text-title text-3xl font-extrabold tracking-tight sm:text-4xl">{{ habitacion.nombre }}</h1>
+
+          <p class="text-accent-dark mt-2 flex items-center gap-2 text-sm font-semibold">
+            <svg lucideBuilding2 class="h-4 w-4 shrink-0"></svg>
+            <a [routerLink]="['/marketplace/hospedajes', lodgingId]" class="rounded hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark">
+              {{ habitacion.establecimiento }}
+            </a>
+          </p>
+          <p class="text-text-secondary mt-1.5 flex items-start gap-2 text-sm">
+            <svg lucideMapPin class="mt-0.5 h-4 w-4 shrink-0"></svg>
+            <span>{{ habitacion.localidad ? habitacion.localidad + ', ' : '' }}{{ habitacion.ciudad }}, {{ habitacion.pais }}</span>
+          </p>
+          <p class="text-text-secondary mt-1.5 text-sm">
+            Operado por <strong class="text-title font-semibold">{{ habitacion.empresa }}</strong>
+          </p>
+
+          @if (habitacion.descripcion) {
+            <p class="text-label mt-4 text-sm leading-relaxed">{{ habitacion.descripcion }}</p>
+          }
+
+          <dl class="border-input-border mt-5 divide-y divide-gray-100 rounded-2xl border bg-white px-4">
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-text-secondary flex items-center gap-2 text-sm">
+                <svg lucideBedDouble class="h-4 w-4 shrink-0"></svg>Habitaciones de este tipo
+              </dt>
+              <dd class="text-title text-sm font-semibold">{{ habitacion.cantidad_habitaciones }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-text-secondary flex items-center gap-2 text-sm">
+                <svg lucideUsers class="h-4 w-4 shrink-0"></svg>Huéspedes por habitación
+              </dt>
+              <dd class="text-title text-sm font-semibold">Hasta {{ habitacion.capacidad_maxima }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-text-secondary text-sm">Máximo de adultos</dt>
+              <dd class="text-title text-sm font-semibold">{{ habitacion.capacidad_adultos }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-text-secondary text-sm">Máximo de niños</dt>
+              <dd class="text-title text-sm font-semibold">{{ habitacion.capacidad_ninos }}</dd>
+            </div>
+            @if (habitacion.tipo_cama) {
+              <div class="flex items-center justify-between gap-4 py-3">
+                <dt class="text-text-secondary text-sm">Tipo de cama</dt>
+                <dd class="text-title text-sm font-semibold">{{ habitacion.tipo_cama }}</dd>
+              </div>
+            }
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-text-secondary text-sm">Desayuno</dt>
+              <dd class="text-sm font-semibold" [class]="habitacion.incluye_desayuno ? 'text-emerald-700' : 'text-text-secondary'">
+                {{ habitacion.incluye_desayuno ? 'Incluido' : 'No incluido' }}
+              </dd>
+            </div>
+          </dl>
+
+          <div class="border-input-border mt-5 flex flex-wrap items-end justify-between gap-4 rounded-2xl border bg-white px-4 py-3">
+            <div>
+              <p class="text-text-secondary text-xs">Precio</p>
+              <p class="font-heading text-accent-dark text-2xl font-bold">{{ habitacion.moneda_simbolo }} {{ habitacion.precio_noche }}</p>
+              <p class="text-text-secondary text-xs">por habitación/noche</p>
+            </div>
+            <a [routerLink]="['/marketplace/hospedajes', lodgingId]" class="border-input-border text-label hover:bg-input-bg inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition">
+              <svg lucideArrowLeft class="h-4 w-4"></svg>Volver al hospedaje
+            </a>
+          </div>
+        </div>
+      </section>
+    }
+  </main>
+
+  <footer class="bg-panel-bg mt-10 flex flex-wrap items-center justify-between gap-4 px-5 py-7 sm:px-10">
+    <div class="flex items-center gap-2.5">
+      <img src="/branding/situr-smart-logo-dark-v2.png" alt="SITUR-SMART" class="h-6 w-auto object-contain" />
+      <span class="text-xs text-white/55">© 2026 · Marketplace turístico</span>
+    </div>
+    <a routerLink="/planes" class="text-sm font-semibold text-white hover:underline">¿Tienes un negocio turístico? Únete a SITUR-SMART →</a>
+  </footer>
+</div>

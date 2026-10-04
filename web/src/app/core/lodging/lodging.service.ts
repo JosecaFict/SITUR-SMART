@@ -123,4 +123,14 @@ export class LodgingService {
       params: this.queryParams(filters),
     });
   }
+
+  /**
+   * Habitación publicada por su id, sin recorrer el listado.
+   *
+   * Devuelve `establecimiento_id`, que la página usa para comprobar que la
+   * habitación pertenezca al hospedaje de la URL.
+   */
+  getPublicRoom(roomId: number): Observable<Room> {
+    return this.http.get<Room>(`${environment.apiUrl}/marketplace/habitaciones/${roomId}/`);
+  }
 }

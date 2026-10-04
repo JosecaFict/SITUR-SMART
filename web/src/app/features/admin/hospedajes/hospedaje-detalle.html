@@ -409,7 +409,11 @@
                         <svg lucideUsers class="h-3.5 w-3.5 shrink-0"></svg>
                         Hasta {{ room.capacidad_maxima }} {{ room.capacidad_maxima === 1 ? 'huésped' : 'huéspedes' }} por habitación
                       </p>
-                      <p class="pl-5">Máximo {{ room.capacidad_adultos }} adultos · Máximo {{ room.capacidad_ninos }} niños</p>
+                      <!-- Singular cuando el tope es 1: "Máximo 1 adultos" se lee mal. -->
+                      <p class="pl-5">
+                        Máximo {{ room.capacidad_adultos }} {{ room.capacidad_adultos === 1 ? 'adulto' : 'adultos' }}
+                        · Máximo {{ room.capacidad_ninos }} {{ room.capacidad_ninos === 1 ? 'niño' : 'niños' }}
+                      </p>
                     </div>
                   </div>
                   <div class="text-right">

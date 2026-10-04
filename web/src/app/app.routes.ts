@@ -24,6 +24,18 @@ export const routes: Routes = [
     path: 'planes',
     loadComponent: () => import('./features/marketplace/planes/planes').then((m) => m.Planes),
   },
+  // Páginas públicas del hospedaje: fuera del AppShell, sin authGuard. La más
+  // específica va primero para que ':id' no capture el tramo de habitaciones.
+  {
+    path: 'marketplace/hospedajes/:hospedajeId/habitaciones/:habitacionId',
+    loadComponent: () =>
+      import('./features/marketplace/hospedaje/habitacion-publica').then((m) => m.HabitacionPublica),
+  },
+  {
+    path: 'marketplace/hospedajes/:id',
+    loadComponent: () =>
+      import('./features/marketplace/hospedaje/hospedaje-publico').then((m) => m.HospedajePublico),
+  },
   {
     path: 'registro',
     canActivate: [guestGuard],
