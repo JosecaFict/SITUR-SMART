@@ -28,6 +28,7 @@ const ACTION_LABELS: Record<string, string> = {
   ELIMINAR: 'Eliminación',
   DESACTIVAR: 'Desactivación',
   VINCULAR: 'Vinculación',
+  GENERAR_COPIA: 'Generación de copia',
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -35,6 +36,7 @@ const ENTITY_LABELS: Record<string, string> = {
   rol: 'Rol',
   empresa: 'Empresa',
   producto_turistico: 'Producto',
+  copia_seguridad: 'Copia de seguridad',
 };
 
 @Component({

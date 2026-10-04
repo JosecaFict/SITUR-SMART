@@ -117,4 +117,3 @@ def generate_backup(*, actor, request=None) -> BackupArtifact:
         size=size,
         sha256=sha256,
     )
-

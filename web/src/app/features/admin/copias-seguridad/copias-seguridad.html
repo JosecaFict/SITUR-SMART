@@ -1,0 +1,79 @@
+<section class="mx-auto max-w-5xl space-y-6">
+  <header>
+    <p class="text-accent-dark text-xs font-bold tracking-widest uppercase">Administración del sistema</p>
+    <h1 class="font-heading text-title mt-1 text-3xl font-bold tracking-tight">Copias de seguridad</h1>
+    <p class="text-text-secondary mt-2 max-w-2xl text-sm sm:text-base">
+      Genera una copia completa y portable de la base de datos de SITUR-SMART.
+    </p>
+  </header>
+
+  <div class="grid gap-5 lg:grid-cols-[1.45fr_0.75fr]">
+    <article class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+      <div class="flex items-start gap-4">
+        <span class="bg-demo-bg text-accent-dark flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
+          <svg lucideDatabaseBackup class="h-6 w-6"></svg>
+        </span>
+        <div>
+          <h2 class="text-title text-lg font-bold">Respaldo de PostgreSQL</h2>
+          <p class="text-text-secondary mt-1 text-sm leading-6">
+            El archivo <strong>.dump</strong> contiene la estructura y los datos. Se restaura con
+            <code>pg_restore</code>; no es un documento para abrir directamente.
+          </p>
+        </div>
+      </div>
+
+      <div class="border-input-border mt-6 grid gap-3 border-y py-5 sm:grid-cols-3">
+        <div><p class="text-text-secondary text-xs">Formato</p><p class="text-title mt-1 font-semibold">PostgreSQL custom</p></div>
+        <div><p class="text-text-secondary text-xs">Contenido</p><p class="text-title mt-1 font-semibold">Estructura y datos</p></div>
+        <div><p class="text-text-secondary text-xs">Almacenamiento</p><p class="text-title mt-1 font-semibold">Tu dispositivo</p></div>
+      </div>
+
+      @if (errorMessage(); as error) {
+        <div class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</div>
+      }
+
+      @if (confirmationOpen()) {
+        <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p class="text-sm font-semibold text-amber-900">¿Generar y descargar la copia ahora?</p>
+          <p class="mt-1 text-xs leading-5 text-amber-800">Puede tardar unos segundos. No cierres la página hasta que comience la descarga.</p>
+          <div class="mt-3 flex gap-2">
+            <button type="button" (click)="generateBackup()" class="bg-accent hover:bg-accent-dark rounded-lg px-3.5 py-2 text-sm font-semibold text-white">Sí, generar copia</button>
+            <button type="button" (click)="cancelBackup()" class="border-input-border rounded-lg border bg-white px-3.5 py-2 text-sm font-semibold text-label hover:bg-input-bg">Cancelar</button>
+          </div>
+        </div>
+      } @else {
+        <button type="button" (click)="requestBackup()" [disabled]="generating()" class="bg-accent hover:bg-accent-dark mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:cursor-wait disabled:opacity-65 sm:w-auto">
+          <svg lucideDownload class="h-4 w-4"></svg>
+          {{ generating() ? 'Generando respaldo…' : 'Generar y descargar .dump' }}
+        </button>
+      }
+    </article>
+
+    <aside class="space-y-5">
+      <div class="border-input-border rounded-2xl border bg-white p-5 shadow-sm">
+        <div class="flex items-center gap-2 text-title"><svg lucideShieldCheck class="text-accent-dark h-5 w-5"></svg><h2 class="font-bold">Protección aplicada</h2></div>
+        <ul class="text-text-secondary mt-4 space-y-3 text-sm">
+          <li class="flex gap-2"><svg lucideCheckCircle2 class="text-accent mt-0.5 h-4 w-4 shrink-0"></svg>Solo el SuperAdministrador puede generarla.</li>
+          <li class="flex gap-2"><svg lucideCheckCircle2 class="text-accent mt-0.5 h-4 w-4 shrink-0"></svg>La operación queda registrada en bitácora.</li>
+          <li class="flex gap-2"><svg lucideCheckCircle2 class="text-accent mt-0.5 h-4 w-4 shrink-0"></svg>Incluye hash SHA-256 de integridad.</li>
+        </ul>
+      </div>
+
+      @if (lastBackup(); as backup) {
+        <div class="border-accent/30 bg-demo-bg rounded-2xl border p-5">
+          <div class="flex items-center gap-2 text-accent-dark"><svg lucideFileArchive class="h-5 w-5"></svg><h2 class="font-bold">Última descarga</h2></div>
+          <p class="text-title mt-3 break-all text-sm font-semibold">{{ backup.filename }}</p>
+          <p class="text-text-secondary mt-1 text-xs">{{ formatBytes(backup.size) }}</p>
+          @if (backup.sha256) {
+            <p class="text-text-secondary mt-3 text-[11px] font-semibold uppercase tracking-wide">SHA-256</p>
+            <code class="text-label mt-1 block break-all text-[11px] leading-4">{{ backup.sha256 }}</code>
+          }
+        </div>
+      } @else {
+        <div class="border-input-border rounded-2xl border bg-white p-5 shadow-sm">
+          <div class="flex items-start gap-3"><svg lucideInfo class="text-text-secondary mt-0.5 h-5 w-5 shrink-0"></svg><p class="text-text-secondary text-sm leading-6">SITUR-SMART no conserva una copia en el servidor. Guarda el archivo descargado en un lugar seguro.</p></div>
+        </div>
+      }
+    </aside>
+  </div>
+</section>

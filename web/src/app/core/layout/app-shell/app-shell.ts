@@ -4,6 +4,7 @@ import {
   LucideBedDouble,
   LucideBuilding2,
   LucideCompass,
+  LucideDatabaseBackup,
   LucideLayoutDashboard,
   LucideLogOut,
   LucideMenu,
@@ -20,7 +21,7 @@ import { AuthService } from '../../auth/auth.service';
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'locations' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
+  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
@@ -39,6 +40,7 @@ interface NavItem {
     LucideBedDouble,
     LucideBuilding2,
     LucideCompass,
+    LucideDatabaseBackup,
     LucideLayoutDashboard,
     LucideLogOut,
     LucideMenu,
@@ -76,6 +78,13 @@ export class AppShell {
       label: 'Países y ciudades',
       path: '/ubicaciones',
       icon: 'locations',
+      superAdminOnly: true,
+      hideForCustomer: true,
+    },
+    {
+      label: 'Copias de seguridad',
+      path: '/copias-seguridad',
+      icon: 'backups',
       superAdminOnly: true,
       hideForCustomer: true,
     },

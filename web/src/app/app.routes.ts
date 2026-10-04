@@ -90,6 +90,14 @@ export const routes: Routes = [
           import('./features/admin/ubicaciones/ubicaciones').then((m) => m.Ubicaciones),
       },
       {
+        path: 'copias-seguridad',
+        canActivate: [superAdminGuard],
+        loadComponent: () =>
+          import('./features/admin/copias-seguridad/copias-seguridad').then(
+            (m) => m.CopiasSeguridad,
+          ),
+      },
+      {
         path: 'roles',
         canActivate: [permissionGuard('ROLES_GESTIONAR')],
         loadComponent: () => import('./features/admin/roles/roles').then((m) => m.Roles),
