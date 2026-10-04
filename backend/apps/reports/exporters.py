@@ -46,7 +46,7 @@ def pdf_color(value):
 
 
 def logo_path(*, dark: bool = False) -> Path | None:
-    filename = "situr-smart-logo-dark-v2.png"
+    filename = "situr-smart-logo.png"
     candidates = (
         Path(__file__).resolve().parent / "assets" / filename,
         Path(settings.BASE_DIR).parent / "web" / "public" / "branding" / filename,
@@ -145,7 +145,6 @@ def build_xlsx(report) -> bytes:
     title_column = 4 if logo else 1
     if logo:
         sheet.merge_cells(start_row=1, start_column=1, end_row=2, end_column=3)
-        sheet.cell(1, 1).fill = PatternFill("solid", fgColor=BRAND_DARK)
         image = ExcelImage(logo)
         image.width = 205
         image.height = 68
@@ -231,7 +230,6 @@ def build_xlsx(report) -> bytes:
         sheet.column_dimensions[get_column_letter(index)].width = min(max(longest + 2, 12), 34)
 
     sheet.freeze_panes = f"A{header_row + 1}"
-    sheet.auto_filter.ref = f"A{header_row}:{get_column_letter(len(columns))}{header_row + max(len(report['filas']), 1)}"
     sheet.sheet_view.showGridLines = False
     sheet.page_setup.orientation = "landscape"
     sheet.page_setup.fitToWidth = 1
@@ -288,11 +286,10 @@ def build_pdf(report) -> bytes:
         header = PdfTable([[logo_image, report_heading]], colWidths=[62 * mm, page_size[0] - 90 * mm])
         header.setStyle(PdfTableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("BACKGROUND", (0, 0), (0, 0), pdf_color(BRAND_DARK)),
-            ("LEFTPADDING", (0, 0), (0, 0), 4),
-            ("RIGHTPADDING", (0, 0), (0, 0), 4),
-            ("TOPPADDING", (0, 0), (0, 0), 3),
-            ("BOTTOMPADDING", (0, 0), (0, 0), 3),
+            ("LEFTPADDING", (0, 0), (0, 0), 0),
+            ("RIGHTPADDING", (0, 0), (0, 0), 0),
+            ("TOPPADDING", (0, 0), (0, 0), 0),
+            ("BOTTOMPADDING", (0, 0), (0, 0), 0),
             ("LEFTPADDING", (1, 0), (1, 0), 0),
             ("RIGHTPADDING", (1, 0), (1, 0), 0),
             ("TOPPADDING", (1, 0), (1, 0), 0),

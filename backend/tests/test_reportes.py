@@ -51,7 +51,7 @@ class ReportExporterTests(SimpleTestCase):
         path = logo_path()
         self.assertIsNotNone(path)
         self.assertEqual(path.parent.name, "assets")
-        self.assertEqual(path.name, "situr-smart-logo-dark-v2.png")
+        self.assertEqual(path.name, "situr-smart-logo.png")
 
     def test_iso_timestamp_is_presented_in_a_readable_local_format(self):
         self.assertEqual(
