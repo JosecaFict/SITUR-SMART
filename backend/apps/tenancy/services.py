@@ -318,7 +318,13 @@ def assign_company_owner(
 
 
 def list_plans():
-    return Plan.objects.filter(active=True).select_related("currency")
+    # prefetch de los limites: sin esto, serializar N planes dispara N consultas
+    # de plan_limite, una por plan.
+    return (
+        Plan.objects.filter(active=True)
+        .select_related("currency")
+        .prefetch_related("limits")
+    )
 
 
 def _resolve_plan(plan_codigo: str) -> Plan:
@@ -329,6 +335,17 @@ def _resolve_plan(plan_codigo: str) -> Plan:
 
 
 def _open_subscription(*, tenant: Tenant, plan: Plan, auto_renew: bool = False) -> Subscription:
+    """Abre una suscripcion congelando las condiciones vigentes del plan.
+
+    Las tres condiciones viajan en el mismo INSERT que la fila, no en un UPDATE
+    posterior: una suscripcion no puede existir ni un instante sin saber que se
+    acepto pagar. El backfill de la migracion 0004 solo cubre las filas
+    anteriores; de aqui en adelante toda contratacion, cambio de plan y
+    renovacion copia el precio del momento.
+
+    Cambiar despues ``plan.price`` no alcanza a esta fila: son columnas de
+    tablas distintas y nada las vuelve a derivar.
+    """
     Subscription.objects.filter(tenant=tenant, status=Subscription.Status.ACTIVE).update(
         status=Subscription.Status.CANCELLED, end_date=date.today()
     )
@@ -338,6 +355,10 @@ def _open_subscription(*, tenant: Tenant, plan: Plan, auto_renew: bool = False) 
         start_date=date.today(),
         status=Subscription.Status.ACTIVE,
         auto_renew=auto_renew,
+        contracted_price=plan.price,
+        # Por id para no disparar una consulta de moneda al crear.
+        contracted_currency_id=plan.currency_id,
+        contracted_periodicity=plan.periodicity,
     )
 
 

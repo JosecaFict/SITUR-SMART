@@ -6,7 +6,7 @@ from rest_framework import serializers
 from apps.accounts.models import User
 from apps.rbac.models import UserRole
 
-from .models import City, Country, Plan, Subscription, Tenant
+from .models import City, Country, Plan, PlanLimit, Subscription, Tenant
 
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -166,11 +166,32 @@ class OwnerAssignSerializer(serializers.Serializer):
     propietario = OwnerInputSerializer()
 
 
+class PlanLimitSerializer(serializers.ModelSerializer):
+    recurso = serializers.CharField(source="resource")
+    # Nulo explicito: es "ilimitado", distinto de 0, que es "no permitido".
+    limite = serializers.IntegerField(source="limit", allow_null=True)
+
+    class Meta:
+        model = PlanLimit
+        fields = ("id", "recurso", "limite")
+
+
 class PlanSerializer(serializers.ModelSerializer):
     codigo = serializers.CharField(source="code")
     nombre = serializers.CharField(source="name")
+    descripcion = serializers.CharField(source="description", allow_null=True)
     moneda = serializers.CharField(source="currency.iso_code", read_only=True)
-    precio_mensual = serializers.DecimalField(source="monthly_price", max_digits=12, decimal_places=2)
+    precio = serializers.DecimalField(source="price", max_digits=12, decimal_places=2)
+    periodicidad = serializers.CharField(source="periodicity")
+    # DEPRECADO. Misma columna que `precio`; se conserva para no romper la
+    # pantalla /planes ni los clientes moviles que ya lo consumen. Se retira
+    # cuando web y movil hayan migrado, y antes de habilitar planes anuales:
+    # en un plan ANUAL este nombre miente.
+    precio_mensual = serializers.DecimalField(
+        source="price", max_digits=12, decimal_places=2, read_only=True
+    )
+    limites = PlanLimitSerializer(source="limits", many=True, read_only=True)
+    # DEPRECADAS. Los topes reales viven en `limites`.
     max_usuarios = serializers.IntegerField(source="max_users")
     max_productos = serializers.IntegerField(source="max_products")
     porcentaje_comision = serializers.DecimalField(
@@ -184,8 +205,12 @@ class PlanSerializer(serializers.ModelSerializer):
             "id",
             "codigo",
             "nombre",
+            "descripcion",
             "moneda",
+            "precio",
+            "periodicidad",
             "precio_mensual",
+            "limites",
             "max_usuarios",
             "max_productos",
             "porcentaje_comision",
@@ -200,6 +225,27 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     estado = serializers.CharField(source="status")
     renovacion_automatica = serializers.BooleanField(source="auto_renew")
     creado_en = serializers.DateTimeField(source="created_at")
+    # Condiciones congeladas al contratar. Cambiar el precio comercial del plan
+    # no las altera, asi que pueden diferir de las de `plan`: eso es correcto y
+    # es justamente el punto.
+    #
+    # Las tres son read_only a proposito: son un registro historico de lo que la
+    # empresa acepto pagar. Ningun endpoint debe poder reescribirlas, ni ahora ni
+    # si este serializer se usara mas adelante como entrada. Las fija el servicio
+    # al abrir la suscripcion y nunca se vuelven a tocar.
+    precio_contratado = serializers.DecimalField(
+        source="contracted_price",
+        max_digits=12,
+        decimal_places=2,
+        allow_null=True,
+        read_only=True,
+    )
+    moneda_contratada = serializers.CharField(
+        source="contracted_currency.iso_code", allow_null=True, read_only=True
+    )
+    periodicidad_contratada = serializers.CharField(
+        source="contracted_periodicity", allow_null=True, read_only=True
+    )
 
     class Meta:
         model = Subscription
@@ -210,6 +256,9 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             "fecha_fin",
             "estado",
             "renovacion_automatica",
+            "precio_contratado",
+            "moneda_contratada",
+            "periodicidad_contratada",
             "creado_en",
         )
 
