@@ -235,8 +235,8 @@ class ProductWriteSerializer(serializers.Serializer):
         return code
 
     def validate_ciudad_id(self, value):
-        if not City.objects.filter(id=value).exists():
-            raise serializers.ValidationError("La ciudad no existe.")
+        if not City.objects.filter(id=value, active=True, country__active=True).exists():
+            raise serializers.ValidationError("La ciudad no existe o está inactiva.")
         return value
 
     def validate_moneda_codigo(self, value):
@@ -412,8 +412,8 @@ class LodgingWriteSerializer(serializers.Serializer):
         return code
 
     def validate_ciudad_id(self, value):
-        if not City.objects.filter(id=value).exists():
-            raise serializers.ValidationError("La ciudad no existe.")
+        if not City.objects.filter(id=value, active=True, country__active=True).exists():
+            raise serializers.ValidationError("La ciudad no existe o está inactiva.")
         return value
 
     def validate_moneda_codigo(self, value):

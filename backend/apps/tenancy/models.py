@@ -5,6 +5,7 @@ class Country(models.Model):
     id = models.BigAutoField(primary_key=True)
     iso_code = models.CharField(db_column="codigo_iso", max_length=3, unique=True)
     name = models.CharField(db_column="nombre", max_length=100, unique=True)
+    active = models.BooleanField(db_column="activo", default=True)
     created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
 
     class Meta:
@@ -34,6 +35,7 @@ class City(models.Model):
     timezone = models.CharField(
         db_column="zona_horaria", max_length=80, null=True, blank=True
     )
+    active = models.BooleanField(db_column="activo", default=True)
     created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
 
     class Meta:

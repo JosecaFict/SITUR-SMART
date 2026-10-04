@@ -5,15 +5,16 @@ from .models import City, Country, Tenant
 
 @admin.register(Country)
 class CountryAdmin(admin.ModelAdmin):
-    list_display = ("iso_code", "name")
+    list_display = ("iso_code", "name", "active")
+    list_filter = ("active",)
     search_fields = ("iso_code", "name")
     ordering = ("name",)
 
 
 @admin.register(City)
 class CityAdmin(admin.ModelAdmin):
-    list_display = ("name", "country", "timezone")
-    list_filter = ("country",)
+    list_display = ("name", "country", "timezone", "active")
+    list_filter = ("country", "active")
     search_fields = ("name", "country__name")
     ordering = ("name",)
 

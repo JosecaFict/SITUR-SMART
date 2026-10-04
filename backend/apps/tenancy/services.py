@@ -1,7 +1,7 @@
 from datetime import date
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils.text import slugify
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
@@ -16,6 +16,8 @@ from apps.rbac.services import (
 
 from .models import (
     TENANT_STATUS_TRANSITIONS,
+    City,
+    Country,
     Plan,
     Subscription,
     Tenant,
@@ -23,6 +25,147 @@ from .models import (
 )
 
 DEFAULT_PLAN_CODE = "BASICO"
+
+
+def require_location_management(actor) -> None:
+    if not is_superadmin(actor):
+        raise PermissionDenied("Solo el SuperAdministrador puede gestionar países y ciudades.")
+
+
+def list_admin_countries(*, actor, search: str = "", active: str = ""):
+    require_location_management(actor)
+    queryset = Country.objects.annotate(city_count=Count("cities"))
+    if search:
+        queryset = queryset.filter(Q(name__icontains=search) | Q(iso_code__icontains=search))
+    if active in {"true", "false"}:
+        queryset = queryset.filter(active=active == "true")
+    return queryset.order_by("name")
+
+
+def _country_name_available(name: str, *, exclude_id: int | None = None) -> None:
+    queryset = Country.objects.filter(name__iexact=name.strip())
+    if exclude_id is not None:
+        queryset = queryset.exclude(pk=exclude_id)
+    if queryset.exists():
+        raise ValidationError({"nombre": "Ya existe un país con este nombre."})
+
+
+@transaction.atomic
+def create_country(*, actor, codigo: str, nombre: str, request=None) -> Country:
+    require_location_management(actor)
+    code = codigo.strip().upper()
+    name = nombre.strip()
+    if Country.objects.filter(iso_code__iexact=code).exists():
+        raise ValidationError({"codigo": "Ya existe un país con este código ISO."})
+    _country_name_available(name)
+    country = Country.objects.create(iso_code=code, name=name, active=True)
+    record_audit(actor=actor, action="CREAR", entity="pais", entity_id=str(country.id), new_data={"codigo": code, "nombre": name}, request=request)
+    return country
+
+
+@transaction.atomic
+def update_country(*, actor, country_id: int, nombre: str, request=None) -> Country:
+    require_location_management(actor)
+    country = Country.objects.filter(pk=country_id).first()
+    if country is None:
+        raise NotFound("País no encontrado.")
+    name = nombre.strip()
+    _country_name_available(name, exclude_id=country.id)
+    previous = country.name
+    country.name = name
+    country.save(update_fields=("name",))
+    record_audit(actor=actor, action="ACTUALIZAR", entity="pais", entity_id=str(country.id), previous_data={"nombre": previous}, new_data={"nombre": name}, request=request)
+    return country
+
+
+@transaction.atomic
+def change_country_status(*, actor, country_id: int, activo: bool, request=None) -> Country:
+    require_location_management(actor)
+    country = Country.objects.filter(pk=country_id).first()
+    if country is None:
+        raise NotFound("País no encontrado.")
+    if not activo and City.objects.filter(country=country, active=True).exists():
+        raise ValidationError({"activo": "Desactiva primero las ciudades activas de este país."})
+    previous = country.active
+    country.active = activo
+    country.save(update_fields=("active",))
+    if previous != activo:
+        record_audit(actor=actor, action="CAMBIAR_ESTADO", entity="pais", entity_id=str(country.id), previous_data={"activo": previous}, new_data={"activo": activo}, request=request)
+    return country
+
+
+def list_admin_cities(*, actor, country_id: int | None = None, search: str = "", active: str = ""):
+    require_location_management(actor)
+    queryset = City.objects.select_related("country")
+    if country_id:
+        queryset = queryset.filter(country_id=country_id)
+    if search:
+        queryset = queryset.filter(name__icontains=search)
+    if active in {"true", "false"}:
+        queryset = queryset.filter(active=active == "true")
+    return queryset.order_by("name")
+
+
+def _city_name_available(country_id: int, name: str, *, exclude_id: int | None = None) -> None:
+    queryset = City.objects.filter(country_id=country_id, name__iexact=name.strip())
+    if exclude_id is not None:
+        queryset = queryset.exclude(pk=exclude_id)
+    if queryset.exists():
+        raise ValidationError({"nombre": "Ya existe una ciudad con este nombre en el país."})
+
+
+def _active_country(country_id: int) -> Country:
+    country = Country.objects.filter(pk=country_id, active=True).first()
+    if country is None:
+        raise ValidationError({"pais_id": "El país no existe o está inactivo."})
+    return country
+
+
+@transaction.atomic
+def create_city(*, actor, nombre: str, pais_id: int, latitud=None, longitud=None, zona_horaria: str = "", request=None) -> City:
+    require_location_management(actor)
+    country = _active_country(pais_id)
+    name = nombre.strip()
+    _city_name_available(country.id, name)
+    city = City.objects.create(country=country, name=name, latitude=latitud, longitude=longitud, timezone=zona_horaria.strip() or None, active=True)
+    record_audit(actor=actor, action="CREAR", entity="ciudad", entity_id=str(city.id), new_data={"nombre": name, "pais_id": country.id}, request=request)
+    return city
+
+
+@transaction.atomic
+def update_city(*, actor, city_id: int, nombre: str, pais_id: int, latitud=None, longitud=None, zona_horaria: str = "", request=None) -> City:
+    require_location_management(actor)
+    city = City.objects.select_related("country").filter(pk=city_id).first()
+    if city is None:
+        raise NotFound("Ciudad no encontrada.")
+    country = _active_country(pais_id)
+    name = nombre.strip()
+    _city_name_available(country.id, name, exclude_id=city.id)
+    previous = {"nombre": city.name, "pais_id": city.country_id, "latitud": str(city.latitude) if city.latitude is not None else None, "longitud": str(city.longitude) if city.longitude is not None else None}
+    city.country = country
+    city.name = name
+    city.latitude = latitud
+    city.longitude = longitud
+    city.timezone = zona_horaria.strip() or None
+    city.save(update_fields=("country", "name", "latitude", "longitude", "timezone"))
+    record_audit(actor=actor, action="ACTUALIZAR", entity="ciudad", entity_id=str(city.id), previous_data=previous, new_data={"nombre": name, "pais_id": country.id, "latitud": str(latitud) if latitud is not None else None, "longitud": str(longitud) if longitud is not None else None}, request=request)
+    return city
+
+
+@transaction.atomic
+def change_city_status(*, actor, city_id: int, activo: bool, request=None) -> City:
+    require_location_management(actor)
+    city = City.objects.select_related("country").filter(pk=city_id).first()
+    if city is None:
+        raise NotFound("Ciudad no encontrada.")
+    if activo and not city.country.active:
+        raise ValidationError({"activo": "Activa primero el país de esta ciudad."})
+    previous = city.active
+    city.active = activo
+    city.save(update_fields=("active",))
+    if previous != activo:
+        record_audit(actor=actor, action="CAMBIAR_ESTADO", entity="ciudad", entity_id=str(city.id), previous_data={"activo": previous}, new_data={"activo": activo}, request=request)
+    return city
 
 
 def _require_platform_permission(actor, code: str, message: str) -> None:

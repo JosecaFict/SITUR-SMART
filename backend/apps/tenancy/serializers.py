@@ -18,6 +18,27 @@ class CountrySerializer(serializers.ModelSerializer):
         fields = ("id", "codigo", "nombre")
 
 
+class AdminCountrySerializer(CountrySerializer):
+    activo = serializers.BooleanField(source="active")
+    ciudades = serializers.IntegerField(source="city_count", read_only=True, default=0)
+
+    class Meta(CountrySerializer.Meta):
+        fields = (*CountrySerializer.Meta.fields, "activo", "ciudades")
+
+
+class CountryCreateSerializer(serializers.Serializer):
+    codigo = serializers.RegexField(r"^[A-Z]{3}$", max_length=3)
+    nombre = serializers.CharField(max_length=100)
+
+
+class CountryUpdateSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=100)
+
+
+class CatalogStatusSerializer(serializers.Serializer):
+    activo = serializers.BooleanField()
+
+
 class CitySerializer(serializers.ModelSerializer):
     nombre = serializers.CharField(source="name")
     pais_id = serializers.IntegerField(source="country_id")
@@ -36,6 +57,31 @@ class CitySerializer(serializers.ModelSerializer):
     class Meta:
         model = City
         fields = ("id", "nombre", "pais_id", "pais", "latitud", "longitud")
+
+
+class AdminCitySerializer(CitySerializer):
+    zona_horaria = serializers.CharField(source="timezone", allow_null=True)
+    activo = serializers.BooleanField(source="active")
+
+    class Meta(CitySerializer.Meta):
+        fields = (*CitySerializer.Meta.fields, "zona_horaria", "activo")
+
+
+class CityWriteSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=120)
+    pais_id = serializers.IntegerField(min_value=1)
+    latitud = serializers.DecimalField(max_digits=9, decimal_places=6, allow_null=True, required=False)
+    longitud = serializers.DecimalField(max_digits=9, decimal_places=6, allow_null=True, required=False)
+    zona_horaria = serializers.CharField(max_length=80, allow_blank=True, required=False)
+
+    def validate(self, attrs):
+        latitude = attrs.get("latitud")
+        longitude = attrs.get("longitud")
+        if (latitude is None) != (longitude is None):
+            raise serializers.ValidationError(
+                {"coordenadas": "Latitud y longitud deben registrarse juntas."}
+            )
+        return attrs
 
 
 class OwnerInputSerializer(serializers.Serializer):
@@ -147,8 +193,8 @@ class CompanyCreateSerializer(serializers.Serializer):
     propietario = OwnerInputSerializer()
 
     def validate_ciudad_id(self, value):
-        if value is not None and not City.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("La ciudad seleccionada no existe.")
+        if value is not None and not City.objects.filter(pk=value, active=True, country__active=True).exists():
+            raise serializers.ValidationError("La ciudad seleccionada no existe o está inactiva.")
         return value
 
     def validate_plan_codigo(self, value):
@@ -171,8 +217,8 @@ class CompanyUpdateSerializer(serializers.Serializer):
     estado = serializers.ChoiceField(choices=Tenant.Status.choices, required=False)
 
     def validate_ciudad_id(self, value):
-        if value is not None and not City.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("La ciudad seleccionada no existe.")
+        if value is not None and not City.objects.filter(pk=value, active=True, country__active=True).exists():
+            raise serializers.ValidationError("La ciudad seleccionada no existe o está inactiva.")
         return value
 
 
@@ -307,8 +353,8 @@ class CompanySelfSignupSerializer(serializers.Serializer):
     propietario = OwnerInputSerializer()
 
     def validate_ciudad_id(self, value):
-        if value is not None and not City.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("La ciudad seleccionada no existe.")
+        if value is not None and not City.objects.filter(pk=value, active=True, country__active=True).exists():
+            raise serializers.ValidationError("La ciudad seleccionada no existe o está inactiva.")
         return value
 
     def validate_plan_codigo(self, value):

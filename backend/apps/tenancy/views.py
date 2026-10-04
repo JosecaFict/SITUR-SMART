@@ -7,13 +7,19 @@ from rest_framework.views import APIView
 
 from .models import City, Country
 from .serializers import (
+    AdminCitySerializer,
+    AdminCountrySerializer,
+    CatalogStatusSerializer,
     CitySerializer,
+    CityWriteSerializer,
     CompanyCreateSerializer,
     CompanySelfSignupSerializer,
     CompanySerializer,
     CompanyStatusSerializer,
     CompanyUpdateSerializer,
+    CountryCreateSerializer,
     CountrySerializer,
+    CountryUpdateSerializer,
     OwnerAssignSerializer,
     PlanSerializer,
     SubscriptionChangeSerializer,
@@ -21,18 +27,27 @@ from .serializers import (
 )
 from .services import (
     assign_company_owner,
+    change_city_status,
     change_company_status,
     change_company_subscription,
+    change_country_status,
+    create_city,
     create_company,
+    create_country,
     get_company,
     get_company_subscription,
     get_subscription_usage,
+    list_admin_cities,
+    list_admin_countries,
     list_companies,
     list_plans,
     require_company_management,
+    require_location_management,
     require_subscription_management,
     self_signup_company,
+    update_city,
     update_company,
+    update_country,
 )
 
 
@@ -41,7 +56,7 @@ class CountryListView(APIView):
 
     @extend_schema(responses=CountrySerializer(many=True))
     def get(self, request):
-        return Response(CountrySerializer(Country.objects.all(), many=True).data)
+        return Response(CountrySerializer(Country.objects.filter(active=True), many=True).data)
 
 
 class CityListView(APIView):
@@ -49,11 +64,95 @@ class CityListView(APIView):
 
     @extend_schema(responses=CitySerializer(many=True))
     def get(self, request):
-        queryset = City.objects.select_related("country")
+        queryset = City.objects.select_related("country").filter(active=True, country__active=True)
         country_id = request.query_params.get("pais")
         if country_id:
             queryset = queryset.filter(country_id=country_id)
         return Response(CitySerializer(queryset, many=True).data)
+
+
+class AdminCountryListCreateView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        countries = list_admin_countries(
+            actor=request.user,
+            search=request.query_params.get("buscar", "").strip(),
+            active=request.query_params.get("activo", "").strip().lower(),
+        )
+        return Response(AdminCountrySerializer(countries, many=True).data)
+
+    def post(self, request):
+        require_location_management(request.user)
+        serializer = CountryCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        country = create_country(actor=request.user, request=request, **serializer.validated_data)
+        return Response(AdminCountrySerializer(country).data, status=status.HTTP_201_CREATED)
+
+
+class AdminCountryDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def patch(self, request, pk):
+        require_location_management(request.user)
+        serializer = CountryUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        country = update_country(actor=request.user, country_id=pk, request=request, **serializer.validated_data)
+        return Response(AdminCountrySerializer(country).data)
+
+
+class AdminCountryStatusView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, pk):
+        require_location_management(request.user)
+        serializer = CatalogStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        country = change_country_status(actor=request.user, country_id=pk, request=request, **serializer.validated_data)
+        return Response(AdminCountrySerializer(country).data)
+
+
+class AdminCityListCreateView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        country_id = request.query_params.get("pais")
+        cities = list_admin_cities(
+            actor=request.user,
+            country_id=int(country_id) if country_id and country_id.isdigit() else None,
+            search=request.query_params.get("buscar", "").strip(),
+            active=request.query_params.get("activo", "").strip().lower(),
+        )
+        return Response(AdminCitySerializer(cities, many=True).data)
+
+    def post(self, request):
+        require_location_management(request.user)
+        serializer = CityWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        city = create_city(actor=request.user, request=request, **serializer.validated_data)
+        return Response(AdminCitySerializer(city).data, status=status.HTTP_201_CREATED)
+
+
+class AdminCityDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def patch(self, request, pk):
+        require_location_management(request.user)
+        serializer = CityWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        city = update_city(actor=request.user, city_id=pk, request=request, **serializer.validated_data)
+        return Response(AdminCitySerializer(city).data)
+
+
+class AdminCityStatusView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, pk):
+        require_location_management(request.user)
+        serializer = CatalogStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        city = change_city_status(actor=request.user, city_id=pk, request=request, **serializer.validated_data)
+        return Response(AdminCitySerializer(city).data)
 
 
 class CompanyListCreateView(APIView):
