@@ -8,6 +8,8 @@ from .views import (
     CompanyProductListCreateView,
     CompanyRoomDetailView,
     CurrencyListView,
+    GeocodingReverseView,
+    GeocodingSearchView,
     LodgingTypeListView,
     ProductTypeListView,
     PublicLodgingDetailView,
@@ -44,4 +46,8 @@ urlpatterns = [
         name="company-lodging-room-list-create",
     ),
     path("habitaciones/<int:pk>/", CompanyRoomDetailView.as_view(), name="company-room-detail"),
+    # Geocodificacion: el navegador nunca habla con el proveedor, la clave no
+    # sale del servidor. Requieren sesion, X-Tenant-ID y PRODUCTOS_GESTIONAR.
+    path("geo/buscar/", GeocodingSearchView.as_view(), name="geocoding-search"),
+    path("geo/inverso/", GeocodingReverseView.as_view(), name="geocoding-reverse"),
 ]

@@ -9,6 +9,12 @@ export interface City {
   nombre: string;
   pais_id: number;
   pais: string;
+  /**
+   * Centro de la ciudad, para abrir el mapa donde la empresa trabaja. Nulas en
+   * las ciudades que no las tengan sembradas.
+   */
+  latitud: string | null;
+  longitud: string | null;
 }
 
 export interface CompanyOwner {

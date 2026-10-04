@@ -1,3 +1,5 @@
+from decimal import ROUND_HALF_UP, Decimal
+
 from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -6,6 +8,8 @@ from apps.tenancy.models import City
 
 from .models import (
     AVAILABLE_LODGING_TYPE_CODES,
+    COORDINATE_PAIR_MESSAGE,
+    COORDINATE_PRECISION,
     LODGING_PRODUCT_CODES,
     UNSUPPORTED_LODGING_TYPE_MESSAGE,
     Currency,
@@ -15,6 +19,52 @@ from .models import (
     Room,
     TourismProduct,
 )
+
+
+class CoordinateField(serializers.DecimalField):
+    """Coordenada redondeada a seis decimales antes de validarse.
+
+    ``navigator.geolocation`` devuelve hasta trece decimales y un
+    ``DecimalField`` normal los rechazaria con 400 antes de llegar a comprobar
+    el rango. Aqui se redondea primero, con ROUND_HALF_UP explicito, y despues
+    se valida: una lectura de GPS nunca se cae por traer precision de sobra.
+
+    ``max_digits`` queda holgado a proposito. Si fuera 9 como la columna, un
+    valor absurdo como 1234.5 fallaria por "demasiados digitos" en vez de por
+    "fuera de rango", que es el error que de verdad describe el problema. El
+    rango lo imponen los validadores de abajo, y la columna NUMERIC(9,6) con su
+    CHECK sigue siendo la guardia final.
+    """
+
+    def __init__(self, *, limit: str, **kwargs):
+        self.limit = Decimal(limit)
+        kwargs.setdefault("max_digits", 15)
+        kwargs.setdefault("decimal_places", 6)
+        kwargs.setdefault("min_value", -self.limit)
+        kwargs.setdefault("max_value", self.limit)
+        super().__init__(**kwargs)
+
+    def validate_precision(self, value):
+        # Se redondea antes de medir los decimales, no despues: medirlos primero
+        # es justamente lo que haria fallar al GPS.
+        return super().validate_precision(
+            value.quantize(COORDINATE_PRECISION, rounding=ROUND_HALF_UP)
+        )
+
+
+def check_coordinate_pair(attrs: dict) -> None:
+    """Exige que latitud y longitud viajen juntas.
+
+    Mira si la clave esta presente, no su valor: ``None`` es un valor valido
+    --quita la ubicacion-- y hay que distinguirlo de "no vino en el cuerpo",
+    que en un PATCH significa "deja las coordenadas como estan".
+    """
+    present = [name for name in ("latitud", "longitud") if name in attrs]
+    if len(present) == 1:
+        missing = "longitud" if present[0] == "latitud" else "latitud"
+        raise serializers.ValidationError({missing: [COORDINATE_PAIR_MESSAGE]})
+    if len(present) == 2 and (attrs["latitud"] is None) != (attrs["longitud"] is None):
+        raise serializers.ValidationError({"latitud": [COORDINATE_PAIR_MESSAGE]})
 
 
 class ProductTypeSerializer(serializers.ModelSerializer):
@@ -238,6 +288,15 @@ class LodgingSerializer(serializers.ModelSerializer):
     estado = serializers.CharField(source="product.status")
     imagen_url = serializers.CharField(source="product.image_url", allow_null=True)
     direccion = serializers.CharField(source="address", allow_null=True)
+    # Nulas las dos o ninguna. Este serializer lo comparten las vistas
+    # empresariales y las publicas, asi que la ubicacion del hotel sale por los
+    # dos lados: es un dato que se publica a proposito.
+    latitud = serializers.DecimalField(
+        source="latitude", max_digits=9, decimal_places=6, allow_null=True
+    )
+    longitud = serializers.DecimalField(
+        source="longitude", max_digits=9, decimal_places=6, allow_null=True
+    )
     categoria_estrellas = serializers.IntegerField(source="star_rating", allow_null=True)
     hora_check_in = serializers.TimeField(source="check_in", allow_null=True)
     hora_check_out = serializers.TimeField(source="check_out", allow_null=True)
@@ -261,9 +320,9 @@ class LodgingSerializer(serializers.ModelSerializer):
             "id", "producto_id", "empresa_id", "empresa", "tipo_hospedaje_codigo",
             "tipo_hospedaje", "nombre", "descripcion", "ciudad_id", "ciudad", "pais_id",
             "pais", "localidad", "moneda_codigo", "moneda_simbolo", "capacidad_total",
-            "estado", "imagen_url", "direccion", "categoria_estrellas", "hora_check_in",
-            "hora_check_out", "servicios", "precio_desde", "total_habitaciones",
-            "creado_en", "actualizado_en",
+            "estado", "imagen_url", "direccion", "latitud", "longitud",
+            "categoria_estrellas", "hora_check_in", "hora_check_out", "servicios",
+            "precio_desde", "total_habitaciones", "creado_en", "actualizado_en",
         )
 
 
@@ -316,6 +375,10 @@ class LodgingWriteSerializer(serializers.Serializer):
     No acepta ``precio_base`` ni ``capacidad_maxima``: los dos se derivan de las
     habitaciones. El precio es el de la mas economica publicada; la capacidad, la
     suma de unidades por personas de cada tipo.
+
+    ``latitud`` y ``longitud`` forman un par atomico: las dos para fijar la
+    ubicacion, las dos en ``null`` para quitarla, ninguna para dejarla como
+    esta. Una sola es un 400.
     """
 
     tipo_hospedaje_codigo = serializers.CharField(max_length=50, required=False)
@@ -328,6 +391,8 @@ class LodgingWriteSerializer(serializers.Serializer):
     imagen_url = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
     codigo = serializers.RegexField(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,59}$", required=False, allow_blank=True)
     direccion = serializers.CharField(max_length=250, required=False, allow_blank=True, allow_null=True)
+    latitud = CoordinateField(limit="90", required=False, allow_null=True)
+    longitud = CoordinateField(limit="180", required=False, allow_null=True)
     categoria_estrellas = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
     hora_check_in = serializers.TimeField(required=False, allow_null=True)
     hora_check_out = serializers.TimeField(required=False, allow_null=True)
@@ -365,6 +430,7 @@ class LodgingWriteSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {field: "Este campo es obligatorio." for field in missing}
                 )
+        check_coordinate_pair(attrs)
         return attrs
 
 
@@ -444,3 +510,54 @@ class PublicLodgingQuerySerializer(_HospedajeQuerySerializer):
 class PublicRoomQuerySerializer(_HospedajeQuerySerializer):
     hospedaje = serializers.IntegerField(min_value=1, required=False)
     huespedes = serializers.IntegerField(min_value=1, required=False)
+
+
+# --- Geocodificacion ---------------------------------------------------------
+# El proveedor se consulta siempre desde el backend, nunca desde el navegador:
+# la clave no puede salir del servidor. Estos serializers son el contrato que
+# consumen Angular y, mas adelante, Flutter.
+
+GEOCODING_RESULT_LIMIT = 10
+
+
+class GeocodingSearchQuerySerializer(serializers.Serializer):
+    """Busqueda de direcciones por texto.
+
+    ``ciudad_id`` es opcional y solo sesga el ranking hacia esa ciudad: el
+    backend resuelve su centro desde ``ciudad.latitud/longitud``, que ya estan
+    sembradas. El cliente no manda un centro, asi que no puede inventarlo.
+    """
+
+    texto = serializers.CharField(min_length=3, max_length=120, trim_whitespace=True)
+    ciudad_id = serializers.IntegerField(min_value=1, required=False)
+    # El tope por peticion no depende de ninguna cache: acota el gasto de cuota
+    # aunque el throttle se reinicie.
+    limite = serializers.IntegerField(
+        min_value=1, max_value=GEOCODING_RESULT_LIMIT, default=5, required=False
+    )
+
+
+class GeocodingReverseQuerySerializer(serializers.Serializer):
+    """Direccion de un punto. Mismos limites y redondeo que al guardar."""
+
+    latitud = CoordinateField(limit="90")
+    longitud = CoordinateField(limit="180")
+
+
+class GeocodingPlaceSerializer(serializers.Serializer):
+    """Un resultado de la búsqueda de direcciones."""
+
+    # Este docstring termina como `description` del esquema publico, asi que no
+    # nombra al proveedor: envolver la respuesta existe justamente para no
+    # filtrar de quien viene. El detalle de que el origen entrega las
+    # coordenadas como [lon, lat] --y que `geocoding` las separa con nombre para
+    # que nadie invierta el orden-- vive en comentarios, que no llegan a OpenAPI.
+    etiqueta = serializers.CharField()
+    nombre = serializers.CharField()
+    localidad = serializers.CharField(allow_null=True)
+    region = serializers.CharField(allow_null=True)
+    pais = serializers.CharField(allow_null=True)
+    latitud = serializers.DecimalField(max_digits=9, decimal_places=6)
+    longitud = serializers.DecimalField(max_digits=9, decimal_places=6)
+    confianza = serializers.FloatField(allow_null=True)
+    capa = serializers.CharField(allow_null=True)

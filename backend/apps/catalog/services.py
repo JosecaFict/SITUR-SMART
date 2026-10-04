@@ -1,3 +1,5 @@
+from decimal import ROUND_HALF_UP, Decimal
+
 from django.db import transaction
 from django.db.models import Count, Exists, F, Min, OuterRef, Q, Sum
 from django.utils.text import slugify
@@ -10,6 +12,9 @@ from apps.tenancy.services import ensure_product_quota_available
 
 from .models import (
     AVAILABLE_LODGING_TYPE_CODES,
+    COORDINATE_LIMITS,
+    COORDINATE_PAIR_MESSAGE,
+    COORDINATE_PRECISION,
     HOTEL_PRODUCT_CODE,
     LODGING_PRODUCT_CODES,
     ROOM_PRODUCT_CODE,
@@ -158,11 +163,17 @@ _HOTEL_CAPACITY_SENTINEL = 1
 
 _LODGING_FIELDS = {
     "direccion": "address",
+    "latitud": "latitude",
+    "longitud": "longitude",
     "categoria_estrellas": "star_rating",
     "hora_check_in": "check_in",
     "hora_check_out": "check_out",
     "servicios": "services",
 }
+
+# Atributo del modelo -> nombre de la API. El error se informa con el nombre que
+# usa quien llama, no con el interno.
+_COORDINATE_NAMES = {"latitude": "latitud", "longitude": "longitud"}
 
 _ROOM_FIELDS = {
     "cantidad_habitaciones": "quantity",
@@ -186,6 +197,44 @@ _ROOM_RELATED = (
 def _split_specifics(data: dict, mapping: dict) -> dict:
     """Separa los campos de la tabla especializada de los del producto base."""
     return {mapping[key]: data.pop(key) for key in list(data) if key in mapping}
+
+
+def _normalize_coordinates(specifics: dict) -> None:
+    """Reaplica par, rango y redondeo sobre los campos ya renombrados.
+
+    ``LodgingWriteSerializer`` ya hace lo mismo, asi que en la via HTTP esto no
+    cambia nada. Existe para cualquier otro llamador --un comando de gestion, un
+    shell, una tarea futura-- de modo que la regla no dependa de pasar por un
+    serializer. La base tambien la impone con ``chk_establecimiento_coordenadas``;
+    esto solo convierte el error en un 400 con mensaje en vez de un IntegrityError.
+
+    Modifica ``specifics`` en el lugar porque es el diccionario que termina en
+    ``setattr`` o en ``objects.create``.
+    """
+    present = [field for field in _COORDINATE_NAMES if field in specifics]
+    if len(present) == 1:
+        missing = next(field for field in _COORDINATE_NAMES if field not in specifics)
+        raise ValidationError({_COORDINATE_NAMES[missing]: [COORDINATE_PAIR_MESSAGE]})
+    if not present:
+        return
+    if (specifics["latitude"] is None) != (specifics["longitude"] is None):
+        raise ValidationError({"latitud": [COORDINATE_PAIR_MESSAGE]})
+
+    for field, name in _COORDINATE_NAMES.items():
+        value = specifics[field]
+        if value is None:
+            continue
+        limit = COORDINATE_LIMITS[name]
+        try:
+            value = Decimal(value).quantize(COORDINATE_PRECISION, rounding=ROUND_HALF_UP)
+        except (ArithmeticError, TypeError, ValueError) as exc:
+            # Un texto o un None mal colado tiene que salir como 400, no como un
+            # InvalidOperation: esta funcion existe precisamente para los
+            # llamadores que no pasaron por la validacion del serializer.
+            raise ValidationError({name: ["Debe ser un número decimal."]}) from exc
+        if not -limit <= value <= limit:
+            raise ValidationError({name: [f"Debe estar entre -{limit} y {limit}."]})
+        specifics[field] = value
 
 
 def _lodging_type(code: str) -> LodgingType:
@@ -487,6 +536,7 @@ def create_lodging(*, actor, tenant_id: int, request=None, **data) -> LodgingEst
     type_code = data.pop("tipo_hospedaje_codigo", LodgingType.Code.HOTEL)
     lodging_type = _lodging_type(type_code)
     specifics = _split_specifics(data, _LODGING_FIELDS)
+    _normalize_coordinates(specifics)
     requested_code = data.pop("codigo", None)
 
     values = _relations(data)
@@ -537,6 +587,7 @@ def update_lodging(*, actor, tenant_id: int, lodging_id: int, request=None, **da
     if type_code := data.pop("tipo_hospedaje_codigo", None):
         lodging.lodging_type = _lodging_type(type_code)
     specifics = _split_specifics(data, _LODGING_FIELDS)
+    _normalize_coordinates(specifics)
     data.pop("codigo", None)
     # Ni el precio ni la capacidad de un hotel se declaran: se derivan de sus
     # habitaciones. El serializer ya no los acepta; esto cubre a otros llamadores.

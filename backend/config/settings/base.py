@@ -138,6 +138,17 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
     "EXCEPTION_HANDLER": "apps.common.exceptions.api_exception_handler",
+    # Solo la geocodificacion esta limitada: es la unica ruta que consume cuota
+    # de un proveedor externo. No hay limite por omision para el resto.
+    #
+    # El respaldo es la cache por omision de Django (LocMemCache, memoria del
+    # proceso), asi que NO es un limite global ni durable: se reinicia en cada
+    # despliegue y se multiplicaria por la cantidad de workers de gunicorn, que
+    # hoy es uno. Alcanza para el piloto; un limite real necesita cache
+    # compartida.
+    "DEFAULT_THROTTLE_RATES": {
+        "geocodificacion": os.getenv("GEOCODING_THROTTLE_RATE", "30/min"),
+    },
 }
 
 SIMPLE_JWT = {
@@ -177,4 +188,20 @@ PASSWORD_RESET_RATE_LIMIT_SECONDS = int(os.getenv("PASSWORD_RESET_RATE_LIMIT_SEC
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
+
+# openrouteservice / HeiGIT -- geocodificacion de direcciones
+#
+# La clave se lee unicamente aqui y solo la usa apps/catalog/geocoding.py. No
+# viaja a Angular ni a Flutter, no aparece en el esquema de OpenAPI y no se
+# registra en ningun log: el navegador habla con nuestra API, nunca con el
+# proveedor.
+#
+# Sin clave, la busqueda responde 503 y el mapa sigue funcionando: ubicar el pin
+# a mano no depende de este servicio.
+OPENROUTESERVICE_API_KEY = os.getenv("OPENROUTESERVICE_API_KEY", "")
+# Mas corto que el de Brevo (10 s) porque esto esta en el camino interactivo de
+# quien carga un hotel, no en el envio de un correo.
+OPENROUTESERVICE_TIMEOUT_SECONDS = int(os.getenv("OPENROUTESERVICE_TIMEOUT_SECONDS", "6"))
+# Recorte duro de la busqueda. En esta fase la plataforma solo opera en Bolivia.
+GEOCODING_COUNTRY = os.getenv("GEOCODING_COUNTRY", "BOL")
 

@@ -22,10 +22,20 @@ class CitySerializer(serializers.ModelSerializer):
     nombre = serializers.CharField(source="name")
     pais_id = serializers.IntegerField(source="country_id")
     pais = serializers.CharField(source="country.name", read_only=True)
+    # Centro de la ciudad. Lo usa el mapa del panel para abrirse donde la
+    # empresa trabaja en vez de sobre el centro del pais, y para avisar si el
+    # punto marcado quedo lejisimos de la ciudad declarada. Nulas en las
+    # ciudades que no las tengan sembradas: el mapa simplemente no se centra.
+    latitud = serializers.DecimalField(
+        source="latitude", max_digits=9, decimal_places=6, allow_null=True, read_only=True
+    )
+    longitud = serializers.DecimalField(
+        source="longitude", max_digits=9, decimal_places=6, allow_null=True, read_only=True
+    )
 
     class Meta:
         model = City
-        fields = ("id", "nombre", "pais_id", "pais")
+        fields = ("id", "nombre", "pais_id", "pais", "latitud", "longitud")
 
 
 class OwnerInputSerializer(serializers.Serializer):

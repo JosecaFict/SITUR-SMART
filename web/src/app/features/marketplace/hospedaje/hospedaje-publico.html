@@ -110,6 +110,32 @@
         </div>
       </section>
 
+      <!-- ===================== UBICACIÓN ===================== -->
+      <!-- Sin coordenadas no se dibuja nada: una sección vacía con un mapa
+           gris confundiría más que la ausencia. -->
+      @if (coordinates(); as punto) {
+        <section class="mt-10">
+          <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <h2 class="font-heading text-title text-2xl font-bold">Ubicación</h2>
+            <!-- Enlace externo exigido por la decisión D5, para que se pueda
+                 abrir el punto en OpenStreetMap y navegar hacia él. -->
+            <a
+              [href]="openStreetMapUrl()"
+              target="_blank"
+              rel="noopener"
+              class="text-accent-dark inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
+            >
+              <svg lucideExternalLink class="h-4 w-4"></svg>
+              Ver en OpenStreetMap
+            </a>
+          </div>
+          <situr-mapa-ubicacion [value]="punto" />
+          <p class="text-text-secondary mt-2 text-xs">
+            Ubicación declarada por {{ hotel.empresa }}.
+          </p>
+        </section>
+      }
+
       <!-- ===================== TIPOS DE HABITACIÓN ===================== -->
       <section class="mt-10">
         <div class="mb-4 flex flex-wrap items-end justify-between gap-3">

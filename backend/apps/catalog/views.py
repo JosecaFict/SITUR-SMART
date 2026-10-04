@@ -1,17 +1,24 @@
 from django.db.models import F, Q
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import APIException, NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.rbac.services import require_permission, require_tenant_access
 from apps.rbac.views import tenant_id_from_request
+from apps.tenancy.models import City
 
+from .geocoding import GeocodingUnavailable, reverse_geocode, search_places
 from .models import Currency, LodgingType, ProductType, TourismProduct
 from .serializers import (
     CurrencySerializer,
+    GeocodingPlaceSerializer,
+    GeocodingReverseQuerySerializer,
+    GeocodingSearchQuerySerializer,
     LodgingSerializer,
     LodgingTypeSerializer,
     LodgingWriteSerializer,
@@ -447,3 +454,129 @@ class PublicRoomDetailView(APIView):
     @extend_schema(responses=RoomSerializer)
     def get(self, request, pk):
         return Response(RoomSerializer(get_public_room(pk)).data)
+
+
+# --- Geocodificacion ---------------------------------------------------------
+
+
+class GeocodingUnavailableError(APIException):
+    """503 con un mensaje que no culpa al usuario ni delata al proveedor.
+
+    El texto importa: quien lo lea tiene que entender que puede seguir
+    trabajando. Ubicar el pin a mano no pasa por aqui, asi que un
+    geocodificador caido no bloquea guardar una ubicacion.
+    """
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_detail = (
+        "El buscador de direcciones no está disponible en este momento. "
+        "Puedes ubicar el punto en el mapa manualmente y guardar igual."
+    )
+
+
+class GeocodingThrottle(UserRateThrottle):
+    """Limite por usuario para no quemar la cuota del proveedor.
+
+    ADVERTENCIA documentada a proposito: usa la cache por omision de Django,
+    que es ``LocMemCache``, es decir memoria del proceso. Eso significa que
+    **no es un limite global ni durable**: se reinicia en cada despliegue y se
+    multiplicaria por la cantidad de workers si alguna vez se arranca gunicorn
+    con mas de uno (hoy arranca con el valor por omision, que es uno). Para el
+    piloto alcanza; si hace falta un limite real habra que respaldarlo con una
+    cache compartida.
+
+    La defensa que si es durable no depende de esta clase: ``limite`` tiene un
+    tope por peticion en el serializer, y el cliente solo consulta cuando la
+    persona pulsa un boton.
+    """
+
+    scope = "geocodificacion"
+
+
+class _GeocodingView(APIView):
+    """Base de los endpoints de geocodificacion.
+
+    La clave del proveedor no sale del servidor, asi que estos endpoints son el
+    unico camino del navegador hacia el geocodificador y conviene que esten tan
+    cerrados como el panel que los usa: sesion valida, ``X-Tenant-ID``, acceso a
+    esa empresa y permiso de gestion de productos. Buscar una direccion es parte
+    de cargar un hospedaje, no una utilidad publica.
+    """
+
+    permission_classes = (IsAuthenticated,)
+    throttle_classes = (GeocodingThrottle,)
+
+    @staticmethod
+    def _authorize(request) -> None:
+        tenant_id = tenant_id_from_request(request, required=True)
+        require_tenant_access(request.user, tenant_id)
+        require_permission(request.user, "PRODUCTOS_GESTIONAR", tenant_id)
+
+
+class GeocodingSearchView(_GeocodingView):
+    @extend_schema(
+        parameters=[GeocodingSearchQuerySerializer],
+        responses=inline_serializer(
+            name="GeocodingSearchResponse",
+            fields={"resultados": GeocodingPlaceSerializer(many=True)},
+        ),
+    )
+    def get(self, request):
+        self._authorize(request)
+        query = GeocodingSearchQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        data = query.validated_data
+
+        try:
+            places = search_places(
+                text=data["texto"],
+                limit=data["limite"],
+                center=_city_center(data.get("ciudad_id")),
+            )
+        except GeocodingUnavailable as exc:
+            raise GeocodingUnavailableError from exc
+        return Response({"resultados": places})
+
+
+class GeocodingReverseView(_GeocodingView):
+    @extend_schema(
+        parameters=[GeocodingReverseQuerySerializer],
+        responses=inline_serializer(
+            name="GeocodingReverseResponse",
+            fields={"resultado": GeocodingPlaceSerializer(allow_null=True)},
+        ),
+    )
+    def get(self, request):
+        self._authorize(request)
+        query = GeocodingReverseQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        data = query.validated_data
+
+        try:
+            place = reverse_geocode(latitude=data["latitud"], longitude=data["longitud"])
+        except GeocodingUnavailable as exc:
+            raise GeocodingUnavailableError from exc
+        # 200 con null, no 404: "no hay calle registrada en ese punto" es una
+        # respuesta valida, y en el altiplano es la respuesta habitual.
+        return Response({"resultado": place})
+
+
+def _city_center(city_id: int | None) -> tuple | None:
+    """Centro de la ciudad para sesgar el ranking.
+
+    El cliente manda ``ciudad_id`` y no un centro: asi no puede apuntar la
+    busqueda a cualquier parte del mundo. Las coordenadas salen de ``ciudad``,
+    que ya las trae sembradas desde ``0002_seed_bolivia_cities``.
+
+    Una ciudad sin coordenadas no es un error: simplemente no hay sesgo y la
+    busqueda sigue restringida al pais.
+    """
+    if city_id is None:
+        return None
+    center = City.objects.filter(id=city_id).values_list("latitude", "longitude").first()
+    if center is None:
+        raise ValidationError({"ciudad_id": "La ciudad no existe."})
+    latitude, longitude = center
+    if latitude is None or longitude is None:
+        return None
+    return latitude, longitude

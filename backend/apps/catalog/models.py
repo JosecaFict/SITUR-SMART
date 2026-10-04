@@ -1,7 +1,21 @@
+from decimal import Decimal
+
 from django.db import models
 
 HOTEL_PRODUCT_CODE = "HOTEL"
 ROOM_PRODUCT_CODE = "HABITACION"
+
+# Precision que puede guardar NUMERIC(9,6): seis decimales, ~11 cm. Un GPS
+# devuelve hasta trece y lo que sobra es ruido del sensor, asi que se redondea
+# en vez de rechazarse. Lo comparten el serializer y los servicios para que la
+# estrategia sea una sola.
+COORDINATE_PRECISION = Decimal("0.000001")
+COORDINATE_LIMITS = {"latitud": Decimal("90"), "longitud": Decimal("180")}
+
+COORDINATE_PAIR_MESSAGE = (
+    "La latitud y la longitud viajan juntas: envía las dos para fijar la "
+    "ubicación, o las dos en null para quitarla."
+)
 
 # Un producto de estos dos tipos solo tiene sentido acompaniado de su fila en
 # establecimiento_hospedaje o habitacion. Por eso no se crean ni se editan por
@@ -140,6 +154,19 @@ class LodgingEstablishment(models.Model):
         LodgingType, db_column="id_tipo_hospedaje", on_delete=models.DO_NOTHING, related_name="establishments"
     )
     address = models.CharField(db_column="direccion", max_length=250, null=True, blank=True)
+    # Ubicacion exacta, opcional. Misma forma que ciudad.latitud/longitud:
+    # NUMERIC(9,6) resuelve ~11 cm y le alcanza justo a 180.000000. Van siempre
+    # en par -- media coordenada no ubica nada -- y la base lo obliga con
+    # chk_establecimiento_coordenadas, no solo el backend.
+    #
+    # Las habitaciones no tienen coordenada propia: usan la de su
+    # establecimiento, igual que heredan ciudad y localidad.
+    latitude = models.DecimalField(
+        db_column="latitud", max_digits=9, decimal_places=6, null=True, blank=True
+    )
+    longitude = models.DecimalField(
+        db_column="longitud", max_digits=9, decimal_places=6, null=True, blank=True
+    )
     star_rating = models.SmallIntegerField(db_column="categoria_estrellas", null=True, blank=True)
     check_in = models.TimeField(db_column="hora_check_in", null=True, blank=True)
     check_out = models.TimeField(db_column="hora_check_out", null=True, blank=True)

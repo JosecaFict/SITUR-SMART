@@ -4,13 +4,16 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCheck, LucideCircleAlert,
-  LucideClock, LucideEye, LucideEyeOff, LucideImage, LucideMapPin, LucidePencil,
-  LucidePlus, LucideRefreshCw, LucideTrash2, LucideUpload, LucideUsers, LucideX,
+  LucideClock, LucideCrosshair, LucideEye, LucideEyeOff, LucideImage, LucideMapPin,
+  LucidePencil, LucidePlus, LucideRefreshCw, LucideSearch, LucideTrash2, LucideUpload,
+  LucideUsers, LucideX,
 } from '@lucide/angular';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { City, Country } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
+import { GeoPlace, LatLng } from '../../../core/geo/geo.models';
+import { GeoService } from '../../../core/geo/geo.service';
 import { apiErrorMessage } from '../../../core/http/api-error';
 import {
   LodgingEstablishment, LodgingPayload, LodgingType, Room, RoomPayload,
@@ -19,8 +22,48 @@ import { LodgingService } from '../../../core/lodging/lodging.service';
 import { MediaService } from '../../../core/media/media.service';
 import { Currency, ProductStatus } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
+import { MapaUbicacion } from '../../../shared/mapa-ubicacion/mapa-ubicacion';
 
 type Tab = 'general' | 'hospedaje' | 'habitaciones';
+
+/**
+ * Distancia a partir de la cual se avisa que el punto parece estar lejos de la
+ * ciudad declarada. Es informativo y nunca bloquea: un hospedaje rural puede
+ * estar legítimamente a esa distancia de la ciudad que lo administra.
+ */
+const FAR_FROM_CITY_KM = 100;
+
+/** Decimales que guarda el backend. Mandar más sería ruido que redondea igual. */
+const COORDINATE_DECIMALS = 6;
+
+/**
+ * Convierte el par decimal del backend a números para Leaflet.
+ *
+ * Devuelve `null` si falta alguna o si no son números: el backend garantiza
+ * que vienen juntas, pero un `null` colado pintaría el pin en el ecuador.
+ */
+function parseLatLng(lat: string | null, lng: string | null): LatLng | null {
+  if (!lat || !lng) return null;
+  const parsed = { lat: Number(lat), lng: Number(lng) };
+  return Number.isFinite(parsed.lat) && Number.isFinite(parsed.lng) ? parsed : null;
+}
+
+/**
+ * Distancia en kilómetros por la fórmula del semiverseno.
+ *
+ * Solo alimenta un aviso informativo, así que la precisión de una esfera basta;
+ * no hace falta un elipsoide ni una dependencia para eso.
+ */
+function distanceKm(a: LatLng, b: LatLng): number {
+  const EARTH_RADIUS_KM = 6371;
+  const toRad = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
+}
 
 /** Los que no estén acá se conservan si vinieron de la API. */
 const SERVICE_OPTIONS = [
@@ -41,10 +84,10 @@ const SERVICE_OPTIONS = [
 @Component({
   selector: 'situr-hospedaje-detalle',
   imports: [
-    ReactiveFormsModule, LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCheck,
-    LucideCircleAlert, LucideClock, LucideEye, LucideEyeOff, LucideImage, LucideMapPin,
-    LucidePencil, LucidePlus, LucideRefreshCw, LucideTrash2, LucideUpload, LucideUsers,
-    LucideX,
+    ReactiveFormsModule, MapaUbicacion, LucideArrowLeft, LucideBedDouble, LucideBuilding2,
+    LucideCheck, LucideCircleAlert, LucideClock, LucideCrosshair, LucideEye, LucideEyeOff,
+    LucideImage, LucideMapPin, LucidePencil, LucidePlus, LucideRefreshCw, LucideSearch,
+    LucideTrash2, LucideUpload, LucideUsers, LucideX,
   ],
   templateUrl: './hospedaje-detalle.html',
 })
@@ -53,6 +96,7 @@ export class HospedajeDetalle implements OnInit {
   private readonly companiesService = inject(CompaniesService);
   private readonly productsService = inject(ProductsService);
   private readonly lodgingService = inject(LodgingService);
+  private readonly geoService = inject(GeoService);
   private readonly mediaService = inject(MediaService);
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
@@ -113,6 +157,68 @@ export class HospedajeDetalle implements OnInit {
   protected readonly filteredCities = computed(() => {
     const countryId = this.selectedCountryId();
     return countryId ? this.cities().filter((city) => city.pais_id === countryId) : [];
+  });
+
+  // --- Ubicación en el mapa ------------------------------------------------
+  // El pin no vive en el formulario porque no es un campo de texto: lo mueven
+  // el mapa, el buscador y el GPS. Guardarlo en una señal deja que la plantilla
+  // reaccione sin que haya un input que nadie va a escribir a mano.
+
+  /** Punto marcado, o `null` si el hospedaje no declara ubicación. */
+  protected readonly coordinates = signal<LatLng | null>(null);
+  /**
+   * Se marca al mover el pin y se limpia al releer el hospedaje guardado.
+   *
+   * Alimenta el aviso «Sin guardar»: arrastrar un pin no se parece a escribir
+   * en un campo, así que sin decirlo alguien podría irse creyendo que ya quedó.
+   */
+  protected readonly locationChanged = signal(false);
+
+  protected readonly geoSearchControl = this.fb.nonNullable.control('');
+  protected readonly geoResults = signal<GeoPlace[]>([]);
+  protected readonly geoSearching = signal(false);
+  protected readonly geoError = signal<string | null>(null);
+  /** Nulo mientras no se haya buscado nada todavía. */
+  protected readonly geoSearched = signal(false);
+
+  /**
+   * Dirección que propone el geocodificador.
+   *
+   * Nunca se copia sola al campo `direccion`: se muestra con un botón para
+   * aceptarla. Sobrescribir lo que alguien escribió a mano es perder su
+   * trabajo sin preguntar.
+   */
+  protected readonly suggestedAddress = signal<string | null>(null);
+  protected readonly reverseLoading = signal(false);
+  protected readonly locating = signal(false);
+
+  /**
+   * Ciudad elegida, como señal.
+   *
+   * El valor del control no sirve acá: `computed` solo reacciona a señales, y
+   * un `FormControl` no lo es. La señal se actualiza en `cityChanged()`.
+   */
+  private readonly selectedCityId = signal(0);
+
+  /** Centro de la ciudad elegida, para abrir el mapa donde corresponde. */
+  protected readonly cityCenter = computed<LatLng | null>(() => {
+    const cityId = this.selectedCityId();
+    const city = cityId ? this.cities().find((item) => item.id === cityId) : undefined;
+    return city ? parseLatLng(city.latitud, city.longitud) : null;
+  });
+
+  /**
+   * Aviso cuando el punto queda muy lejos de la ciudad declarada.
+   *
+   * Informativo, nunca bloqueante: puede ser un error de dedo o un hospedaje
+   * rural perfectamente real.
+   */
+  protected readonly farFromCityKm = computed<number | null>(() => {
+    const point = this.coordinates();
+    const center = this.cityCenter();
+    if (!point || !center) return null;
+    const km = distanceKm(point, center);
+    return km > FAR_FROM_CITY_KM ? Math.round(km) : null;
   });
 
   protected readonly lodgingForm = this.fb.nonNullable.group({
@@ -205,10 +311,15 @@ export class HospedajeDetalle implements OnInit {
   }
 
   private prepareNew(): void {
-    this.selectedCountryId.set(0);
+    // Si el catálogo trae un solo país, elegirlo a mano es un paso inútil: se
+    // preselecciona y la lista de ciudades queda lista de entrada.
+    const onlyCountry = this.countries().length === 1 ? this.countries()[0] : null;
+    this.selectedCountryId.set(onlyCountry?.id ?? 0);
+    this.selectedCityId.set(0);
+    this.resetLocationState();
     this.lodgingForm.reset({
       // Sin país no puede haber ciudad válida elegida.
-      pais: '',
+      pais: onlyCountry ? String(onlyCountry.id) : '',
       ciudad_id: 0,
       moneda_codigo: this.currencies()[0]?.codigo ?? 'BOB',
       estado: 'BORRADOR',
@@ -242,6 +353,11 @@ export class HospedajeDetalle implements OnInit {
     this.lodging.set(lodging);
     this.selectedServices.set([...lodging.servicios]);
     this.selectedCountryId.set(lodging.pais_id);
+    this.selectedCityId.set(lodging.ciudad_id);
+    // La ubicación se relee de la respuesta, así que tras guardar el pin queda
+    // mostrando lo que de verdad hay en la base, no lo que se envió.
+    this.resetLocationState();
+    this.coordinates.set(parseLatLng(lodging.latitud, lodging.longitud));
     this.lodgingForm.setValue({
       nombre: lodging.nombre,
       descripcion: lodging.descripcion ?? '',
@@ -293,7 +409,153 @@ export class HospedajeDetalle implements OnInit {
     const cityId = Number(this.lodgingForm.controls.ciudad_id.value);
     if (cityId && !this.filteredCities().some((city) => city.id === cityId)) {
       this.lodgingForm.controls.ciudad_id.setValue(0);
+      this.selectedCityId.set(0);
     }
+  }
+
+  /** Mantiene en sincronía la señal que usa el mapa para centrarse. */
+  protected cityChanged(): void {
+    this.selectedCityId.set(Number(this.lodgingForm.controls.ciudad_id.value));
+  }
+
+  // --- Ubicación en el mapa ------------------------------------------------
+
+  /**
+   * Mueve el pin. Lo llaman el clic en el mapa y el arrastre del marcador.
+   *
+   * No dispara geocodificación inversa: la decisión D4 la quiere explícita,
+   * para que arrastrar el pin no gaste cuota en cada movimiento. La dirección
+   * propuesta se descarta porque ya no corresponde a este punto.
+   */
+  protected pinPicked(point: LatLng): void {
+    this.coordinates.set(point);
+    this.locationChanged.set(true);
+    this.suggestedAddress.set(null);
+    this.geoError.set(null);
+  }
+
+  /** Busca solo al pulsar el botón, nunca en cada tecla. */
+  protected searchAddress(): void {
+    const companyId = this.companyId();
+    const text = this.geoSearchControl.value.trim();
+    if (!companyId || text.length < GeoService.MIN_QUERY_LENGTH) return;
+
+    this.geoSearching.set(true);
+    this.geoError.set(null);
+    this.geoResults.set([]);
+    this.geoService
+      .search(companyId, text, this.selectedCityId() || null)
+      .subscribe({
+        next: ({ resultados }) => {
+          this.geoSearching.set(false);
+          this.geoSearched.set(true);
+          this.geoResults.set(resultados);
+        },
+        error: (error: HttpErrorResponse) => {
+          this.geoSearching.set(false);
+          this.geoSearched.set(true);
+          // El mensaje del backend ya explica que se puede seguir a mano.
+          this.geoError.set(
+            apiErrorMessage(error, 'No pudimos buscar esa dirección. Ubica el punto en el mapa.'),
+          );
+        },
+      });
+  }
+
+  /** Lleva el pin al resultado elegido y ofrece su dirección. */
+  protected useGeoResult(place: GeoPlace): void {
+    const point = parseLatLng(place.latitud, place.longitud);
+    if (!point) return;
+    this.coordinates.set(point);
+    this.locationChanged.set(true);
+    this.suggestedAddress.set(place.etiqueta || null);
+    this.geoResults.set([]);
+    this.geoSearchControl.setValue('');
+  }
+
+  /** Geocodificación inversa, solo cuando se pide. */
+  protected requestAddressForPin(): void {
+    const companyId = this.companyId();
+    const point = this.coordinates();
+    if (!companyId || !point) return;
+
+    this.reverseLoading.set(true);
+    this.geoError.set(null);
+    this.geoService.reverse(companyId, point.lat, point.lng).subscribe({
+      next: ({ resultado }) => {
+        this.reverseLoading.set(false);
+        this.suggestedAddress.set(resultado?.etiqueta || null);
+        if (!resultado) {
+          this.geoError.set('No hay una dirección registrada en ese punto. Puedes escribirla.');
+        }
+      },
+      error: (error: HttpErrorResponse) => {
+        this.reverseLoading.set(false);
+        this.geoError.set(
+          apiErrorMessage(error, 'No pudimos obtener la dirección de ese punto.'),
+        );
+      },
+    });
+  }
+
+  /** Copia la dirección propuesta al campo, solo si se acepta. */
+  protected useSuggestedAddress(): void {
+    const suggested = this.suggestedAddress();
+    if (!suggested) return;
+    this.lodgingForm.controls.direccion.setValue(suggested);
+    this.lodgingForm.controls.direccion.markAsDirty();
+    this.suggestedAddress.set(null);
+  }
+
+  /**
+   * Pone el pin en la ubicación del dispositivo.
+   *
+   * Degrada en silencio: si no hay soporte o se niega el permiso, se avisa y
+   * nada más. El mapa y el pin manual siguen disponibles.
+   */
+  protected useCurrentLocation(): void {
+    if (!navigator.geolocation) {
+      this.geoError.set('Este navegador no permite compartir tu ubicación.');
+      return;
+    }
+    this.locating.set(true);
+    this.geoError.set(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        this.locating.set(false);
+        this.pinPicked({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        this.locating.set(false);
+        this.geoError.set(
+          'No pudimos obtener tu ubicación. Ubica el punto en el mapa manualmente.',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  }
+
+  /** Deja el editor de ubicación como recién abierto. */
+  private resetLocationState(): void {
+    this.coordinates.set(null);
+    this.locationChanged.set(false);
+    this.suggestedAddress.set(null);
+    this.geoResults.set([]);
+    this.geoError.set(null);
+    this.geoSearched.set(false);
+    this.geoSearchControl.setValue('');
+  }
+
+  /** Quita la ubicación. Las dos coordenadas se van juntas. */
+  protected clearLocation(): void {
+    this.coordinates.set(null);
+    this.locationChanged.set(true);
+    this.suggestedAddress.set(null);
+    this.geoResults.set([]);
+    this.geoError.set(null);
   }
 
   protected toggleService(name: string): void {
@@ -315,10 +577,16 @@ export class HospedajeDetalle implements OnInit {
    * * `pais` — el backend lo deriva de la ciudad;
    * * precio — es el de la habitación más económica publicada;
    * * capacidad — se deriva de las habitaciones.
+   *
+   * Las coordenadas viajan siempre en par, como exige el contrato: con valores
+   * si hay pin, las dos en `null` si no. Mandar una sola es un 400.
    */
   private buildLodgingPayload(): LodgingPayload {
     const raw = this.lodgingForm.getRawValue();
+    const point = this.coordinates();
     return {
+      latitud: point ? point.lat.toFixed(COORDINATE_DECIMALS) : null,
+      longitud: point ? point.lng.toFixed(COORDINATE_DECIMALS) : null,
       nombre: raw.nombre.trim(),
       descripcion: raw.descripcion.trim() || undefined,
       ciudad_id: Number(raw.ciudad_id),

@@ -4,10 +4,12 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCircleAlert, LucideClock,
-  LucideImage, LucideMapPin, LucideRefreshCw, LucideStar, LucideUsers,
+  LucideExternalLink, LucideImage, LucideMapPin, LucideRefreshCw, LucideStar, LucideUsers,
 } from '@lucide/angular';
+import { LatLng } from '../../../core/geo/geo.models';
 import { LodgingEstablishment, Room } from '../../../core/lodging/lodging.models';
 import { LodgingService } from '../../../core/lodging/lodging.service';
+import { MapaUbicacion } from '../../../shared/mapa-ubicacion/mapa-ubicacion';
 
 /** Tamaño de página del endpoint paginado de habitaciones. */
 const PAGE_SIZE = 12;
@@ -24,8 +26,9 @@ const PAGE_SIZE = 12;
 @Component({
   selector: 'situr-hospedaje-publico',
   imports: [
-    RouterLink, LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCircleAlert,
-    LucideClock, LucideImage, LucideMapPin, LucideRefreshCw, LucideStar, LucideUsers,
+    RouterLink, MapaUbicacion, LucideArrowLeft, LucideBedDouble, LucideBuilding2,
+    LucideCircleAlert, LucideClock, LucideExternalLink, LucideImage, LucideMapPin,
+    LucideRefreshCw, LucideStar, LucideUsers,
   ],
   templateUrl: './hospedaje-publico.html',
 })
@@ -52,6 +55,27 @@ export class HospedajePublico implements OnInit {
   protected readonly hasMore = signal(false);
   protected readonly loadingMore = signal(false);
   private nextPage = 1;
+
+  /**
+   * Punto del hotel, o `null` si no declaró ubicación.
+   *
+   * El backend garantiza que las dos coordenadas llegan juntas, pero se
+   * comprueban igual: un `null` colado pintaría el pin en el ecuador.
+   */
+  protected readonly coordinates = computed<LatLng | null>(() => {
+    const hotel = this.lodging();
+    if (!hotel?.latitud || !hotel?.longitud) return null;
+    const lat = Number(hotel.latitud);
+    const lng = Number(hotel.longitud);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  });
+
+  /** Enlace al punto en OpenStreetMap, con zoom de calle. */
+  protected readonly openStreetMapUrl = computed(() => {
+    const point = this.coordinates();
+    if (!point) return '';
+    return `https://www.openstreetmap.org/?mlat=${point.lat}&mlon=${point.lng}#map=17/${point.lat}/${point.lng}`;
+  });
 
   protected readonly hasRooms = computed(() => this.rooms().length > 0);
   /** Vacío real: terminó de cargar, sin error, y no hay ninguna. */

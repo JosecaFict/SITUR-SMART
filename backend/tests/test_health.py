@@ -12,18 +12,23 @@ class HealthViewTests(SimpleTestCase):
         payload = response.json()
         assert payload["status"] == "ok"
         assert payload["database"] == "ok"
-        assert set(payload["integraciones"]) == {"cloudinary", "brevo"}
+        assert set(payload["integraciones"]) == {"cloudinary", "brevo", "openrouteservice"}
 
     @patch("apps.common.views.HealthView.database_is_available", return_value=True)
     def test_health_reports_integrations_as_booleans(self, database_is_available):
         with (
             patch("apps.common.views.CloudinaryService.is_configured", return_value=True),
             patch("apps.common.views.brevo_is_configured", return_value=False),
+            patch("apps.common.views.geocoding_is_configured", return_value=True),
         ):
             response = self.client.get(reverse("health"))
 
         assert response.status_code == 200
-        assert response.json()["integraciones"] == {"cloudinary": True, "brevo": False}
+        assert response.json()["integraciones"] == {
+            "cloudinary": True,
+            "brevo": False,
+            "openrouteservice": True,
+        }
 
     @patch("apps.common.views.HealthView.database_is_available", return_value=True)
     def test_health_never_exposes_credential_values(self, database_is_available):

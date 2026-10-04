@@ -36,6 +36,14 @@ export interface LodgingEstablishment {
   estado: ProductStatus;
   imagen_url: string | null;
   direccion: string | null;
+  /**
+   * Ubicación exacta. Llegan las dos o ninguna; el backend no permite media
+   * coordenada. Son cadenas porque el backend las serializa como decimal con
+   * seis cifras (`"-20.460350"`), no como número: convertirlas a `number` acá
+   * perdería los ceros de cola al volver a mostrarlas.
+   */
+  latitud: string | null;
+  longitud: string | null;
   categoria_estrellas: number | null;
   hora_check_in: string | null;
   hora_check_out: string | null;
@@ -91,6 +99,12 @@ export interface LodgingPayload {
   estado: ProductStatus;
   imagen_url?: string;
   direccion?: string;
+  /**
+   * Par atómico. Las dos para fijar la ubicación, las dos en `null` para
+   * quitarla, ninguna para dejarla como está. Mandar solo una es un 400.
+   */
+  latitud?: string | null;
+  longitud?: string | null;
   categoria_estrellas?: number | null;
   hora_check_in?: string | null;
   hora_check_out?: string | null;
