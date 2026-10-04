@@ -326,7 +326,7 @@
               <div class="h-8 w-40 animate-pulse rounded bg-gray-100"></div>
             </div>
           } @else if (planEditing()) {
-            <form (ngSubmit)="submitPlan()" class="space-y-4 p-5 sm:p-6">
+            <div class="space-y-4 p-5 sm:p-6">
               <fieldset>
                 <legend class="text-title text-sm font-semibold">Selecciona el nuevo plan</legend>
                 <div class="mt-3 space-y-2">
@@ -368,7 +368,7 @@
                 <button type="button" (click)="cancelPlanEdit()" [disabled]="saving()" class="inline-flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:opacity-55">
                   Cancelar
                 </button>
-                <button type="submit" [disabled]="saving() || !selectedPlanCode()" class="bg-accent-dark hover:bg-panel-bg inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-55">
+                <button type="button" (click)="submitPlan()" [disabled]="saving() || !selectedPlanCode()" class="bg-accent-dark hover:bg-panel-bg inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-55">
                   @if (saving()) {
                     <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
                     Actualizando
@@ -377,7 +377,7 @@
                   }
                 </button>
               </div>
-            </form>
+            </div>
           } @else if (subscription()?.suscripcion; as activeSubscription) {
             <div class="p-5 sm:p-6">
               <div class="flex items-start justify-between gap-3">

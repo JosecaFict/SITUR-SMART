@@ -259,4 +259,18 @@ describe('EmpresaDetalle', () => {
     expect(inner().subscription()?.uso).toEqual({ usuarios: 3, productos: 8 });
     expect(inner().subscription()?.suscripcion?.id).toBe(12);
   });
+
+  it('confirma el plan con un botón y no mediante navegación GET del navegador', () => {
+    fixture.detectChanges();
+    inner().startPlanEdit();
+    fixture.detectChanges();
+
+    const button = Array.from(
+      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((candidate) => candidate.textContent?.includes('Confirmar plan'));
+
+    expect(button).toBeDefined();
+    expect(button?.type).toBe('button');
+    expect(button?.closest('form')).toBeNull();
+  });
 });

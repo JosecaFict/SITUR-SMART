@@ -371,22 +371,6 @@
                 Ver detalle
                 <svg lucideChevronRight class="h-4 w-4" [strokeWidth]="2"></svg>
               </a>
-              @if (canManage()) {
-                <button type="button" (click)="startEdit(company)" class="row-action">
-                  <svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>
-                  Editar
-                </button>
-                <button type="button" (click)="startOwnerChange(company)" class="row-action">
-                  <svg lucideUserRoundCog class="h-4 w-4" [strokeWidth]="2"></svg>
-                  Propietario
-                </button>
-              }
-              @if (canManageSubscriptions()) {
-                <button type="button" (click)="startPlanChange(company)" class="row-action">
-                  <svg lucideCreditCard class="h-4 w-4" [strokeWidth]="2"></svg>
-                  Plan
-                </button>
-              }
             </div>
           </article>
         }
