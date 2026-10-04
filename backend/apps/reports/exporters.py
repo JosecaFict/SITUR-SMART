@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import csv
 from io import BytesIO, StringIO
+from pathlib import Path
 
+from django.conf import settings
 from django.utils import timezone
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image as ExcelImage
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table as ExcelTable
@@ -13,6 +16,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.platypus import (
+    Image as PdfImage,
+)
 from reportlab.platypus import (
     Paragraph,
     SimpleDocTemplate,
@@ -35,6 +41,15 @@ GRID = "DDE4EA"
 
 def pdf_color(value):
     return colors.HexColor(f"#{value}")
+
+
+def logo_path(*, dark: bool = False) -> Path | None:
+    filename = "situr-smart-logo-dark-v2.png" if dark else "situr-smart-logo.png"
+    candidates = (
+        Path(settings.BASE_DIR).parent / "web" / "public" / "branding" / filename,
+        Path(settings.BASE_DIR) / "static" / "branding" / filename,
+    )
+    return next((path for path in candidates if path.is_file()), None)
 
 
 def safe_csv_value(value):
@@ -80,20 +95,31 @@ def build_xlsx(report) -> bytes:
     sheet = workbook.active
     sheet.title = "Reporte"
     columns = report["columnas"]
-    width = max(len(columns), 3)
+    width = max(len(columns), 6)
 
-    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=width)
-    title = sheet.cell(1, 1, "SITUR-SMART  |  " + report_title(report))
+    logo = logo_path(dark=True)
+    title_column = 4 if logo else 1
+    if logo:
+        sheet.merge_cells(start_row=1, start_column=1, end_row=2, end_column=3)
+        sheet.cell(1, 1).fill = PatternFill("solid", fgColor=BRAND_DARK)
+        image = ExcelImage(logo)
+        image.width = 205
+        image.height = 68
+        sheet.add_image(image, "A1")
+    sheet.merge_cells(start_row=1, start_column=title_column, end_row=1, end_column=width)
+    title = sheet.cell(1, title_column, report_title(report))
     title.font = Font(name="Aptos Display", size=20, bold=True, color="FFFFFF")
     title.fill = PatternFill("solid", fgColor=BRAND_DARK)
-    title.alignment = Alignment(vertical="center")
-    sheet.row_dimensions[1].height = 36
+    title.alignment = Alignment(vertical="center", horizontal="left")
+    sheet.row_dimensions[1].height = 38
 
     scope = report["empresa"]["nombre"] if report.get("empresa") else "Toda la plataforma"
-    sheet.merge_cells(start_row=2, start_column=1, end_row=2, end_column=width)
-    sheet.cell(2, 1, f"Alcance: {scope}   •   Generado: {generated_at()}")
-    sheet.cell(2, 1).font = Font(size=10, color=MUTED)
-    sheet.row_dimensions[2].height = 23
+    sheet.merge_cells(start_row=2, start_column=title_column, end_row=2, end_column=width)
+    meta = sheet.cell(2, title_column, f"Alcance: {scope}   •   Generado: {generated_at()}")
+    meta.font = Font(size=10, color="D6EFEC")
+    meta.fill = PatternFill("solid", fgColor=BRAND_DARK)
+    meta.alignment = Alignment(vertical="top")
+    sheet.row_dimensions[2].height = 24
 
     for index, metric in enumerate(report["indicadores"], start=1):
         if index > width:
@@ -185,12 +211,24 @@ def build_pdf(report) -> bytes:
     styles.add(ParagraphStyle(name="CellHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7, leading=9, textColor=colors.white))
 
     scope = report["empresa"]["nombre"] if report.get("empresa") else "Toda la plataforma"
-    story = [
-        Paragraph("SITUR-<font color='#009688'>SMART</font>", styles["Brand"]),
-        Paragraph(report_title(report), ParagraphStyle(name="ReportTitle", parent=styles["Heading2"], fontSize=13, textColor=pdf_color(BRAND_DARK), spaceAfter=3)),
+    report_heading = [
+        Paragraph(report_title(report), ParagraphStyle(name="ReportTitle", parent=styles["Heading2"], fontSize=14, leading=17, textColor=pdf_color(BRAND_DARK), spaceAfter=4)),
         Paragraph(f"Alcance: {_pdf_value(scope)}  |  Generado: {generated_at()}", styles["Meta"]),
-        Spacer(1, 7 * mm),
     ]
+    logo = logo_path()
+    if logo:
+        logo_image = PdfImage(str(logo), width=55 * mm, height=55 * mm / 3)
+        header = PdfTable([[logo_image, report_heading]], colWidths=[62 * mm, page_size[0] - 90 * mm])
+        header.setStyle(PdfTableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+    else:
+        header = PdfTable([[Paragraph("SITUR-<font color='#009688'>SMART</font>", styles["Brand"]), report_heading]], colWidths=[62 * mm, page_size[0] - 90 * mm])
+    story = [header, Spacer(1, 7 * mm)]
 
     metric_cells = []
     for metric in report["indicadores"]:
