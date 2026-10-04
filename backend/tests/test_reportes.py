@@ -1,9 +1,13 @@
+from datetime import datetime
+from io import BytesIO
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase
+from openpyxl import load_workbook
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from apps.reports.exporters import build_xlsx, export_value, logo_path
 from apps.reports.services import parse_filters, report_scope
 from apps.reports.views import ReportCsvView, ReportExcelView, ReportPdfView, ReportView
 
@@ -40,6 +44,36 @@ class ReportFilterTests(SimpleTestCase):
     def test_rejects_unknown_report(self):
         with self.assertRaises(ValidationError):
             parse_filters({"tipo": "pagos"})
+
+
+class ReportExporterTests(SimpleTestCase):
+    def test_packaged_logo_is_available_without_the_frontend_directory(self):
+        path = logo_path()
+        self.assertIsNotNone(path)
+        self.assertEqual(path.parent.name, "assets")
+        self.assertEqual(path.name, "situr-smart-logo-dark-v2.png")
+
+    def test_iso_timestamp_is_presented_in_a_readable_local_format(self):
+        self.assertEqual(
+            export_value("registro", "2026-09-06T17:34:05.335489+00:00"),
+            "06/09/2026 13:34",
+        )
+
+    def test_excel_contains_the_logo_and_a_real_date_cell(self):
+        report = {
+            "tipo": "plataforma",
+            "empresa": None,
+            "indicadores": [{"etiqueta": "Empresas", "valor": 1, "detalle": ""}],
+            "columnas": [["empresa", "Empresa"], ["registro", "Fecha de registro"]],
+            "filas": [{"empresa": "ToursBo", "registro": "2026-09-06T17:34:05+00:00"}],
+            "nota": "Datos de prueba.",
+            "filtros": {},
+        }
+        workbook = load_workbook(filename=BytesIO(build_xlsx(report)))
+        sheet = workbook.active
+        self.assertEqual(len(sheet._images), 1)
+        self.assertIsInstance(sheet["B9"].value, datetime)
+        self.assertEqual(sheet["B9"].number_format, "dd/mm/yyyy hh:mm")
 
 
 class ReportViewTests(SimpleTestCase):

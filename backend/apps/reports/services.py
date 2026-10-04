@@ -103,7 +103,7 @@ def platform_report(*, tenant_id, filters):
         "columnas": [
             ["empresa", "Empresa"], ["ciudad", "Ciudad"], ["estado", "Estado"],
             ["plan", "Plan"], ["importe_contratado", "Importe contratado"],
-            ["periodicidad", "Periodicidad"], ["registro", "Registro"],
+            ["periodicidad", "Periodicidad"], ["registro", "Fecha de registro"],
         ],
         "filas": rows,
         "nota": "Los importes corresponden a condiciones contratadas; no representan pagos cobrados.",
@@ -132,7 +132,7 @@ def catalog_report(*, tenant_id, filters):
             _metric("publicados", "Publicados", sum(r["estado"] == TourismProduct.Status.PUBLISHED for r in rows)),
             _metric("borradores", "Borradores", sum(r["estado"] == TourismProduct.Status.DRAFT for r in rows)),
         ],
-        "columnas": [["producto", "Producto"], ["empresa", "Empresa"], ["tipo", "Tipo"], ["ciudad", "Ciudad"], ["estado", "Estado"], ["precio_base", "Precio base"], ["registro", "Registro"]],
+        "columnas": [["producto", "Producto"], ["empresa", "Empresa"], ["tipo", "Tipo"], ["ciudad", "Ciudad"], ["estado", "Estado"], ["precio_base", "Precio base"], ["registro", "Fecha de registro"]],
         "filas": rows,
         "nota": "El precio base es informativo y no representa ingresos ni pagos.",
     }

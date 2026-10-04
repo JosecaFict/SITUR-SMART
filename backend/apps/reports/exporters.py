@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from datetime import datetime
 from io import BytesIO, StringIO
 from pathlib import Path
 
@@ -45,8 +46,9 @@ def pdf_color(value):
 
 
 def logo_path(*, dark: bool = False) -> Path | None:
-    filename = "situr-smart-logo-dark-v2.png" if dark else "situr-smart-logo.png"
+    filename = "situr-smart-logo-dark-v2.png"
     candidates = (
+        Path(__file__).resolve().parent / "assets" / filename,
         Path(settings.BASE_DIR).parent / "web" / "public" / "branding" / filename,
         Path(settings.BASE_DIR) / "static" / "branding" / filename,
     )
@@ -56,6 +58,29 @@ def logo_path(*, dark: bool = False) -> Path | None:
 def safe_csv_value(value):
     text = "" if value is None else str(value)
     return f"'{text}" if text.startswith(("=", "+", "-", "@")) else text
+
+
+def _parse_datetime(value):
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if timezone.is_aware(parsed):
+        parsed = timezone.localtime(parsed)
+    return parsed
+
+
+def export_value(key, value, *, excel=False):
+    if key not in {"registro", "fecha"}:
+        return value
+    parsed = _parse_datetime(value)
+    if not parsed:
+        return value
+    if excel:
+        return parsed.replace(tzinfo=None)
+    return parsed.strftime("%d/%m/%Y %H:%M")
 
 
 def report_title(report):
@@ -100,7 +125,10 @@ def build_csv(report) -> str:
     writer.writerow([])
     writer.writerow([column[1] for column in report["columnas"]])
     for row in report["filas"]:
-        writer.writerow([safe_csv_value(row.get(column[0])) for column in report["columnas"]])
+        writer.writerow([
+            safe_csv_value(export_value(column[0], row.get(column[0])))
+            for column in report["columnas"]
+        ])
     writer.writerow([])
     writer.writerow(["Nota", report["nota"]])
     return output.getvalue()
@@ -170,8 +198,10 @@ def build_xlsx(report) -> bytes:
 
     for row_index, row in enumerate(report["filas"], start=header_row + 1):
         for col_index, (key, _) in enumerate(columns, start=1):
-            cell = sheet.cell(row_index, col_index, row.get(key, ""))
+            cell = sheet.cell(row_index, col_index, export_value(key, row.get(key, ""), excel=True))
             cell.alignment = Alignment(vertical="top", wrap_text=False)
+            if key in {"registro", "fecha"} and isinstance(cell.value, datetime):
+                cell.number_format = "dd/mm/yyyy hh:mm"
             if row_index % 2 == 0:
                 cell.fill = PatternFill("solid", fgColor="F5FAFA")
 
@@ -196,7 +226,7 @@ def build_xlsx(report) -> bytes:
             cell.border = Border(bottom=thin)
 
     for index, (key, label) in enumerate(columns, start=1):
-        values = [str(row.get(key, "")) for row in report["filas"][:200]]
+        values = [str(export_value(key, row.get(key, ""))) for row in report["filas"][:200]]
         longest = max([len(label), *(len(value) for value in values)], default=len(label))
         sheet.column_dimensions[get_column_letter(index)].width = min(max(longest + 2, 12), 34)
 
@@ -258,10 +288,15 @@ def build_pdf(report) -> bytes:
         header = PdfTable([[logo_image, report_heading]], colWidths=[62 * mm, page_size[0] - 90 * mm])
         header.setStyle(PdfTableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ("BACKGROUND", (0, 0), (0, 0), pdf_color(BRAND_DARK)),
+            ("LEFTPADDING", (0, 0), (0, 0), 4),
+            ("RIGHTPADDING", (0, 0), (0, 0), 4),
+            ("TOPPADDING", (0, 0), (0, 0), 3),
+            ("BOTTOMPADDING", (0, 0), (0, 0), 3),
+            ("LEFTPADDING", (1, 0), (1, 0), 0),
+            ("RIGHTPADDING", (1, 0), (1, 0), 0),
+            ("TOPPADDING", (1, 0), (1, 0), 0),
+            ("BOTTOMPADDING", (1, 0), (1, 0), 0),
         ]))
     else:
         header = PdfTable([[Paragraph("SITUR-<font color='#009688'>SMART</font>", styles["Brand"]), report_heading]], colWidths=[62 * mm, page_size[0] - 90 * mm])
@@ -313,7 +348,10 @@ def build_pdf(report) -> bytes:
     columns = report["columnas"]
     data = [[Paragraph(_pdf_value(label), styles["CellHead"]) for _, label in columns]]
     for row in report["filas"]:
-        data.append([Paragraph(_pdf_value(row.get(key)), styles["Cell"]) for key, _ in columns])
+        data.append([
+            Paragraph(_pdf_value(export_value(key, row.get(key))), styles["Cell"])
+            for key, _ in columns
+        ])
     if len(data) == 1:
         data.append([Paragraph("Sin datos para los filtros seleccionados", styles["Cell"])] + [""] * (len(columns) - 1))
     available = page_size[0] - 28 * mm
