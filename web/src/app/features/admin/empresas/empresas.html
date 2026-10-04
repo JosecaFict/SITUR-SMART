@@ -6,19 +6,21 @@
         Registra empresas turísticas y asigna la cuenta de su propietario.
       </p>
     </div>
-    <button
-      type="button"
-      (click)="formMode() === 'create' ? closeForm() : startCreate()"
-      class="btn-accent flex min-h-11 w-fit items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-95 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none"
-    >
-      @if (formMode() === 'create') {
-        <svg lucideX class="h-4 w-4" [strokeWidth]="2"></svg>
-        Cerrar formulario
-      } @else {
-        <svg lucideCirclePlus class="h-4 w-4" [strokeWidth]="2"></svg>
-        Nueva empresa
-      }
-    </button>
+    @if (canManage()) {
+      <button
+        type="button"
+        (click)="formMode() === 'create' ? closeForm() : startCreate()"
+        class="btn-accent flex min-h-11 w-fit items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-95 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none"
+      >
+        @if (formMode() === 'create') {
+          <svg lucideX class="h-4 w-4" [strokeWidth]="2"></svg>
+          Cerrar formulario
+        } @else {
+          <svg lucideCirclePlus class="h-4 w-4" [strokeWidth]="2"></svg>
+          Nueva empresa
+        }
+      </button>
+    }
   </header>
 
   @if (successMessage(); as message) {
@@ -326,10 +328,12 @@
         <p class="text-text-secondary mx-auto mt-1 max-w-md text-sm">
           Cambia los filtros o registra la primera empresa junto con su propietario.
         </p>
-        <button type="button" (click)="startCreate()" class="primary-button mx-auto mt-5">
-          <svg lucideCirclePlus class="h-4 w-4" [strokeWidth]="2"></svg>
-          Registrar empresa
-        </button>
+        @if (canManage()) {
+          <button type="button" (click)="startCreate()" class="primary-button mx-auto mt-5">
+            <svg lucideCirclePlus class="h-4 w-4" [strokeWidth]="2"></svg>
+            Registrar empresa
+          </button>
+        }
       </div>
     } @else {
       <div class="divide-input-border divide-y">
@@ -363,30 +367,26 @@
             </div>
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
-              <button type="button" (click)="startEdit(company)" class="row-action">
-                <svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>
-                Editar
-              </button>
-              <button type="button" (click)="startOwnerChange(company)" class="row-action">
-                <svg lucideUserRoundCog class="h-4 w-4" [strokeWidth]="2"></svg>
-                Propietario
-              </button>
-              <button type="button" (click)="startPlanChange(company)" class="row-action">
-                <svg lucideCreditCard class="h-4 w-4" [strokeWidth]="2"></svg>
-                Plan
-              </button>
-              <button
-                type="button"
-                (click)="toggleStatus(company)"
-                [disabled]="actionCompanyId() === company.id"
-                class="row-action"
-                [class.text-red-700]="company.estado === 'ACTIVO'"
-              >
-                @if (actionCompanyId() === company.id) {
-                  <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
-                }
-                {{ company.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
-              </button>
+              <a [routerLink]="['/empresas', company.id]" class="row-action">
+                Ver detalle
+                <svg lucideChevronRight class="h-4 w-4" [strokeWidth]="2"></svg>
+              </a>
+              @if (canManage()) {
+                <button type="button" (click)="startEdit(company)" class="row-action">
+                  <svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>
+                  Editar
+                </button>
+                <button type="button" (click)="startOwnerChange(company)" class="row-action">
+                  <svg lucideUserRoundCog class="h-4 w-4" [strokeWidth]="2"></svg>
+                  Propietario
+                </button>
+              }
+              @if (canManageSubscriptions()) {
+                <button type="button" (click)="startPlanChange(company)" class="row-action">
+                  <svg lucideCreditCard class="h-4 w-4" [strokeWidth]="2"></svg>
+                  Plan
+                </button>
+              }
             </div>
           </article>
         }

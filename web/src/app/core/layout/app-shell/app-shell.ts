@@ -21,6 +21,8 @@ interface NavItem {
   path: string;
   icon: 'dashboard' | 'companies' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
   superAdminOnly?: boolean;
+  anyPermission?: string[];
+  anyRole?: string[];
   hideForSuperAdmin?: boolean;
   hideForCustomer?: boolean;
   customerOnly?: boolean;
@@ -64,7 +66,8 @@ export class AppShell {
       label: 'Empresas',
       path: '/empresas',
       icon: 'companies',
-      superAdminOnly: true,
+      anyPermission: ['TENANTS_LEER', 'TENANTS_GESTIONAR'],
+      anyRole: ['TENANT_ADMIN'],
       hideForCustomer: true,
     },
     {
@@ -115,6 +118,13 @@ export class AppShell {
       if (item.customerOnly && !isCustomer) return false;
       if (item.hideForCustomer && isCustomer) return false;
       if (item.superAdminOnly && !isSuperAdmin) return false;
+      if (item.anyPermission && !isSuperAdmin) {
+        const hasPermission = item.anyPermission.some((permission) =>
+          permissions.includes(permission),
+        );
+        const hasRole = item.anyRole?.some((role) => roles.includes(role)) ?? false;
+        if (!hasPermission && !hasRole) return false;
+      }
       if (item.hideForSuperAdmin && isSuperAdmin) return false;
       if (item.permission && !isSuperAdmin && !permissions.includes(item.permission)) return false;
       return true;

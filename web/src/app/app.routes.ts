@@ -1,10 +1,10 @@
 import { Routes } from '@angular/router';
 import {
   authGuard,
+  companyRegistryGuard,
   companyPermissionGuard,
   guestGuard,
   permissionGuard,
-  superAdminGuard,
 } from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell/app-shell';
 
@@ -72,9 +72,15 @@ export const routes: Routes = [
       },
       {
         path: 'empresas',
-        canActivate: [superAdminGuard],
+        canActivate: [companyRegistryGuard],
         loadComponent: () =>
           import('./features/admin/empresas/empresas').then((m) => m.Empresas),
+      },
+      {
+        path: 'empresas/:id',
+        canActivate: [companyRegistryGuard],
+        loadComponent: () =>
+          import('./features/admin/empresas/empresa-detalle').then((m) => m.EmpresaDetalle),
       },
       {
         path: 'roles',

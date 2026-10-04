@@ -1,9 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   LucideBuilding2,
   LucideCheck,
+  LucideChevronRight,
   LucideCircleAlert,
   LucideCirclePlus,
   LucideCreditCard,
@@ -24,6 +26,7 @@ import {
 } from '../../../core/companies/companies.models';
 import { apiErrorMessage } from '../../../core/http/api-error';
 import { CompaniesService } from '../../../core/companies/companies.service';
+import { AuthService } from '../../../core/auth/auth.service';
 
 type FormMode = 'create' | 'edit' | 'owner' | 'plan' | null;
 
@@ -31,8 +34,10 @@ type FormMode = 'create' | 'edit' | 'owner' | 'plan' | null;
   selector: 'situr-empresas',
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     LucideBuilding2,
     LucideCheck,
+    LucideChevronRight,
     LucideCircleAlert,
     LucideCirclePlus,
     LucideCreditCard,
@@ -49,13 +54,13 @@ type FormMode = 'create' | 'edit' | 'owner' | 'plan' | null;
 export class Empresas implements OnInit {
   private readonly companiesService = inject(CompaniesService);
   private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
 
   protected readonly companies = signal<Company[]>([]);
   protected readonly cities = signal<City[]>([]);
   protected readonly planes = signal<Plan[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
-  protected readonly actionCompanyId = signal<number | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly successMessage = signal<string | null>(null);
   protected readonly searchTerm = signal('');
@@ -69,6 +74,19 @@ export class Empresas implements OnInit {
   protected readonly activeCount = computed(
     () => this.companies().filter((company) => company.estado === 'ACTIVO').length,
   );
+  protected readonly canManage = computed(() => {
+    const user = this.auth.session()?.user;
+    return Boolean(
+      user?.roles.includes('SUPER_ADMIN') || user?.permisos.includes('TENANTS_GESTIONAR'),
+    );
+  });
+  protected readonly canManageSubscriptions = computed(() => {
+    const user = this.auth.session()?.user;
+    return Boolean(
+      user?.roles.includes('SUPER_ADMIN') ||
+        user?.permisos.includes('SUSCRIPCIONES_GESTIONAR'),
+    );
+  });
 
   protected readonly companyForm = this.fb.nonNullable.group({
     razon_social: ['', [Validators.required, Validators.maxLength(180)]],
@@ -276,25 +294,6 @@ export class Empresas implements OnInit {
         telefono: raw.telefono.trim(),
       })
       .subscribe(this.saveObserver('Datos de la empresa actualizados.'));
-  }
-
-  protected toggleStatus(company: Company): void {
-    const nextStatus: CompanyStatus = company.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
-    this.actionCompanyId.set(company.id);
-    this.errorMessage.set(null);
-    this.companiesService.updateStatus(company.id, nextStatus).subscribe({
-      next: (updated) => {
-        this.replaceCompany(updated);
-        this.actionCompanyId.set(null);
-        this.successMessage.set(
-          nextStatus === 'ACTIVO' ? 'Empresa activada.' : 'Empresa desactivada.',
-        );
-      },
-      error: (error: HttpErrorResponse) => {
-        this.actionCompanyId.set(null);
-        this.errorMessage.set(this.apiMessage(error, 'No fue posible cambiar el estado.'));
-      },
-    });
   }
 
   protected statusLabel(status: CompanyStatus): string {

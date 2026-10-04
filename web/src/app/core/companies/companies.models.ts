@@ -77,6 +77,9 @@ export interface Plan {
   codigo: string;
   nombre: string;
   moneda: string;
+  precio: string;
+  periodicidad: 'MENSUAL' | 'ANUAL';
+  descripcion: string | null;
   precio_mensual: string;
   max_usuarios: number;
   max_productos: number;
@@ -93,6 +96,9 @@ export interface Subscription {
   fecha_fin: string | null;
   estado: SubscriptionStatus;
   renovacion_automatica: boolean;
+  precio_contratado: string | null;
+  moneda_contratada: string | null;
+  periodicidad_contratada: 'MENSUAL' | 'ANUAL' | null;
   creado_en: string;
 }
 

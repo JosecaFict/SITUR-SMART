@@ -32,6 +32,10 @@ export class CompaniesService {
     return this.http.get<Company[]>(`${environment.apiUrl}/empresas/`, { params });
   }
 
+  get(companyId: number): Observable<Company> {
+    return this.http.get<Company>(`${environment.apiUrl}/empresas/${companyId}/`);
+  }
+
   create(payload: CreateCompanyPayload): Observable<Company> {
     return this.http.post<Company>(`${environment.apiUrl}/empresas/`, payload);
   }
@@ -41,7 +45,9 @@ export class CompaniesService {
   }
 
   updateStatus(companyId: number, status: CompanyStatus): Observable<Company> {
-    return this.update(companyId, { estado: status });
+    return this.http.post<Company>(`${environment.apiUrl}/empresas/${companyId}/estado/`, {
+      estado: status,
+    });
   }
 
   assignOwner(companyId: number, owner: OwnerPayload): Observable<Company> {
@@ -70,9 +76,14 @@ export class CompaniesService {
     return this.http.get<CompanySubscriptionInfo>(`${environment.apiUrl}/empresas/${companyId}/suscripcion/`);
   }
 
-  changeSubscription(companyId: number, planCodigo: string): Observable<Subscription> {
+  changeSubscription(
+    companyId: number,
+    planCodigo: string,
+    autoRenew = false,
+  ): Observable<Subscription> {
     return this.http.put<Subscription>(`${environment.apiUrl}/empresas/${companyId}/suscripcion/`, {
       plan_codigo: planCodigo,
+      renovacion_automatica: autoRenew,
     });
   }
 }

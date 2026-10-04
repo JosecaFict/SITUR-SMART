@@ -1,0 +1,414 @@
+<section class="mx-auto max-w-7xl space-y-6">
+  <a
+    routerLink="/empresas"
+    class="text-text-secondary hover:text-title inline-flex min-h-10 items-center gap-2 text-sm font-semibold transition focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none"
+  >
+    <svg lucideArrowLeft class="h-4 w-4" [strokeWidth]="2"></svg>
+    Volver a empresas
+  </a>
+
+  @if (successMessage(); as message) {
+    <div role="status" class="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+      <svg lucideCheck class="mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2.2"></svg>
+      <span>{{ message }}</span>
+    </div>
+  }
+
+  @if (errorMessage(); as message) {
+    <div role="alert" class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0" [strokeWidth]="2.2"></svg>
+      <span>{{ message }}</span>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="animate-pulse space-y-5" aria-label="Cargando empresa">
+      <div class="h-36 rounded-2xl bg-gray-200"></div>
+      <div class="grid gap-5 lg:grid-cols-3">
+        <div class="h-72 rounded-2xl bg-gray-100 lg:col-span-2"></div>
+        <div class="h-72 rounded-2xl bg-gray-100"></div>
+      </div>
+    </div>
+  } @else if (company(); as current) {
+    <header class="company-hero">
+      <div class="company-mark" aria-hidden="true">
+        <svg lucideBuilding2 class="h-7 w-7" [strokeWidth]="1.8"></svg>
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="font-heading text-title text-2xl font-bold tracking-tight sm:text-3xl">
+            {{ current.nombre_comercial }}
+          </h1>
+          <span class="status-badge" [attr.data-status]="current.estado">
+            {{ statusLabel(current.estado) }}
+          </span>
+        </div>
+        <p class="text-text-secondary mt-1 text-sm sm:text-base">{{ current.razon_social }}</p>
+        <div class="text-text-secondary mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          @if (current.ciudad) {
+            <span class="inline-flex items-center gap-1.5">
+              <svg lucideMapPin class="h-4 w-4" [strokeWidth]="2"></svg>
+              {{ current.ciudad.nombre }}, {{ current.ciudad.pais }}
+            </span>
+          }
+          <span class="inline-flex items-center gap-1.5">
+            <svg lucideCalendarDays class="h-4 w-4" [strokeWidth]="2"></svg>
+            Registrada el {{ formatDate(current.creado_en) }}
+          </span>
+        </div>
+      </div>
+      @if (canManage() && !editing()) {
+        <button type="button" (click)="startEdit()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none">
+          <svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>
+          Editar información
+        </button>
+      }
+    </header>
+
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(310px,0.85fr)]">
+      <div class="space-y-6">
+        <section class="surface" aria-labelledby="general-heading">
+          <div class="surface-heading">
+            <div>
+              <h2 id="general-heading" class="font-heading text-title text-lg font-semibold">
+                Información general
+              </h2>
+              <p class="text-text-secondary mt-1 text-sm">
+                Identidad y datos de contacto registrados en la plataforma.
+              </p>
+            </div>
+          </div>
+
+          @if (editing()) {
+            <form [formGroup]="companyForm" (ngSubmit)="submitEdit()" class="p-5 sm:p-6">
+              <div class="grid gap-5 sm:grid-cols-2">
+                <label class="sm:col-span-2">
+                  <span class="field-label">Nombre comercial</span>
+                  <input formControlName="nombre_comercial" class="field-control" />
+                </label>
+                <label class="sm:col-span-2">
+                  <span class="field-label">Razón social</span>
+                  <input formControlName="razon_social" class="field-control" />
+                </label>
+                <label>
+                  <span class="field-label">NIT</span>
+                  <input formControlName="nit" class="field-control" placeholder="Sin registrar" />
+                </label>
+                <label>
+                  <span class="field-label">Ciudad</span>
+                  <select formControlName="ciudad_id" class="field-control">
+                    <option value="">Sin especificar</option>
+                    @for (city of cities(); track city.id) {
+                      <option [value]="city.id">{{ city.nombre }}, {{ city.pais }}</option>
+                    }
+                  </select>
+                </label>
+                <label>
+                  <span class="field-label">Correo de contacto</span>
+                  <input type="email" formControlName="email_contacto" class="field-control" />
+                </label>
+                <label>
+                  <span class="field-label">Teléfono</span>
+                  <input type="tel" formControlName="telefono" class="field-control" />
+                </label>
+              </div>
+              <div class="mt-6 flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
+                <button type="button" (click)="cancelEdit()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none">
+                  <svg lucideX class="h-4 w-4" [strokeWidth]="2"></svg>
+                  Cancelar
+                </button>
+                <button type="submit" [disabled]="saving()" class="bg-accent-dark hover:bg-panel-bg inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:cursor-wait disabled:opacity-55">
+                  @if (saving()) {
+                    <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+                    Guardando
+                  } @else {
+                    <svg lucideCheck class="h-4 w-4" [strokeWidth]="2"></svg>
+                    Guardar cambios
+                  }
+                </button>
+              </div>
+            </form>
+          } @else {
+            <dl class="details-grid">
+              <div>
+                <dt>Nombre comercial</dt>
+                <dd>{{ current.nombre_comercial }}</dd>
+              </div>
+              <div>
+                <dt>Razón social</dt>
+                <dd>{{ current.razon_social }}</dd>
+              </div>
+              <div>
+                <dt>NIT</dt>
+                <dd>{{ current.nit || 'Sin registrar' }}</dd>
+              </div>
+              <div>
+                <dt>Identificador web</dt>
+                <dd>{{ current.subdominio }}</dd>
+              </div>
+              <div>
+                <dt>Correo de contacto</dt>
+                <dd class="inline-flex items-center gap-2">
+                  <svg lucideMail class="h-4 w-4 text-gray-400" [strokeWidth]="2"></svg>
+                  {{ current.email_contacto || 'Sin registrar' }}
+                </dd>
+              </div>
+              <div>
+                <dt>Teléfono</dt>
+                <dd class="inline-flex items-center gap-2">
+                  <svg lucidePhone class="h-4 w-4 text-gray-400" [strokeWidth]="2"></svg>
+                  {{ current.telefono || 'Sin registrar' }}
+                </dd>
+              </div>
+            </dl>
+          }
+        </section>
+
+        <section class="surface" aria-labelledby="owner-heading">
+          <div class="surface-heading">
+            <div>
+              <h2 id="owner-heading" class="font-heading text-title text-lg font-semibold">Propietario</h2>
+              <p class="text-text-secondary mt-1 text-sm">Cuenta responsable de administrar esta empresa.</p>
+            </div>
+            @if (canManage() && !ownerEditing()) {
+              <button type="button" (click)="startOwnerEdit()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none">
+                <svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>
+                {{ current.propietario ? 'Cambiar' : 'Asignar' }}
+              </button>
+            }
+          </div>
+          @if (ownerEditing()) {
+            <form [formGroup]="ownerForm" (ngSubmit)="submitOwner()" class="space-y-5 p-5 sm:p-6">
+              <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
+                Si el correo ya pertenece a una cuenta, se conservará su contraseña y sus accesos en otras empresas. La contraseña temporal solo es obligatoria para una cuenta nueva.
+              </div>
+              <div class="grid gap-5 sm:grid-cols-2">
+                <label class="sm:col-span-2">
+                  <span class="field-label">Correo del propietario</span>
+                  <input type="email" formControlName="email" class="field-control" autocomplete="email" />
+                </label>
+                <label>
+                  <span class="field-label">Nombres</span>
+                  <input formControlName="nombres" class="field-control" autocomplete="given-name" />
+                </label>
+                <label>
+                  <span class="field-label">Apellidos</span>
+                  <input formControlName="apellidos" class="field-control" autocomplete="family-name" />
+                </label>
+                <label>
+                  <span class="field-label">Teléfono</span>
+                  <input type="tel" formControlName="telefono" class="field-control" autocomplete="tel" />
+                </label>
+                <label>
+                  <span class="field-label">Contraseña temporal</span>
+                  <input type="password" formControlName="password" class="field-control" autocomplete="new-password" placeholder="Solo para cuentas nuevas" />
+                </label>
+              </div>
+              <div class="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
+                <button type="button" (click)="cancelOwnerEdit()" [disabled]="saving()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:opacity-55">
+                  Cancelar
+                </button>
+                <button type="submit" [disabled]="saving()" class="bg-accent-dark hover:bg-panel-bg inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:cursor-wait disabled:opacity-55">
+                  @if (saving()) {
+                    <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+                    Guardando
+                  } @else {
+                    Guardar propietario
+                  }
+                </button>
+              </div>
+            </form>
+          } @else if (current.propietario; as owner) {
+            <div class="flex items-center gap-4 p-5 sm:p-6">
+              <span class="owner-mark" aria-hidden="true">
+                <svg lucideUserRound class="h-5 w-5" [strokeWidth]="2"></svg>
+              </span>
+              <div class="min-w-0">
+                <p class="text-title font-semibold">{{ owner.nombres }} {{ owner.apellidos }}</p>
+                <p class="text-text-secondary mt-0.5 truncate text-sm">{{ owner.email }}</p>
+                @if (owner.telefono) {
+                  <p class="text-text-secondary mt-0.5 text-sm">{{ owner.telefono }}</p>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="p-6 text-sm text-amber-800">La empresa todavía no tiene propietario asignado.</div>
+          }
+        </section>
+      </div>
+
+      <aside class="space-y-6">
+        <section class="surface" aria-labelledby="status-heading">
+          <div class="surface-heading">
+            <div>
+              <h2 id="status-heading" class="font-heading text-title text-lg font-semibold">Estado operativo</h2>
+              <p class="text-text-secondary mt-1 text-sm">Controla si la empresa puede trabajar en SITUR-SMART.</p>
+            </div>
+            <svg lucideShieldCheck class="text-accent-dark h-5 w-5" [strokeWidth]="2"></svg>
+          </div>
+
+          <div class="space-y-4 p-5 sm:p-6">
+            <div class="status-summary" [attr.data-status]="current.estado">
+              <span class="status-dot" aria-hidden="true"></span>
+              <div>
+                <p class="font-semibold">{{ statusLabel(current.estado) }}</p>
+                <p class="mt-0.5 text-xs">
+                  @switch (current.estado) {
+                    @case ('ACTIVO') { La empresa puede operar normalmente. }
+                    @case ('PENDIENTE') { Espera revisión y activación de la plataforma. }
+                    @case ('SUSPENDIDO') { Puede iniciar sesión, pero no realizar operaciones. }
+                    @case ('INACTIVO') { Permanece registrada, sin acceso operativo. }
+                  }
+                </p>
+              </div>
+            </div>
+
+            @if (canManage()) {
+              @if (pendingStatus(); as pending) {
+                <div class="confirmation-panel" [attr.data-tone]="pending.tone">
+                  <h3 class="text-sm font-semibold">Confirmar: {{ pending.label }}</h3>
+                  <p class="mt-1 text-xs leading-relaxed">{{ pending.description }}</p>
+                  @if (pending.value === 'ACTIVO') {
+                    <p class="mt-2 text-xs font-medium">
+                      Se comprobará que tenga propietario, suscripción activa y plan vigente.
+                    </p>
+                  }
+                  <div class="mt-4 flex flex-wrap gap-2">
+                    <button type="button" (click)="confirmStatusChange()" [disabled]="saving()" class="bg-accent-dark hover:bg-panel-bg inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:cursor-wait disabled:opacity-55">
+                      @if (saving()) {
+                        <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+                        Procesando
+                      } @else {
+                        Confirmar cambio
+                      }
+                    </button>
+                    <button type="button" (click)="cancelStatusChange()" [disabled]="saving()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:cursor-wait disabled:opacity-55">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              } @else {
+                <div class="space-y-2">
+                  @for (option of availableTransitions(); track option.value) {
+                    <button type="button" (click)="requestStatusChange(option)" class="transition-option">
+                      <span>
+                        <strong>{{ option.label }}</strong>
+                        <small>{{ option.description }}</small>
+                      </span>
+                    </button>
+                  }
+                </div>
+              }
+            } @else {
+              <p class="text-text-secondary text-sm">Tienes acceso de consulta. Los cambios de estado requieren permiso de gestión.</p>
+            }
+          </div>
+        </section>
+
+        <section class="surface" aria-labelledby="subscription-heading">
+          <div class="surface-heading">
+            <div>
+              <h2 id="subscription-heading" class="font-heading text-title text-lg font-semibold">Suscripción</h2>
+              <p class="text-text-secondary mt-1 text-sm">Condiciones contratadas por la empresa.</p>
+            </div>
+            @if (canManageSubscriptions() && !loadingSubscription() && !planEditing()) {
+              <button type="button" (click)="startPlanEdit()" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none">
+                <svg lucideCreditCard class="h-4 w-4" [strokeWidth]="2"></svg>
+                Cambiar plan
+              </button>
+            } @else {
+              <svg lucideCreditCard class="text-accent-dark h-5 w-5" [strokeWidth]="2"></svg>
+            }
+          </div>
+          @if (loadingSubscription()) {
+            <div class="space-y-3 p-5 sm:p-6">
+              <div class="h-4 w-28 animate-pulse rounded bg-gray-200"></div>
+              <div class="h-8 w-40 animate-pulse rounded bg-gray-100"></div>
+            </div>
+          } @else if (planEditing()) {
+            <form (ngSubmit)="submitPlan()" class="space-y-4 p-5 sm:p-6">
+              <fieldset>
+                <legend class="text-title text-sm font-semibold">Selecciona el nuevo plan</legend>
+                <div class="mt-3 space-y-2">
+                  @for (plan of plans(); track plan.codigo) {
+                    <label class="block cursor-pointer rounded-xl border p-3 transition" [class.border-teal-600]="selectedPlanCode() === plan.codigo" [class.bg-teal-50]="selectedPlanCode() === plan.codigo" [class.border-gray-200]="selectedPlanCode() !== plan.codigo">
+                      <span class="flex items-start gap-3">
+                        <input type="radio" name="plan" [value]="plan.codigo" [checked]="selectedPlanCode() === plan.codigo" (change)="selectPlan(plan.codigo)" class="mt-1 h-4 w-4 accent-teal-700" />
+                        <span class="min-w-0 flex-1">
+                          <span class="flex items-baseline justify-between gap-2">
+                            <strong class="text-title text-sm">{{ plan.nombre }}</strong>
+                            <span class="text-accent-dark text-sm font-bold tabular-nums">{{ plan.moneda }} {{ plan.precio }}</span>
+                          </span>
+                          <span class="text-text-secondary mt-0.5 block text-xs">{{ periodicityLabel(plan.periodicidad) }}</span>
+                          @if (plan.descripcion) {
+                            <span class="text-text-secondary mt-1 block text-xs leading-relaxed">{{ plan.descripcion }}</span>
+                          }
+                        </span>
+                      </span>
+                    </label>
+                  } @empty {
+                    <p class="rounded-xl bg-gray-50 p-3 text-sm text-gray-600">No hay planes disponibles.</p>
+                  }
+                </div>
+              </fieldset>
+
+              <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3">
+                <input type="checkbox" [checked]="autoRenew()" (change)="updateAutoRenew($event)" class="mt-0.5 h-4 w-4 rounded accent-teal-700" />
+                <span>
+                  <strong class="text-title block text-sm">Renovación automática</strong>
+                  <span class="text-text-secondary mt-0.5 block text-xs">Conserva el plan al finalizar el periodo contratado.</span>
+                </span>
+              </label>
+
+              <p class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                Al confirmar se cierra la suscripción activa y se crea otra con el precio, la moneda y la periodicidad vigentes. Las condiciones históricas no se modifican.
+              </p>
+
+              <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+                <button type="button" (click)="cancelPlanEdit()" [disabled]="saving()" class="inline-flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:opacity-55">
+                  Cancelar
+                </button>
+                <button type="submit" [disabled]="saving() || !selectedPlanCode()" class="bg-accent-dark hover:bg-panel-bg inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition focus-visible:ring-4 focus-visible:ring-teal-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-55">
+                  @if (saving()) {
+                    <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg>
+                    Actualizando
+                  } @else {
+                    Confirmar plan
+                  }
+                </button>
+              </div>
+            </form>
+          } @else if (subscription()?.suscripcion; as activeSubscription) {
+            <div class="p-5 sm:p-6">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-text-secondary text-xs font-semibold tracking-wide uppercase">Plan actual</p>
+                  <p class="text-title mt-1 font-heading text-xl font-semibold">{{ activeSubscription.plan.nombre }}</p>
+                </div>
+                <span class="subscription-state">{{ activeSubscription.estado === 'ACTIVA' ? 'Activa' : activeSubscription.estado }}</span>
+              </div>
+              <div class="mt-5 border-t border-gray-100 pt-4">
+                <p class="text-text-secondary text-xs">Precio contratado</p>
+                <p class="text-accent-dark mt-1 text-xl font-bold tabular-nums">
+                  {{ activeSubscription.moneda_contratada || activeSubscription.plan.moneda }}
+                  {{ activeSubscription.precio_contratado || activeSubscription.plan.precio }}
+                </p>
+                <p class="text-text-secondary mt-1 text-xs">
+                  Periodicidad: {{ periodicityLabel(activeSubscription.periodicidad_contratada) }}
+                </p>
+              </div>
+              @if (subscription(); as info) {
+                <div class="usage-row">
+                  <span>{{ info.uso.usuarios }} usuarios</span>
+                  <span>{{ info.uso.productos }} productos</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="p-5 text-sm text-amber-800 sm:p-6">No existe una suscripción activa.</div>
+          }
+        </section>
+      </aside>
+    </div>
+  }
+</section>

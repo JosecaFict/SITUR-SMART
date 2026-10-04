@@ -46,6 +46,22 @@ export const permissionGuard = (permission: string): CanActivateFn => () => {
   return router.createUrlTree(['/dashboard']);
 };
 
+export const companyRegistryGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const user = auth.session()?.user;
+
+  if (
+    user?.roles.includes('SUPER_ADMIN') ||
+    user?.roles.includes('TENANT_ADMIN') ||
+    user?.permisos.includes('TENANTS_LEER') ||
+    user?.permisos.includes('TENANTS_GESTIONAR')
+  ) {
+    return true;
+  }
+  return router.createUrlTree(['/dashboard']);
+};
+
 export const companyPermissionGuard = (permission: string): CanActivateFn => () => {
   const auth = inject(AuthService);
   const router = inject(Router);
