@@ -41,16 +41,16 @@
                 <svg lucideCheck class="h-5 w-5"></svg>
               </span>
               <div>
-                <p class="font-heading font-bold text-emerald-900">Hotel creado correctamente. Ahora agrega su primera habitación</p>
+                <p class="font-heading font-bold text-emerald-900">Hotel creado correctamente. Ahora agrega su primer tipo de habitación</p>
                 <p class="mt-1 text-sm text-emerald-800">
-                  Mientras no tenga una habitación publicada con precio, el hotel no puede publicarse
+                  Mientras no tenga un tipo de habitación publicado con precio, el hotel no puede publicarse
                   ni aparece en el Marketplace.
                 </p>
               </div>
             </div>
             @if (canManage()) {
               <button type="button" (click)="startCreateRoom()" class="bg-accent hover:bg-accent-dark flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition">
-                <svg lucidePlus class="h-4 w-4"></svg>Agregar primera habitación
+                <svg lucidePlus class="h-4 w-4"></svg>Agregar primer tipo de habitación
               </button>
             }
           </div>
@@ -133,7 +133,7 @@
                   <option value="INACTIVO">Inactivo</option>
                 </select>
                 @if (isNew()) {
-                  <span class="text-xs font-normal text-text-secondary">Se guarda como borrador. Lo publicarás cuando tenga su primera habitación con precio.</span>
+                  <span class="text-xs font-normal text-text-secondary">Se guarda como borrador. Lo publicarás cuando tenga su primer tipo de habitación publicado con precio.</span>
                 } @else if (!canPublishLodging()) {
                   <span class="text-xs font-normal text-amber-700">Para publicarlo necesita una habitación publicada con precio mayor a 0.</span>
                 }
@@ -255,14 +255,14 @@
             </div>
             @if (canManage() && !showRoomForm()) {
               <button type="button" (click)="startCreateRoom()" class="bg-accent hover:bg-accent-dark flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition">
-                <svg lucidePlus class="h-4 w-4"></svg>{{ hasNoRooms() ? 'Agregar primera habitación' : 'Nueva habitación' }}
+                <svg lucidePlus class="h-4 w-4"></svg>{{ hasNoRooms() ? 'Agregar primer tipo de habitación' : 'Nuevo tipo de habitación' }}
               </button>
             }
           </div>
 
           @if (showRoomForm()) {
             <form [formGroup]="roomForm" (ngSubmit)="submitRoom()" class="border-input-border mt-5 rounded-2xl border bg-gray-50/60 p-4 sm:p-5">
-              <h3 class="font-bold text-title">{{ editingRoom() ? 'Editar habitación' : 'Nueva habitación' }}</h3>
+              <h3 class="font-bold text-title">{{ editingRoom() ? 'Editar tipo de habitación' : 'Nuevo tipo de habitación' }}</h3>
               <p class="mt-1 text-xs text-text-secondary">No se pide país, ciudad ni localidad: se toman del hotel.</p>
 
               @if (roomFormError(); as message) {
@@ -281,13 +281,13 @@
                     <input type="number" min="0" step="0.01" formControlName="precio_base" class="border-input-border min-w-0 flex-1 rounded-r-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
                   </div>
                 </label>
-                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Cantidad de habitaciones
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Habitaciones disponibles de este tipo
                   <input type="number" min="1" formControlName="cantidad_habitaciones" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
-                  <span class="text-xs font-normal text-text-secondary">Cuántas unidades de este tipo tiene el hotel.</span>
+                  <span class="text-xs font-normal text-text-secondary">Cuántas habitaciones físicas de este tipo tiene el hotel.</span>
                 </label>
-                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Capacidad total
+                <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Huéspedes por habitación
                   <input type="number" min="1" formControlName="capacidad_maxima" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
-                  <span class="text-xs font-normal text-text-secondary">Máximo de personas en la habitación.</span>
+                  <span class="text-xs font-normal text-text-secondary">Máximo de huéspedes que entran en una habitación de este tipo.</span>
                 </label>
                 <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Máximo de adultos
                   <input type="number" min="1" formControlName="capacidad_adultos" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
@@ -367,7 +367,7 @@
           } @else if (hasNoRooms()) {
             <div class="mt-5 rounded-2xl border border-dashed border-input-border p-10 text-center">
               <svg lucideBedDouble class="mx-auto h-10 w-10 text-text-secondary"></svg>
-              <p class="mt-3 font-semibold text-title">Este hotel todavía no tiene habitaciones</p>
+              <p class="mt-3 font-semibold text-title">Este hotel todavía no tiene tipos de habitación</p>
               <p class="mx-auto mt-1 max-w-md text-sm text-text-secondary">
                 Las habitaciones son las que le dan precio al hotel. Mientras no tenga ninguna
                 publicada con precio mayor a 0, no se puede publicar ni aparece en el Marketplace.
@@ -398,14 +398,23 @@
                         <span class="bg-demo-bg text-accent-dark rounded-full px-2 py-0.5 text-xs font-semibold">Desayuno</span>
                       }
                     </div>
-                    <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
-                      <span class="flex items-center gap-1"><svg lucideUsers class="h-3.5 w-3.5"></svg>{{ room.capacidad_maxima }} persona(s) · hasta {{ room.capacidad_adultos }} adulto(s) o {{ room.capacidad_ninos }} niño(s)</span>
-                      <span class="flex items-center gap-1"><svg lucideBedDouble class="h-3.5 w-3.5"></svg>{{ room.cantidad_habitaciones }} unidad(es){{ room.tipo_cama ? ' · ' + room.tipo_cama : '' }}</span>
-                    </p>
+                    <!-- Cantidad y capacidad en lineas separadas: son cosas
+                         distintas y juntarlas fue la fuente de la confusion. -->
+                    <div class="mt-1 space-y-0.5 text-xs text-text-secondary">
+                      <p class="flex items-center gap-1.5">
+                        <svg lucideBedDouble class="h-3.5 w-3.5 shrink-0"></svg>
+                        {{ room.cantidad_habitaciones }} {{ room.cantidad_habitaciones === 1 ? 'habitación' : 'habitaciones' }} de este tipo{{ room.tipo_cama ? ' · ' + room.tipo_cama : '' }}
+                      </p>
+                      <p class="flex items-center gap-1.5">
+                        <svg lucideUsers class="h-3.5 w-3.5 shrink-0"></svg>
+                        Hasta {{ room.capacidad_maxima }} {{ room.capacidad_maxima === 1 ? 'huésped' : 'huéspedes' }} por habitación
+                      </p>
+                      <p class="pl-5">Máximo {{ room.capacidad_adultos }} adultos · Máximo {{ room.capacidad_ninos }} niños</p>
+                    </div>
                   </div>
                   <div class="text-right">
-                    <p class="text-xs text-text-secondary">Por noche</p>
                     <p class="text-lg font-bold text-accent-dark">{{ room.moneda_simbolo }} {{ room.precio_noche }}</p>
+                    <p class="text-xs text-text-secondary">por habitación/noche</p>
                   </div>
                   @if (canManage()) {
                     <div class="flex gap-1">

@@ -358,23 +358,26 @@ def with_lodging_from_price(queryset):
     )
 
 
-def only_complete_lodging_products(queryset):
-    """Deja fuera los productos de hospedaje sin su ficha especializada.
+def marketplace_visible_products(queryset):
+    """Productos que la consulta generica del Marketplace puede mostrar.
 
-    Antes de este modulo se podian crear productos HOTEL y HABITACION sueltos
-    por /api/v1/productos/. Una habitacion asi no tiene hotel, ni empresa
-    responsable que mostrar, ni ubicacion heredada, y la migracion 0005 no puede
-    repararla porque no existe dato que diga a que hotel pertenecia. Tampoco
-    puede repararse desde el panel. Queda fuera del Marketplace.
+    Deja fuera dos cosas distintas:
 
-    Un hotel sin ficha tambien se excluye: 0005 le crea una a todos los
-    existentes, asi que en la practica no deberia haber ninguno, pero el filtro
-    evita que uno colado se muestre con un precio que no significa nada.
+    1. **Las habitaciones.** Ya no se ofertan por separado: el viajero llega a
+       ellas abriendo el hospedaje que las aloja. Una habitacion suelta en la
+       grilla compite con su propio hotel y multiplica tarjetas de la misma
+       oferta. El endpoint /marketplace/habitaciones/ sigue vivo para el movil y
+       para las busquedas por huespedes, disponibilidad y reserva.
 
-    Todas las relaciones son de un solo valor -- FK directa a tipo_producto y
-    OneToOne inverso a habitacion y establecimiento -- asi que el filtro no
-    multiplica filas: no hace falta distinct() y la paginacion, el orden y el
-    resto de los filtros siguen funcionando igual.
+    2. **Los hospedajes incompletos**: sin ficha de establecimiento, o sin
+       ninguna habitacion publicada con precio. No tienen precio que mostrar.
+       Un hotel sin ficha no deberia existir -- 0005 le creo una a todos -- pero
+       el filtro evita que uno colado aparezca con un precio sin significado.
+
+    Las relaciones del OR son de un solo valor (FK directa a tipo_producto y
+    OneToOne inverso a establecimiento) y el unico multivaluado entra por una
+    subconsulta Exists, asi que el filtro no multiplica filas: no hace falta
+    distinct() y la paginacion, el orden y los demas filtros siguen igual.
     """
     return queryset.annotate(
         # Se anota y luego se filtra en vez de meter el Exists dentro del OR,
@@ -388,11 +391,6 @@ def only_complete_lodging_products(queryset):
             product_type__code=HOTEL_PRODUCT_CODE,
             lodging__isnull=False,
             has_publishable_room=True,
-        )
-        | Q(
-            product_type__code=ROOM_PRODUCT_CODE,
-            room__isnull=False,
-            room__establishment__product__status=TourismProduct.Status.PUBLISHED,
         )
     )
 

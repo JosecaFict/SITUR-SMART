@@ -40,7 +40,7 @@
             <div class="relative"><select formControlName="ciudad" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todas las ciudades</option>@for (city of filteredCities(); track city.id) { <option [value]="city.id">{{ city.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
           </label>
           <label class="flex flex-col gap-1.5 text-xs font-semibold text-label xl:col-span-3">Categoría
-            <div class="relative"><select formControlName="tipo" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todas las categorías</option>@for (type of types(); track type.id) { <option [value]="type.codigo">{{ type.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
+            <div class="relative"><select formControlName="tipo" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todas las categorías</option>@for (type of visibleTypes(); track type.id) { <option [value]="type.codigo">{{ type.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
           </label>
           <label class="flex flex-col gap-1.5 text-xs font-semibold text-label xl:col-span-3">Localidad
             <div class="relative"><svg lucideMapPin class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg><input formControlName="localidad" type="search" placeholder="Zona, barrio o localidad" class="bg-input-bg border-input-border w-full rounded-xl border py-2.5 pr-3 pl-9 text-sm font-normal text-title outline-none placeholder:text-text-secondary focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /></div>
@@ -64,7 +64,7 @@
     <section class="w-full px-5 pt-7 sm:px-10">
       <div class="flex flex-wrap items-center gap-2.5">
         <button type="button" (click)="selectType()" class="font-heading min-h-10 rounded-full px-4 py-2 text-[13px] font-semibold transition" [class.bg-accent]="selectedType() === ''" [class.text-white]="selectedType() === ''" [class.border]="selectedType() !== ''" [class.border-input-border]="selectedType() !== ''" [class.bg-white]="selectedType() !== ''">Todos</button>
-        @for (type of types(); track type.id) { <button type="button" (click)="selectType(type.codigo)" class="font-heading min-h-10 rounded-full px-4 py-2 text-[13px] font-semibold transition" [class.bg-accent]="selectedType() === type.codigo" [class.text-white]="selectedType() === type.codigo" [class.border]="selectedType() !== type.codigo" [class.border-input-border]="selectedType() !== type.codigo" [class.bg-white]="selectedType() !== type.codigo">{{ type.nombre }}</button> }
+        @for (type of visibleTypes(); track type.id) { <button type="button" (click)="selectType(type.codigo)" class="font-heading min-h-10 rounded-full px-4 py-2 text-[13px] font-semibold transition" [class.bg-accent]="selectedType() === type.codigo" [class.text-white]="selectedType() === type.codigo" [class.border]="selectedType() !== type.codigo" [class.border-input-border]="selectedType() !== type.codigo" [class.bg-white]="selectedType() !== type.codigo">{{ type.nombre }}</button> }
       </div>
     </section>
 
@@ -97,7 +97,7 @@
                   <div class="font-heading text-sm font-bold text-amber-700">Precio no disponible</div>
                 }
               </div>
-              <button type="button" (click)="toggleDetails(card)" class="min-h-10 text-[13px] font-semibold text-accent-dark hover:underline">{{ expandedCardId() === card.id ? 'Ocultar' : 'Ver detalles' }} →</button>
+              <button type="button" (click)="toggleDetails(card)" class="min-h-10 text-[13px] font-semibold text-accent-dark hover:underline">{{ expandedCardId() === card.id ? 'Ocultar' : (card.esHospedaje ? 'Ver habitaciones' : 'Ver detalles') }} →</button>
             </div>
 
             <!-- Detalle del establecimiento: se abre al expandir un hotel o una habitación -->

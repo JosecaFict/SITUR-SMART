@@ -39,7 +39,7 @@ from .services import (
     list_company_lodgings,
     list_company_products,
     list_lodging_rooms,
-    only_complete_lodging_products,
+    marketplace_visible_products,
     public_lodgings,
     public_rooms,
     update_lodging,
@@ -80,7 +80,7 @@ class PublicProductListView(APIView):
         query.is_valid(raise_exception=True)
         filters = query.validated_data
 
-        products = only_complete_lodging_products(
+        products = marketplace_visible_products(
             with_lodging_from_price(
                 TourismProduct.objects.select_related(
                     "tenant", "product_type", "city__country", "currency",
@@ -135,7 +135,7 @@ class PublicProductDetailView(APIView):
     @extend_schema(responses=ProductSerializer)
     def get(self, request, pk):
         product = (
-            only_complete_lodging_products(
+            marketplace_visible_products(
                 with_lodging_from_price(
                     TourismProduct.objects.select_related(
                         "tenant", "product_type", "city__country", "currency",

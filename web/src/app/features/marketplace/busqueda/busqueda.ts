@@ -26,6 +26,20 @@ import { AuthService } from '../../../core/auth/auth.service';
 type SortOrder = 'recientes' | 'precio_asc' | 'precio_desc' | 'nombre';
 
 /**
+ * De cara al viajero el sector se llama Hospedajes, no Hotel: en el Marketplace
+ * agrupa lo que después serán también hostales y cabañas. El código sigue
+ * siendo HOTEL, así que solo cambia la etiqueta del filtro.
+ */
+const PUBLIC_TYPE_LABELS: Record<string, string> = { HOTEL: 'Hospedajes' };
+
+/**
+ * Habitación se oculta del filtro público: una habitación no se oferta por
+ * separado, se llega a ella abriendo su hospedaje. El endpoint sigue existiendo
+ * para el móvil y para las búsquedas por huéspedes y disponibilidad.
+ */
+const HIDDEN_PUBLIC_TYPES = ['HABITACION'];
+
+/**
  * Las tres consultas públicas (productos, hospedajes y habitaciones) devuelven
  * formas distintas. Se normalizan a esta tarjeta para que la grilla sea una
  * sola, y cada origen decide qué significa su precio.
@@ -44,7 +58,10 @@ interface MarketplaceCard {
   precioEtiqueta: string;
   /** Ya formateado con símbolo. Nulo cuando no hay precio que mostrar. */
   precio: string | null;
+  /** Nula en un hospedaje: su capacidad la dan las habitaciones, no el producto. */
   capacidad: number | null;
+  /** El botón dice "Ver habitaciones" si abre un hospedaje. */
+  esHospedaje: boolean;
   /** Solo en habitaciones: el hotel del que dependen. */
   establecimiento: string | null;
   /** Hospedaje a abrir al expandir: el propio hotel o el de la habitación. */
@@ -120,6 +137,13 @@ export class Busqueda implements OnInit {
     const countryId = this.selectedCountryId();
     return countryId ? this.cities().filter((city) => city.pais_id === countryId) : this.cities();
   });
+
+  /** Categorías que se ofrecen al viajero, con el nombre público del sector. */
+  protected readonly visibleTypes = computed(() =>
+    this.types()
+      .filter((type) => !HIDDEN_PUBLIC_TYPES.includes(type.codigo))
+      .map((type) => ({ ...type, nombre: PUBLIC_TYPE_LABELS[type.codigo] ?? type.nombre })),
+  );
 
   ngOnInit(): void {
     forkJoin({
@@ -241,13 +265,17 @@ export class Busqueda implements OnInit {
       imagen: product.imagen_url || '/images/auth-carousel/Hotel4.webp',
       precioEtiqueta,
       precio,
-      capacidad: product.capacidad_maxima,
+      // Un hospedaje no muestra la capacidad de su producto: en los heredados es
+      // un número viejo y en los nuevos un centinela. La real la dan sus
+      // habitaciones y se ve al abrirlo.
+      capacidad: isHotel ? null : product.capacidad_maxima,
       establecimiento: product.establecimiento,
       // El backend ya resuelve cuál establecimiento abrir: su propia ficha si es
       // un hotel, la del hotel que la aloja si es una habitación. Es el id de
       // establecimiento_hospedaje, no el del producto.
       hospedajeId: product.hospedaje_id,
       estrellas: null,
+      esHospedaje: isHotel,
     };
   }
 
@@ -268,6 +296,7 @@ export class Busqueda implements OnInit {
       establecimiento: null,
       hospedajeId: lodging.id,
       estrellas: lodging.categoria_estrellas,
+      esHospedaje: true,
     };
   }
 
@@ -288,6 +317,7 @@ export class Busqueda implements OnInit {
       establecimiento: room.establecimiento,
       hospedajeId: room.establecimiento_id,
       estrellas: null,
+      esHospedaje: false,
     };
   }
 

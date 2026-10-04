@@ -44,7 +44,7 @@ from apps.catalog.services import (
     get_company_lodging,
     get_company_room,
     list_company_products,
-    only_complete_lodging_products,
+    marketplace_visible_products,
     public_lodgings,
     public_rooms,
     update_lodging,
@@ -57,6 +57,22 @@ from apps.catalog.views import CompanyLodgingListCreateView
 
 PUBLISHED = "PUBLICADO"
 ACTIVE = "ACTIVO"
+
+
+def q_lookups(condition) -> list[str]:
+    """Las claves de lookup de un arbol de Q, recorriendo las ramas anidadas.
+
+    Permite afirmar sobre que campos consulta un filtro sin depender de su
+    representacion en texto, donde "has_publishable_room" contiene "room" y la
+    lista de codigos contiene "HABITACION".
+    """
+    keys: list[str] = []
+    for child in condition.children:
+        if isinstance(child, Q):
+            keys.extend(q_lookups(child))
+        else:
+            keys.append(child[0])
+    return keys
 
 
 class LodgingWriteSerializerTests(SimpleTestCase):
@@ -642,13 +658,23 @@ class GenericMarketplaceFromPriceTests(SimpleTestCase):
 
 
 class OrphanLodgingProductsTests(SimpleTestCase):
-    """Los HOTEL y HABITACION sin ficha no deben salir en el Marketplace.
+    """Las habitaciones ya no salen en el Marketplace generico, completas o no.
 
-    Son productos creados por /api/v1/productos/ antes de este modulo. Una
-    habitacion asi no tiene hotel, ni empresa responsable, ni ubicacion heredada
-    que mostrar, y 0005 no puede repararla porque no hay dato que indique a que
-    hotel pertenecia.
+    Las huerfanas -- creadas por /api/v1/productos/ antes de este modulo, sin
+    hotel ni ubicacion heredada -- quedan fuera igual que las bien formadas,
+    porque ninguna habitacion se oferta por separado. Siguen visibles en el
+    Catalogo empresarial, que es donde la empresa puede regularizarlas.
     """
+
+    def test_no_room_is_shown_in_the_generic_marketplace(self):
+        queryset = MagicMock()
+
+        marketplace_visible_products(queryset)
+
+        condition = queryset.annotate.return_value.filter.call_args.args[0]
+        # Ninguna rama consulta la tabla habitacion para decidir que mostrar.
+        consultados = q_lookups(condition)
+        self.assertEqual([k for k in consultados if k.startswith("room")], [])
 
     # La condicion completa del filtro se verifica en
     # IncompleteHotelVisibilityTests.test_generic_marketplace_requires_it_for_hotels,
@@ -662,7 +688,7 @@ class OrphanLodgingProductsTests(SimpleTestCase):
         """
         queryset = MagicMock()
 
-        result = only_complete_lodging_products(queryset)
+        result = marketplace_visible_products(queryset)
 
         annotated = queryset.annotate.return_value
         annotated.filter.assert_called_once()
@@ -1066,9 +1092,10 @@ class IncompleteHotelVisibilityTests(SimpleTestCase):
             queryset.filter.assert_not_called()
 
     def test_generic_marketplace_requires_it_for_hotels(self):
+        """Y ninguna rama admite habitaciones: no se ofertan por separado."""
         queryset = MagicMock()
 
-        only_complete_lodging_products(queryset)
+        marketplace_visible_products(queryset)
 
         annotated = queryset.annotate.return_value
         condition = annotated.filter.call_args.args[0]
@@ -1079,12 +1106,12 @@ class IncompleteHotelVisibilityTests(SimpleTestCase):
                 product_type__code="HOTEL",
                 lodging__isnull=False,
                 has_publishable_room=True,
-            )
-            | Q(
-                product_type__code="HABITACION",
-                room__isnull=False,
-                room__establishment__product__status=PUBLISHED,
             ),
+        )
+        # La unica mencion de HABITACION es la exclusion del OR, no una rama
+        # que la admita: no hay ningun lookup sobre la tabla habitacion.
+        self.assertEqual(
+            [k for k in q_lookups(condition) if k.startswith("room")], []
         )
 
     def test_the_exists_subquery_only_counts_published_priced_rooms(self):
