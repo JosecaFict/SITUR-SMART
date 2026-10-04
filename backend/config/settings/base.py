@@ -148,6 +148,9 @@ REST_FRAMEWORK = {
     # compartida.
     "DEFAULT_THROTTLE_RATES": {
         "geocodificacion": os.getenv("GEOCODING_THROTTLE_RATE", "30/min"),
+        # Autoregistro publico de empresas: el unico endpoint anonimo que crea
+        # empresa, usuario, rol y suscripcion de una sola llamada. Por IP.
+        "autoregistro": os.getenv("SELF_SIGNUP_THROTTLE_RATE", "5/hour"),
     },
 }
 

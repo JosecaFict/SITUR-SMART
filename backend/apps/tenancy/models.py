@@ -73,6 +73,34 @@ class Tenant(models.Model):
         return self.trade_name
 
 
+# Unico estado en el que una empresa opera. El resto permite autenticarse y ver
+# el perfil, pero no trabajar dentro de ese tenant.
+TENANT_OPERATIONAL_STATUS = Tenant.Status.ACTIVE
+
+# Transiciones permitidas. Es un grafo cerrado a proposito: cualquier par que no
+# aparezca aqui se rechaza con 400.
+#
+# Lo que deliberadamente NO existe es ACTIVO -> PENDIENTE. "Pendiente" significa
+# "la plataforma todavia no la reviso", y eso no puede volver a ser cierto una
+# vez que la empresa fue activada: para dejar de operar estan SUSPENDIDO, que es
+# reversible, e INACTIVO, que es el cierre.
+TENANT_STATUS_TRANSITIONS: dict[str, frozenset[str]] = {
+    Tenant.Status.PENDING: frozenset({Tenant.Status.ACTIVE, Tenant.Status.INACTIVE}),
+    Tenant.Status.ACTIVE: frozenset({Tenant.Status.SUSPENDED, Tenant.Status.INACTIVE}),
+    Tenant.Status.SUSPENDED: frozenset({Tenant.Status.ACTIVE, Tenant.Status.INACTIVE}),
+    Tenant.Status.INACTIVE: frozenset({Tenant.Status.ACTIVE}),
+}
+
+# Motivo que se devuelve al bloquear una operacion. Es generico a proposito: le
+# dice a la persona por que no puede trabajar sin revelar decisiones internas de
+# la plataforma ni datos de la empresa.
+TENANT_BLOCK_REASONS = {
+    Tenant.Status.PENDING: "La empresa todavía no fue activada por la plataforma.",
+    Tenant.Status.SUSPENDED: "La empresa está suspendida.",
+    Tenant.Status.INACTIVE: "La empresa está inactiva.",
+}
+
+
 class UserTenant(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "ACTIVO", "Activo"

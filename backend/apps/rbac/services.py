@@ -3,7 +3,12 @@ from django.db.models import Q
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.audit.services import record_audit
-from apps.tenancy.models import UserTenant
+from apps.tenancy.models import (
+    TENANT_BLOCK_REASONS,
+    TENANT_OPERATIONAL_STATUS,
+    Tenant,
+    UserTenant,
+)
 
 from .models import Permission, Role, RolePermission, UserRole
 
@@ -32,13 +37,54 @@ def has_permission(user, code: str, tenant_id: int | None = None) -> bool:
     ).exists()
 
 
-def require_tenant_access(user, tenant_id: int) -> None:
+def require_tenant_membership(user, tenant_id: int) -> None:
+    """Comprueba que el usuario pertenezca a la empresa, sin mirar su estado.
+
+    Es la version permisiva, para las lecturas que deben seguir funcionando
+    cuando la empresa esta suspendida: justamente las que permiten enterarse de
+    que lo esta. Hoy son dos, la ficha de la empresa y su suscripcion.
+
+    Para cualquier otra cosa se usa ``require_tenant_access``, que ademas exige
+    que la empresa este operativa. La asimetria es deliberada y el nombre por
+    omision es el estricto: si alguien agrega una operacion nueva y olvida
+    elegir, falla cerrada.
+    """
     if is_superadmin(user):
         return
     if not UserTenant.objects.filter(
         user=user, tenant_id=tenant_id, status=UserTenant.Status.ACTIVE
     ).exists():
         raise PermissionDenied("No tiene acceso al tenant solicitado.")
+
+
+def require_tenant_access(user, tenant_id: int) -> None:
+    """Pertenencia a la empresa **y** empresa operativa.
+
+    Una empresa que no esta ACTIVO no deja de existir: su gente sigue
+    autenticandose y viendo su perfil, pero no puede trabajar dentro de ella.
+    Suspender tiene que cortar el servicio, no solo esconder la oferta del
+    Marketplace.
+
+    El 403 lleva el estado en ``details`` para que la interfaz pueda explicar
+    el bloqueo en vez de mostrar un error en crudo. El SUPER_ADMIN pasa, porque
+    administrar una empresa suspendida es precisamente parte de su trabajo.
+    """
+    require_tenant_membership(user, tenant_id)
+    if is_superadmin(user):
+        return
+    status = (
+        Tenant.objects.filter(pk=tenant_id).values_list("status", flat=True).first()
+    )
+    if status is None:
+        raise PermissionDenied("No tiene acceso al tenant solicitado.")
+    if status != TENANT_OPERATIONAL_STATUS:
+        raise PermissionDenied(
+            {
+                "detail": TENANT_BLOCK_REASONS.get(status, "La empresa no está operativa."),
+                "empresa_estado": status,
+                "codigo": "EMPRESA_NO_OPERATIVA",
+            }
+        )
 
 
 def require_permission(user, code: str, tenant_id: int | None = None) -> None:

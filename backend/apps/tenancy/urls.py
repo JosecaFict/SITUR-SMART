@@ -6,6 +6,7 @@ from .views import (
     CompanyListCreateView,
     CompanyOwnerView,
     CompanySignupView,
+    CompanyStatusView,
     CompanySubscriptionView,
     CountryListView,
     PlanListView,
@@ -18,6 +19,9 @@ urlpatterns = [
     path("empresas/", CompanyListCreateView.as_view(), name="company-list-create"),
     path("empresas/autoregistro/", CompanySignupView.as_view(), name="company-signup"),
     path("empresas/<int:pk>/", CompanyDetailView.as_view(), name="company-detail"),
+    # El estado tiene accion propia: reglas de transicion y requisitos de
+    # activacion que no son los de editar un dato cualquiera.
+    path("empresas/<int:pk>/estado/", CompanyStatusView.as_view(), name="company-status"),
     path("empresas/<int:pk>/propietario/", CompanyOwnerView.as_view(), name="company-owner"),
     path("empresas/<int:pk>/suscripcion/", CompanySubscriptionView.as_view(), name="company-subscription"),
 ]

@@ -68,10 +68,25 @@ class CompanyServiceTests(SimpleTestCase):
 
         assert _unique_subdomain("SCZ Tours") == "scz-tours-2"
 
+    @patch("apps.tenancy.services.has_permission", return_value=False)
     @patch("apps.tenancy.services.is_superadmin", return_value=False)
-    def test_rejects_company_management_for_non_superadmin(self, _is_superadmin):
+    def test_rejects_company_management_without_superadmin_or_permission(
+        self, _is_superadmin, _has_permission
+    ):
         with self.assertRaises(PermissionDenied):
             require_company_management(Mock())
+
+    @patch("apps.tenancy.services.has_permission", return_value=True)
+    @patch("apps.tenancy.services.is_superadmin", return_value=False)
+    def test_allows_company_management_with_global_permission(
+        self, _is_superadmin, has_permission
+    ):
+        """TENANTS_GESTIONAR global alcanza: ya no hace falta ser SUPER_ADMIN."""
+        require_company_management(Mock())
+
+        assert has_permission.call_args.args[1] == "TENANTS_GESTIONAR"
+        # tenant_id None: el permiso tiene que venir de un rol global.
+        assert has_permission.call_args.args[2] is None
 
 
 class SubscriptionServiceTests(SimpleTestCase):

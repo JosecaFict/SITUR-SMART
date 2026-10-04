@@ -164,12 +164,27 @@ class CompanyUpdateSerializer(serializers.Serializer):
     nit = serializers.CharField(max_length=30, required=False, allow_blank=True)
     email_contacto = serializers.EmailField(required=False, allow_blank=True)
     telefono = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    # Se acepta por compatibilidad con el cliente web actual, pero este
+    # serializer no lo escribe: ``update_company`` lo deriva a la maquina de
+    # estados, que valida la transicion y audita como CAMBIAR_ESTADO. La via
+    # propia es POST /empresas/{id}/estado/.
     estado = serializers.ChoiceField(choices=Tenant.Status.choices, required=False)
 
     def validate_ciudad_id(self, value):
         if value is not None and not City.objects.filter(pk=value).exists():
             raise serializers.ValidationError("La ciudad seleccionada no existe.")
         return value
+
+
+class CompanyStatusSerializer(serializers.Serializer):
+    """Cuerpo del cambio de estado.
+
+    Solo valida que el estado exista. Que la transicion sea posible y que la
+    empresa cumpla los requisitos para activarse lo decide la maquina de
+    estados del servicio, que es la unica que conoce el estado actual.
+    """
+
+    estado = serializers.ChoiceField(choices=Tenant.Status.choices)
 
 
 class OwnerAssignSerializer(serializers.Serializer):

@@ -8,16 +8,67 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from apps.accounts.models import User
 from apps.audit.services import record_audit
 from apps.rbac.models import Role, UserRole
-from apps.rbac.services import is_superadmin, require_permission, require_tenant_access
+from apps.rbac.services import (
+    has_permission,
+    is_superadmin,
+    require_tenant_membership,
+)
 
-from .models import Plan, Subscription, Tenant, UserTenant
+from .models import (
+    TENANT_STATUS_TRANSITIONS,
+    Plan,
+    Subscription,
+    Tenant,
+    UserTenant,
+)
 
 DEFAULT_PLAN_CODE = "BASICO"
 
 
+def _require_platform_permission(actor, code: str, message: str) -> None:
+    """Exige un permiso de plataforma, no de empresa.
+
+    ``has_permission`` con ``tenant_id=None`` solo mira asignaciones de rol sin
+    tenant, es decir globales, y ``FORBIDDEN_TENANT_PERMISSIONS`` impide que
+    estos tres codigos se asignen a un rol de empresa. Las dos cosas juntas son
+    lo que garantiza que un administrador empresarial no pueda llegar aqui por
+    mucho rol que tenga dentro de su tenant.
+    """
+    if is_superadmin(actor):
+        return
+    if not has_permission(actor, code, None):
+        raise PermissionDenied(message)
+
+
 def require_company_management(actor) -> None:
-    if not is_superadmin(actor):
-        raise PermissionDenied("Solo el SuperAdministrador puede administrar empresas.")
+    """Crear, editar, cambiar estado y propietario. SUPER_ADMIN o TENANTS_GESTIONAR global.
+
+    Antes exigia SUPER_ADMIN y nada mas, asi que ``TENANTS_GESTIONAR`` existia
+    sembrado y no se verificaba en ningun sitio: un operador de plataforma con
+    ese permiso no podia administrar nada. Ahora el permiso significa lo que
+    dice su nombre.
+    """
+    _require_platform_permission(
+        actor,
+        "TENANTS_GESTIONAR",
+        "No cuenta con permisos de plataforma para administrar empresas.",
+    )
+
+
+def has_company_read_access(actor) -> bool:
+    """Permite consultar el padrón completo de empresas.
+
+    No lanza excepcion porque no tenerlo no es un error: el listado y la ficha
+    lo usan para decidir entre "ve todas las empresas" y "ve solo las suyas",
+    que son dos vistas legitimas del mismo endpoint. Quien no lo tiene recibe
+    las propias, no un 403. ``TENANTS_GESTIONAR`` implica lectura: un operador
+    no podría administrar una empresa que el mismo endpoint le oculta.
+    """
+    return (
+        is_superadmin(actor)
+        or has_permission(actor, "TENANTS_LEER", None)
+        or has_permission(actor, "TENANTS_GESTIONAR", None)
+    )
 
 
 def _unique_subdomain(trade_name: str, requested: str = "") -> str:
@@ -34,8 +85,15 @@ def _unique_subdomain(trade_name: str, requested: str = "") -> str:
 
 
 def list_companies(*, actor, search: str = "", status: str = ""):
+    """Padron completo para la plataforma; solo las propias para el resto.
+
+    No es un error que un administrador empresarial consulte este endpoint: le
+    devuelve las empresas a las que pertenece, incluidas las suspendidas, que es
+    como se enterara de que lo estan. La administracion global requiere
+    ``TENANTS_LEER``, que un rol de empresa no puede tener.
+    """
     queryset = Tenant.objects.all()
-    if not is_superadmin(actor):
+    if not has_company_read_access(actor):
         tenant_ids = UserTenant.objects.filter(
             user=actor, status=UserTenant.Status.ACTIVE
         ).values_list("tenant_id", flat=True)
@@ -52,10 +110,18 @@ def list_companies(*, actor, search: str = "", status: str = ""):
 
 
 def get_company(*, actor, company_id: int) -> Tenant:
+    """Ficha de una empresa.
+
+    Usa ``require_tenant_membership`` y no ``require_tenant_access`` a
+    proposito: si una empresa suspendida no se pudiera leer, su propietario no
+    tendria forma de ver en que estado quedo ni por que no puede trabajar. Leer
+    la ficha no es operar dentro de la empresa.
+    """
     company = Tenant.objects.filter(pk=company_id).first()
     if company is None:
         raise NotFound("Empresa no encontrada.")
-    require_tenant_access(actor, company.id)
+    if not has_company_read_access(actor):
+        require_tenant_membership(actor, company.id)
     return company
 
 
@@ -195,7 +261,14 @@ def self_signup_company(
     request=None,
 ) -> Tenant:
     """Autoregistro público: una empresa se da de alta sola eligiendo un plan, sin
-    intervención del SuperAdministrador (usado por la vitrina pública de planes)."""
+    intervención del SuperAdministrador (usado por la vitrina pública de planes).
+
+    Nace PENDIENTE, no ACTIVO. Es la diferencia de fondo con el alta
+    administrativa: ahi un SUPER_ADMIN responde por la empresa, aqui no hay
+    nadie que la haya revisado. Hasta que la plataforma la active, su gente
+    puede autenticarse y ver su perfil pero no operar, y su oferta no aparece en
+    el Marketplace -- que ya filtra por ``tenant.status``.
+    """
     tax_id = nit.strip() or None
     if tax_id and Tenant.objects.filter(tax_id__iexact=tax_id).exists():
         raise ValidationError({"nit": "Ya existe una empresa con este NIT."})
@@ -209,7 +282,7 @@ def self_signup_company(
         tax_id=tax_id,
         contact_email=email_contacto.strip().lower() or None,
         phone=telefono.strip() or None,
-        status=Tenant.Status.ACTIVE,
+        status=Tenant.Status.PENDING,
     )
     owner = _assign_owner(company=company, owner_data=propietario)
     subscription = _open_subscription(tenant=company, plan=plan)
@@ -224,6 +297,7 @@ def self_signup_company(
             "razon_social": company.legal_name,
             "propietario_id": owner.id,
             "plan": plan.code,
+            "estado": company.status,
         },
         request=request,
     )
@@ -237,6 +311,12 @@ def update_company(*, actor, company_id: int, request=None, **changes) -> Tenant
     if company is None:
         raise NotFound("Empresa no encontrada.")
 
+    # El estado no se escribe aqui. Si llega en el cuerpo se delega en la
+    # maquina de transiciones, que valida la transicion, exige los requisitos de
+    # activacion y audita como CAMBIAR_ESTADO. Se acepta por compatibilidad con
+    # el cliente actual; la via propia es POST /empresas/{id}/estado/.
+    nuevo_estado = changes.pop("estado", None)
+
     previous_data = {
         "razon_social": company.legal_name,
         "nombre_comercial": company.trade_name,
@@ -249,7 +329,6 @@ def update_company(*, actor, company_id: int, request=None, **changes) -> Tenant
         "nit": "tax_id",
         "email_contacto": "contact_email",
         "telefono": "phone",
-        "estado": "status",
     }
     update_fields = []
     for api_field, model_field in field_mapping.items():
@@ -280,7 +359,105 @@ def update_company(*, actor, company_id: int, request=None, **changes) -> Tenant
             new_data=changes,
             request=request,
         )
+
+    if nuevo_estado is not None:
+        _apply_status_change(
+            actor=actor, company=company, nuevo_estado=nuevo_estado, request=request
+        )
     return company
+
+
+def _company_owner_id(company: Tenant) -> int | None:
+    return (
+        UserRole.objects.filter(
+            tenant=company, role__code="TENANT_ADMIN", role__scope=Role.Scope.TENANT
+        )
+        .values_list("user_id", flat=True)
+        .first()
+    )
+
+
+def _check_activation_requirements(company: Tenant) -> None:
+    """Una empresa no se activa a medias.
+
+    Activar sin estas tres cosas publica una empresa que no puede operar: sin
+    propietario nadie la administra, y sin suscripcion vigente de un plan activo
+    no hay condiciones contratadas contra las que medir nada. Los tres errores
+    se informan juntos para no obligar a descubrirlos de uno en uno.
+    """
+    problems = {}
+    if _company_owner_id(company) is None:
+        problems["propietario"] = "La empresa no tiene propietario asignado."
+
+    subscription = (
+        Subscription.objects.select_related("plan")
+        .filter(tenant=company, status=Subscription.Status.ACTIVE)
+        .first()
+    )
+    if subscription is None:
+        problems["suscripcion"] = "La empresa no tiene una suscripción activa."
+    elif not subscription.plan.active:
+        problems["plan"] = (
+            f"El plan {subscription.plan.name} ya no está disponible. "
+            "Asigna un plan vigente antes de activar la empresa."
+        )
+
+    if problems:
+        raise ValidationError(problems)
+
+
+def _apply_status_change(*, actor, company: Tenant, nuevo_estado: str, request=None) -> Tenant:
+    """Aplica una transicion validada y la audita como CAMBIAR_ESTADO.
+
+    Vive aparte de ``update_company`` porque cambiar de estado no es editar un
+    campo: tiene reglas propias, requisitos propios y una accion de bitacora
+    propia. Cualquier via que cambie el estado pasa por aqui.
+    """
+    actual = company.status
+    if nuevo_estado == actual:
+        # No es un error: pedir lo que ya es cierto no cambia nada y no deja
+        # una entrada de bitacora que mentiria sobre una transicion.
+        return company
+
+    permitidas = TENANT_STATUS_TRANSITIONS.get(actual, frozenset())
+    if nuevo_estado not in permitidas:
+        raise ValidationError(
+            {
+                "estado": (
+                    f"No se puede pasar de {actual} a {nuevo_estado}. "
+                    f"Desde {actual} solo se admite: {', '.join(sorted(permitidas)) or 'ningún estado'}."
+                )
+            }
+        )
+
+    if nuevo_estado == Tenant.Status.ACTIVE:
+        _check_activation_requirements(company)
+
+    company.status = nuevo_estado
+    company.save(update_fields=("status", "updated_at"))
+    record_audit(
+        actor=actor,
+        tenant_id=company.id,
+        action="CAMBIAR_ESTADO",
+        entity="empresa",
+        entity_id=str(company.id),
+        previous_data={"estado": actual},
+        new_data={"estado": nuevo_estado},
+        request=request,
+    )
+    return company
+
+
+@transaction.atomic
+def change_company_status(*, actor, company_id: int, estado: str, request=None) -> Tenant:
+    """Punto de entrada del cambio de estado."""
+    require_company_management(actor)
+    company = Tenant.objects.filter(pk=company_id).first()
+    if company is None:
+        raise NotFound("Empresa no encontrada.")
+    return _apply_status_change(
+        actor=actor, company=company, nuevo_estado=estado, request=request
+    )
 
 
 @transaction.atomic
@@ -363,7 +540,18 @@ def _open_subscription(*, tenant: Tenant, plan: Plan, auto_renew: bool = False) 
 
 
 def get_company_subscription(*, actor, company_id: int) -> Subscription | None:
-    require_tenant_access(actor, company_id)
+    """Suscripcion activa de una empresa.
+
+    Tres caminos la autorizan: permiso global de suscripciones, permiso global
+    de lectura de empresas, o pertenecer a la empresa. El ultimo usa
+    ``require_tenant_membership`` y no ``require_tenant_access`` para que el
+    propietario de una empresa suspendida pueda seguir viendo que plan tiene
+    contratado.
+    """
+    if not (
+        has_permission(actor, "SUSCRIPCIONES_GESTIONAR", None) or has_company_read_access(actor)
+    ):
+        require_tenant_membership(actor, company_id)
     return (
         Subscription.objects.select_related("plan", "plan__currency")
         .filter(tenant_id=company_id, status=Subscription.Status.ACTIVE)
@@ -383,19 +571,40 @@ def get_subscription_usage(*, tenant_id: int) -> dict:
 
 
 def require_subscription_management(actor) -> None:
-    require_permission(actor, "SUSCRIPCIONES_GESTIONAR")
+    """SUPER_ADMIN o SUSCRIPCIONES_GESTIONAR global.
+
+    No exige pertenecer a la empresa: un operador de plataforma administra
+    suscripciones de empresas de las que no es miembro, que es justamente su
+    trabajo. Antes el aislamiento de este camino dependia de que
+    ``change_company_subscription`` consultara la suscripcion anterior, cuyo
+    ``require_tenant_access`` hacia de control de acceso por efecto colateral:
+    el permiso era inutilizable para cualquiera que no fuera SUPER_ADMIN, y un
+    refactor que dejara de leer la suscripcion previa habria quitado la
+    comprobacion sin que nada lo notara.
+    """
+    _require_platform_permission(
+        actor,
+        "SUSCRIPCIONES_GESTIONAR",
+        "No cuenta con permisos de plataforma para administrar suscripciones.",
+    )
 
 
 @transaction.atomic
 def change_company_subscription(
     *, actor, company_id: int, plan_codigo: str, auto_renew: bool = False, request=None
 ) -> Subscription:
+    # Las tres comprobaciones son explicitas y en este orden: autorizacion de
+    # plataforma, existencia de la empresa, validez del plan.
     require_subscription_management(actor)
     company = Tenant.objects.filter(pk=company_id).first()
     if company is None:
         raise NotFound("Empresa no encontrada.")
     plan = _resolve_plan(plan_codigo)
-    previous = get_company_subscription(actor=actor, company_id=company_id)
+    previous = (
+        Subscription.objects.select_related("plan")
+        .filter(tenant_id=company_id, status=Subscription.Status.ACTIVE)
+        .first()
+    )
     subscription = _open_subscription(tenant=company, plan=plan, auto_renew=auto_renew)
     record_audit(
         actor=actor,

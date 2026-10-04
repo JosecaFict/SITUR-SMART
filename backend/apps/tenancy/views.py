@@ -2,6 +2,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import SimpleRateThrottle
 from rest_framework.views import APIView
 
 from .models import City, Country
@@ -10,6 +11,7 @@ from .serializers import (
     CompanyCreateSerializer,
     CompanySelfSignupSerializer,
     CompanySerializer,
+    CompanyStatusSerializer,
     CompanyUpdateSerializer,
     CountrySerializer,
     OwnerAssignSerializer,
@@ -19,6 +21,7 @@ from .serializers import (
 )
 from .services import (
     assign_company_owner,
+    change_company_status,
     change_company_subscription,
     create_company,
     get_company,
@@ -27,6 +30,7 @@ from .services import (
     list_companies,
     list_plans,
     require_company_management,
+    require_subscription_management,
     self_signup_company,
     update_company,
 )
@@ -57,6 +61,9 @@ class CompanyListCreateView(APIView):
 
     @extend_schema(responses=CompanySerializer(many=True))
     def get(self, request):
+        # Sin permiso de plataforma el servicio acota a las empresas propias, de
+        # modo que este endpoint sirve a los dos publicos sin filtrar nada: no
+        # se exige TENANTS_LEER aqui porque no tenerlo no es un error.
         companies = list_companies(
             actor=request.user,
             search=request.query_params.get("buscar", "").strip(),
@@ -98,6 +105,31 @@ class CompanyDetailView(APIView):
         return Response(CompanySerializer(company).data)
 
 
+class CompanyStatusView(APIView):
+    """Cambio de estado como accion propia, no como un campo mas del PATCH.
+
+    Tiene reglas distintas de las de editar un dato: transiciones permitidas,
+    requisitos para activar y su propia accion de bitacora. Un endpoint aparte
+    deja eso explicito en el contrato y le permite al cliente distinguir "no
+    pude guardar el nombre" de "esa transicion no existe".
+    """
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=CompanyStatusSerializer, responses=CompanySerializer)
+    def post(self, request, pk):
+        require_company_management(request.user)
+        serializer = CompanyStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        company = change_company_status(
+            actor=request.user,
+            company_id=pk,
+            request=request,
+            **serializer.validated_data,
+        )
+        return Response(CompanySerializer(company).data)
+
+
 class CompanyOwnerView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -123,8 +155,36 @@ class PlanListView(APIView):
         return Response(PlanSerializer(list_plans(), many=True).data)
 
 
+class SelfSignupThrottle(SimpleRateThrottle):
+    """Tope por IP del autoregistro publico.
+
+    Es el unico endpoint anonimo que crea empresa, usuario, rol y suscripcion de
+    una sola llamada, asi que sin tope es una via para llenar el padron. Ahora
+    las empresas nacen PENDIENTE y no llegan al Marketplace sin que la
+    plataforma las active, pero el ruido en la base sigue siendo real.
+
+    Mismo respaldo que el throttle de geocodificacion: la cache por omision de
+    Django, memoria del proceso. **No es un limite global ni durable** -- se
+    reinicia en cada despliegue y se multiplicaria por la cantidad de workers de
+    gunicorn, que hoy es uno. No sustituye un captcha, que queda pendiente.
+    """
+
+    scope = "autoregistro"
+
+    def get_cache_key(self, request, view):
+        # El endpoint admite tanto visitantes como usuarios ya autenticados.
+        # AnonRateThrottle dejaría sin límite al segundo grupo, aunque ambos
+        # pueden crear exactamente las mismas filas. La cuota es por IP para
+        # todos los llamadores.
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }
+
+
 class CompanySignupView(APIView):
     permission_classes = (AllowAny,)
+    throttle_classes = (SelfSignupThrottle,)
 
     @extend_schema(request=CompanySelfSignupSerializer, responses={201: CompanySerializer})
     def post(self, request):
@@ -155,6 +215,10 @@ class CompanySubscriptionView(APIView):
 
     @extend_schema(request=SubscriptionChangeSerializer, responses=SubscriptionSerializer)
     def put(self, request, pk):
+        # La vista tambien lo exige, no solo el servicio: antes este metodo no
+        # comprobaba nada por si mismo y la autorizacion quedaba enteramente
+        # dentro de la capa de servicio.
+        require_subscription_management(request.user)
         serializer = SubscriptionChangeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         subscription = change_company_subscription(
