@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "apps.tenancy",
     "apps.rbac",
     "apps.audit",
+    "apps.backups",
     "apps.catalog",
     "apps.media",
 ]
@@ -128,6 +129,7 @@ CORS_ALLOWED_ORIGINS = env_list(
 )
 CORS_ALLOW_CREDENTIALS = False
 CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id")
+CORS_EXPOSE_HEADERS = ("Content-Disposition", "X-Backup-SHA256")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -151,6 +153,9 @@ REST_FRAMEWORK = {
         # Autoregistro publico de empresas: el unico endpoint anonimo que crea
         # empresa, usuario, rol y suscripcion de una sola llamada. Por IP.
         "autoregistro": os.getenv("SELF_SIGNUP_THROTTLE_RATE", "5/hour"),
+        # Una copia ejecuta pg_dump sobre toda la base. El límite evita que
+        # varios clics consecutivos compitan por CPU, disco y conexiones.
+        "backup": os.getenv("BACKUP_THROTTLE_RATE", "3/hour"),
     },
 }
 
