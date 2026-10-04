@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 import shutil
 import subprocess
@@ -11,6 +12,8 @@ from rest_framework.exceptions import APIException, PermissionDenied
 
 from apps.audit.services import record_audit
 from apps.rbac.services import is_superadmin
+
+logger = logging.getLogger(__name__)
 
 
 class BackupUnavailable(APIException):
@@ -64,6 +67,24 @@ def _database_arguments() -> tuple[list[str], dict[str, str]]:
     return command, environment
 
 
+def _safe_failure_message(stderr: bytes) -> tuple[str, str]:
+    """Clasifica stderr sin devolver hosts, usuarios ni otros datos de conexión."""
+    text = stderr.decode("utf-8", errors="replace").lower()
+    if "server version mismatch" in text:
+        return "VERSION_INCOMPATIBLE", "La versión de pg_dump no es compatible con PostgreSQL."
+    if "password authentication failed" in text or "no password supplied" in text:
+        return "AUTENTICACION", "PostgreSQL rechazó las credenciales internas del respaldo."
+    if "could not translate host name" in text:
+        return "HOST", "El servidor no pudo resolver la dirección interna de PostgreSQL."
+    if "connection refused" in text or "could not connect" in text:
+        return "CONEXION", "No fue posible conectar con PostgreSQL para generar la copia."
+    if "permission denied" in text:
+        return "PERMISOS", "La cuenta de PostgreSQL no tiene permisos suficientes para respaldar."
+    if "ssl" in text:
+        return "SSL", "La conexión segura con PostgreSQL fue rechazada."
+    return "DESCONOCIDO", "PostgreSQL rechazó la generación de la copia de seguridad."
+
+
 def generate_backup(*, actor, request=None) -> BackupArtifact:
     require_backup_management(actor)
     if shutil.which("pg_dump") is None:
@@ -91,7 +112,9 @@ def generate_backup(*, actor, request=None) -> BackupArtifact:
 
     if result.returncode != 0:
         backup_file.close()
-        raise BackupFailed("PostgreSQL rechazó la generación de la copia de seguridad.")
+        failure_code, message = _safe_failure_message(result.stderr)
+        logger.error("pg_dump falló con categoría %s", failure_code)
+        raise BackupFailed(message)
 
     backup_file.seek(0)
     digest = hashlib.sha256()

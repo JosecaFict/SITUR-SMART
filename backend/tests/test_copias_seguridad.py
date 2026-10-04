@@ -3,10 +3,23 @@ from unittest.mock import Mock, patch
 from django.test import SimpleTestCase
 from rest_framework.exceptions import PermissionDenied
 
-from apps.backups.services import BackupUnavailable, generate_backup
+from apps.backups.services import (
+    BackupUnavailable,
+    _safe_failure_message,
+    generate_backup,
+)
 
 
 class BackupTests(SimpleTestCase):
+    def test_classifies_version_mismatch_without_exposing_connection_data(self):
+        code, message = _safe_failure_message(
+            b'pg_dump: error: server version mismatch; host "secret.internal" user "postgres"'
+        )
+
+        self.assertEqual(code, "VERSION_INCOMPATIBLE")
+        self.assertNotIn("secret.internal", message)
+        self.assertNotIn('user "postgres"', message.lower())
+
     @patch("apps.backups.services.is_superadmin", return_value=False)
     def test_only_superadmin_can_generate_a_backup(self, _is_superadmin):
         with self.assertRaises(PermissionDenied):

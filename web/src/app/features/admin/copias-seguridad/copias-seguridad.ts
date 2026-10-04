@@ -56,11 +56,37 @@ export class CopiasSeguridad {
       next: (response) => this.saveResponse(response),
       error: (error: HttpErrorResponse) => {
         this.generating.set(false);
-        this.errorMessage.set(
-          apiErrorMessage(error, 'No fue posible generar la copia de seguridad.'),
-        );
+        this.showDownloadError(error);
       },
     });
+  }
+
+  private showDownloadError(error: HttpErrorResponse): void {
+    if (error.error instanceof Blob) {
+      error.error
+        .text()
+        .then((text) => {
+          let body: unknown = text;
+          try {
+            body = JSON.parse(text);
+          } catch {
+            // Una respuesta HTML o texto plano se procesa con la misma utilidad común.
+          }
+          this.errorMessage.set(
+            apiErrorMessage(
+              new HttpErrorResponse({ error: body, status: error.status }),
+              'No fue posible generar la copia de seguridad.',
+            ),
+          );
+        })
+        .catch(() =>
+          this.errorMessage.set('No fue posible leer la respuesta del servidor.'),
+        );
+      return;
+    }
+    this.errorMessage.set(
+      apiErrorMessage(error, 'No fue posible generar la copia de seguridad.'),
+    );
   }
 
   private saveResponse(response: HttpResponse<Blob>): void {
