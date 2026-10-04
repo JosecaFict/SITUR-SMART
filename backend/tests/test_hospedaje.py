@@ -39,8 +39,11 @@ from apps.catalog.services import (
     _company_lodgings,
     _lodging_type,
     _publishable_room_exists,
+    _reconcile_lodging_publication,
+    _sync_room_locations,
     create_lodging,
     create_room,
+    deactivate_room,
     get_company_lodging,
     get_company_room,
     list_company_products,
@@ -1160,6 +1163,248 @@ class CompanyCatalogShowsLodgingTests(SimpleTestCase):
             annotated = sr.return_value.annotate.return_value
             annotated.filter.assert_called_once_with(tenant_id=7)
             self.assertEqual(result, annotated.filter.return_value)
+
+
+class LocationSyncTests(SimpleTestCase):
+    """Mover el hotel mueve sus habitaciones, en la misma transaccion.
+
+    Una habitacion no tiene ubicacion propia y su formulario no la acepta. Si la
+    propagacion no corriera, mover un hotel dejaria sus habitaciones anunciadas
+    en la ciudad anterior **sin forma de corregirlas desde ninguna interfaz**.
+    """
+
+    databases: ClassVar[set[str]] = {"default"}
+
+    @staticmethod
+    def _lodging(city_id=1, locality="Zona Sur"):
+        lodging = MagicMock()
+        lodging.id = 11
+        lodging.product.city_id = city_id
+        lodging.product.locality = locality
+        lodging.product.status = "BORRADOR"
+        return lodging
+
+    @patch("apps.catalog.services.TourismProduct.objects.filter")
+    def test_copies_city_and_locality_to_every_room(self, product_filter):
+        lodging = self._lodging(city_id=7, locality="Equipetrol")
+
+        _sync_room_locations(lodging)
+
+        # Un solo UPDATE, acotado a las habitaciones de ese establecimiento.
+        product_filter.assert_called_once_with(room__establishment=lodging)
+        self.assertEqual(
+            product_filter.return_value.update.call_args.kwargs,
+            {"city_id": 7, "locality": "Equipetrol"},
+        )
+
+    @patch("apps.catalog.services.TourismProduct.objects.filter")
+    def test_propagates_a_null_locality_too(self, product_filter):
+        """Borrar la localidad del hotel tambien se propaga, no se ignora."""
+        _sync_room_locations(self._lodging(city_id=7, locality=None))
+
+        self.assertIsNone(product_filter.return_value.update.call_args.kwargs["locality"])
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._sync_room_locations", return_value=3)
+    @patch("apps.catalog.services.City.objects.get")
+    @patch("apps.catalog.services.require_permission")
+    @patch("apps.catalog.services.get_company_lodging")
+    def test_changing_the_city_triggers_the_sync(
+        self, get_lodging, permission, city_get, sync, audit
+    ):
+        get_lodging.return_value = self._lodging()
+
+        update_lodging(actor=MagicMock(), tenant_id=7, lodging_id=11, ciudad_id=9)
+
+        sync.assert_called_once()
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._sync_room_locations", return_value=2)
+    @patch("apps.catalog.services.require_permission")
+    @patch("apps.catalog.services.get_company_lodging")
+    def test_changing_only_the_locality_triggers_the_sync(
+        self, get_lodging, permission, sync, audit
+    ):
+        get_lodging.return_value = self._lodging()
+
+        update_lodging(actor=MagicMock(), tenant_id=7, lodging_id=11, localidad="Centro")
+
+        sync.assert_called_once()
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._sync_room_locations")
+    @patch("apps.catalog.services.require_permission")
+    @patch("apps.catalog.services.get_company_lodging")
+    def test_editing_an_unrelated_field_does_not_touch_the_rooms(
+        self, get_lodging, permission, sync, audit
+    ):
+        """Cambiar el nombre no debe disparar un UPDATE sobre las habitaciones."""
+        get_lodging.return_value = self._lodging()
+
+        update_lodging(actor=MagicMock(), tenant_id=7, lodging_id=11, nombre="Otro nombre")
+
+        sync.assert_not_called()
+
+    @patch("apps.catalog.services.list_company_lodgings")
+    def test_a_lodging_of_another_tenant_never_reaches_the_sync(self, list_lodgings):
+        """El aislamiento corta antes: sin hotel, no hay habitaciones que mover."""
+        list_lodgings.return_value.filter.return_value.first.return_value = None
+
+        with self.assertRaises(NotFound):
+            get_company_lodging(actor=MagicMock(), tenant_id=7, lodging_id=4242)
+
+    @patch("apps.catalog.services.TourismProduct.objects.filter")
+    def test_the_sync_is_scoped_to_the_establishment(self, product_filter):
+        """Nunca toca habitaciones de otro hotel ni de otra empresa.
+
+        El filtro va por ``room__establishment``, y las FK compuestas garantizan
+        que las habitaciones de ese establecimiento sean del mismo tenant.
+        """
+        lodging = self._lodging()
+
+        _sync_room_locations(lodging)
+
+        lookup = product_filter.call_args.kwargs
+        self.assertEqual(set(lookup), {"room__establishment"})
+        self.assertEqual(lookup["room__establishment"], lodging)
+
+
+class PublicationReconciliationTests(SimpleTestCase):
+    """El hotel baja a BORRADOR cuando pierde su ultima habitacion ofertable.
+
+    Antes quedaba PUBLICADO pero invisible en el Marketplace, y el panel le
+    decia "Publicado" a la empresa.
+    """
+
+    databases: ClassVar[set[str]] = {"default"}
+
+    @staticmethod
+    def _published_lodging():
+        lodging = MagicMock()
+        lodging.id = 11
+        lodging.product.status = PUBLISHED
+        return lodging
+
+    @staticmethod
+    def _room():
+        """Habitacion publicada de Bs 700 en el establecimiento 11.
+
+        Las capacidades son numeros reales porque update_room las compara.
+        """
+        room = MagicMock()
+        room.establishment_id = 11
+        room.product.status = PUBLISHED
+        room.product.base_price = Decimal("700.00")
+        room.product.max_capacity = 6
+        room.adults_capacity = 4
+        room.children_capacity = 2
+        return room
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._has_publishable_room", return_value=False)
+    @patch("apps.catalog.services.LodgingEstablishment.objects.select_related")
+    def test_demotes_when_no_publishable_room_is_left(
+        self, select_related, has_room, audit
+    ):
+        lodging = self._published_lodging()
+        select_related.return_value.filter.return_value.first.return_value = lodging
+
+        cambio = _reconcile_lodging_publication(lodging_id=11)
+
+        self.assertTrue(cambio)
+        self.assertEqual(lodging.product.status, "BORRADOR")
+        lodging.product.save.assert_called_once_with(update_fields=["status", "updated_at"])
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._has_publishable_room", return_value=True)
+    @patch("apps.catalog.services.LodgingEstablishment.objects.select_related")
+    def test_keeps_it_published_while_another_valid_room_remains(
+        self, select_related, has_room, audit
+    ):
+        """Despublicar una de varias no debe bajar el hotel."""
+        lodging = self._published_lodging()
+        select_related.return_value.filter.return_value.first.return_value = lodging
+
+        cambio = _reconcile_lodging_publication(lodging_id=11)
+
+        self.assertFalse(cambio)
+        self.assertEqual(lodging.product.status, PUBLISHED)
+        lodging.product.save.assert_not_called()
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._has_publishable_room", return_value=True)
+    @patch("apps.catalog.services.LodgingEstablishment.objects.select_related")
+    def test_a_draft_lodging_is_never_published_automatically(
+        self, select_related, has_room, audit
+    ):
+        """Publicar es decision de la empresa: el helper solo baja, nunca sube."""
+        lodging = MagicMock()
+        lodging.id = 11
+        lodging.product.status = "BORRADOR"
+        select_related.return_value.filter.return_value.first.return_value = lodging
+
+        cambio = _reconcile_lodging_publication(lodging_id=11)
+
+        self.assertFalse(cambio)
+        self.assertEqual(lodging.product.status, "BORRADOR")
+        lodging.product.save.assert_not_called()
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._has_publishable_room", return_value=False)
+    @patch("apps.catalog.services.LodgingEstablishment.objects.select_related")
+    def test_an_inactive_lodging_is_left_alone(self, select_related, has_room, audit):
+        lodging = MagicMock()
+        lodging.id = 11
+        lodging.product.status = "INACTIVO"
+        select_related.return_value.filter.return_value.first.return_value = lodging
+
+        self.assertFalse(_reconcile_lodging_publication(lodging_id=11))
+        lodging.product.save.assert_not_called()
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._has_publishable_room", return_value=False)
+    @patch("apps.catalog.services.LodgingEstablishment.objects.select_related")
+    def test_the_demotion_is_recorded_with_its_reason(
+        self, select_related, has_room, audit
+    ):
+        select_related.return_value.filter.return_value.first.return_value = (
+            self._published_lodging()
+        )
+
+        _reconcile_lodging_publication(lodging_id=11, actor=MagicMock(), tenant_id=7)
+
+        registro = audit.call_args.kwargs
+        self.assertEqual(registro["action"], "RECONCILIAR")
+        self.assertEqual(registro["new_data"]["estado"], "BORRADOR")
+        self.assertIn("motivo", registro["new_data"])
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._reconcile_lodging_publication", return_value=True)
+    @patch("apps.catalog.services.get_company_room")
+    @patch("apps.catalog.services.require_permission")
+    def test_unpublishing_a_room_runs_the_reconciliation(
+        self, permission, get_room, reconcile, audit
+    ):
+        get_room.return_value = self._room()
+
+        update_room(actor=MagicMock(), tenant_id=7, room_id=6, estado="BORRADOR")
+
+        reconcile.assert_called_once()
+        self.assertEqual(reconcile.call_args.kwargs["lodging_id"], 11)
+
+    @patch("apps.catalog.services.record_audit")
+    @patch("apps.catalog.services._reconcile_lodging_publication", return_value=True)
+    @patch("apps.catalog.services.get_company_room")
+    @patch("apps.catalog.services.require_permission")
+    def test_deactivating_a_room_runs_the_reconciliation(
+        self, permission, get_room, reconcile, audit
+    ):
+        """DELETE pasa por update_room, asi que queda cubierto por el mismo punto."""
+        get_room.return_value = self._room()
+
+        deactivate_room(actor=MagicMock(), tenant_id=7, room_id=6)
+
+        reconcile.assert_called_once()
 
 
 class PublicRoomQueryTests(SimpleTestCase):

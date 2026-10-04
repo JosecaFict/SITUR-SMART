@@ -9,7 +9,7 @@ import {
 } from '@lucide/angular';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
-import { City } from '../../../core/companies/companies.models';
+import { City, Country } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
 import { apiErrorMessage } from '../../../core/http/api-error';
 import {
@@ -64,6 +64,7 @@ export class HospedajeDetalle implements OnInit {
   protected readonly lodgingTypes = signal<LodgingType[]>([]);
   protected readonly currencies = signal<Currency[]>([]);
   protected readonly cities = signal<City[]>([]);
+  protected readonly countries = signal<Country[]>([]);
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
@@ -101,9 +102,25 @@ export class HospedajeDetalle implements OnInit {
   );
   protected readonly hasNoRooms = computed(() => !this.roomsLoading() && this.rooms().length === 0);
 
+  private readonly selectedCountryId = signal(0);
+
+  /**
+   * Ciudades del país elegido. Vacío mientras no haya país.
+   *
+   * Devolver todas sería peor que devolver nada: dejaría elegir una ciudad que
+   * el filtro va a descartar en cuanto se elija el país.
+   */
+  protected readonly filteredCities = computed(() => {
+    const countryId = this.selectedCountryId();
+    return countryId ? this.cities().filter((city) => city.pais_id === countryId) : [];
+  });
+
   protected readonly lodgingForm = this.fb.nonNullable.group({
     nombre: ['', Validators.required],
     descripcion: [''],
+    // No se envía: el backend deriva el país de la ciudad. Es obligatorio para
+    // forzar el orden país → ciudad, no porque el API lo pida.
+    pais: ['', Validators.required],
     ciudad_id: [0, [Validators.required, Validators.min(1)]],
     localidad: [''],
     moneda_codigo: ['BOB', Validators.required],
@@ -170,11 +187,13 @@ export class HospedajeDetalle implements OnInit {
       types: this.lodgingService.listTypes(),
       currencies: this.productsService.listCurrencies(),
       cities: this.companiesService.listCities(),
+      countries: this.companiesService.listCountries(),
     }).subscribe({
-      next: ({ types, currencies, cities }) => {
+      next: ({ types, currencies, cities, countries }) => {
         this.lodgingTypes.set(types);
         this.currencies.set(currencies);
         this.cities.set(cities);
+        this.countries.set(countries);
         if (lodgingId) this.loadLodging(Number(lodgingId));
         else this.prepareNew();
       },
@@ -186,8 +205,11 @@ export class HospedajeDetalle implements OnInit {
   }
 
   private prepareNew(): void {
+    this.selectedCountryId.set(0);
     this.lodgingForm.reset({
-      ciudad_id: this.cities()[0]?.id ?? 0,
+      // Sin país no puede haber ciudad válida elegida.
+      pais: '',
+      ciudad_id: 0,
       moneda_codigo: this.currencies()[0]?.codigo ?? 'BOB',
       estado: 'BORRADOR',
       tipo_hospedaje_codigo: 'HOTEL',
@@ -219,9 +241,11 @@ export class HospedajeDetalle implements OnInit {
   private applyLodging(lodging: LodgingEstablishment): void {
     this.lodging.set(lodging);
     this.selectedServices.set([...lodging.servicios]);
+    this.selectedCountryId.set(lodging.pais_id);
     this.lodgingForm.setValue({
       nombre: lodging.nombre,
       descripcion: lodging.descripcion ?? '',
+      pais: String(lodging.pais_id),
       ciudad_id: lodging.ciudad_id,
       localidad: lodging.localidad ?? '',
       moneda_codigo: lodging.moneda_codigo,
@@ -257,6 +281,21 @@ export class HospedajeDetalle implements OnInit {
 
   // --- Hospedaje ----------------------------------------------------------
 
+  /**
+   * Acota las ciudades al país elegido y limpia la ciudad si quedó fuera.
+   *
+   * El país es obligatorio pero **no se envía**: el backend lo deriva de la
+   * ciudad. Existe para imponer el orden país → ciudad y para que el
+   * desplegable no liste ciudades de todo el mundo.
+   */
+  protected countryChanged(): void {
+    this.selectedCountryId.set(Number(this.lodgingForm.controls.pais.value));
+    const cityId = Number(this.lodgingForm.controls.ciudad_id.value);
+    if (cityId && !this.filteredCities().some((city) => city.id === cityId)) {
+      this.lodgingForm.controls.ciudad_id.setValue(0);
+    }
+  }
+
   protected toggleService(name: string): void {
     this.selectedServices.update((items) =>
       items.includes(name) ? items.filter((item) => item !== name) : [...items, name],
@@ -267,12 +306,19 @@ export class HospedajeDetalle implements OnInit {
     return this.selectedServices().includes(name);
   }
 
-  protected submitLodging(): void {
-    const companyId = this.companyId();
-    if (!companyId || this.lodgingForm.invalid) { this.lodgingForm.markAllAsTouched(); return; }
+  /**
+   * Arma el cuerpo del pedido desde el formulario.
+   *
+   * Extraído para poder afirmar en una prueba qué viaja y qué no. Tres campos
+   * del formulario quedan deliberadamente fuera:
+   *
+   * * `pais` — el backend lo deriva de la ciudad;
+   * * precio — es el de la habitación más económica publicada;
+   * * capacidad — se deriva de las habitaciones.
+   */
+  private buildLodgingPayload(): LodgingPayload {
     const raw = this.lodgingForm.getRawValue();
-    // Sin precio ni capacidad: los dos se derivan de las habitaciones.
-    const payload: LodgingPayload = {
+    return {
       nombre: raw.nombre.trim(),
       descripcion: raw.descripcion.trim() || undefined,
       ciudad_id: Number(raw.ciudad_id),
@@ -287,7 +333,12 @@ export class HospedajeDetalle implements OnInit {
       hora_check_out: raw.hora_check_out || null,
       servicios: this.selectedServices(),
     };
+  }
 
+  protected submitLodging(): void {
+    const companyId = this.companyId();
+    if (!companyId || this.lodgingForm.invalid) { this.lodgingForm.markAllAsTouched(); return; }
+    const payload = this.buildLodgingPayload();
     const existing = this.lodging();
     this.savingLodging.set(true);
     this.lodgingFormError.set(null);
@@ -460,13 +511,31 @@ export class HospedajeDetalle implements OnInit {
     });
   }
 
-  /** El precio "desde", la capacidad y el conteo los calcula el backend. */
+  /**
+   * Relee el hotel: el precio "desde", la capacidad y el conteo los calcula el
+   * backend, y el estado puede haber cambiado solo.
+   *
+   * Si el backend lo bajó a borrador —porque la operación dejó al hotel sin
+   * ninguna habitación publicada con precio— se avisa con el motivo. La señal es
+   * el cambio de estado, no un campo extra en la respuesta de la habitación.
+   */
   private refreshLodging(): void {
     const companyId = this.companyId();
     const lodging = this.lodging();
     if (!companyId || !lodging) return;
+    const estadoAnterior = lodging.estado;
     this.lodgingService.getCompanyLodging(companyId, lodging.id).subscribe({
-      next: (updated) => this.lodging.set(updated),
+      next: (updated) => {
+        this.lodging.set(updated);
+        this.applyLodging(updated);
+        if (estadoAnterior === 'PUBLICADO' && updated.estado === 'BORRADOR') {
+          this.successMessage.set(
+            'El hospedaje volvió a borrador porque ya no tiene ninguna habitación ' +
+              'publicada con precio mayor a 0. No aparece en el Marketplace hasta ' +
+              'que publiques una y lo publiques de nuevo.',
+          );
+        }
+      },
       error: () => undefined,
     });
   }

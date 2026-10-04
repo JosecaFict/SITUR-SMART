@@ -111,10 +111,21 @@
               <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2">Nombre del hotel
                 <input formControlName="nombre" placeholder="Ej. Hotel Kachi Wasi" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
               </label>
+              <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">País
+                <select formControlName="pais" (change)="countryChanged()" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+                  <option value="">Selecciona un país</option>
+                  @for (country of countries(); track country.id) { <option [value]="country.id">{{ country.nombre }}</option> }
+                </select>
+                <span class="text-xs font-normal text-text-secondary">Obligatorio. Acota la lista de ciudades; la ubicación que se guarda es la ciudad.</span>
+              </label>
               <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Ciudad
                 <select formControlName="ciudad_id" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
-                  @for (city of cities(); track city.id) { <option [value]="city.id">{{ city.nombre }} · {{ city.pais }}</option> }
+                  <option [value]="0" disabled>Selecciona una ciudad</option>
+                  @for (city of filteredCities(); track city.id) { <option [value]="city.id">{{ city.nombre }}</option> }
                 </select>
+                @if (!isNew()) {
+                  <span class="text-xs font-normal text-text-secondary">Al cambiarla, sus tipos de habitación se mueven con el hotel.</span>
+                }
               </label>
               <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Localidad o zona
                 <input formControlName="localidad" placeholder="Ej. Zona Sur, Equipetrol" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
@@ -150,7 +161,7 @@
                     <span class="font-normal text-text-secondary">—</span>
                   }
                 </div>
-                <span class="text-xs font-normal text-text-secondary">Se calcula sumando unidades × personas de cada tipo de habitación. No se edita a mano.</span>
+                <span class="text-xs font-normal text-text-secondary">Derivada: suma de unidades × huéspedes de cada tipo de habitación. No se edita a mano, para que no pueda contradecir a sus habitaciones.</span>
               </div>
 
               <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2 lg:col-span-3">Descripción

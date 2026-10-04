@@ -256,6 +256,29 @@ def _has_publishable_room(lodging_id: int) -> bool:
     ).exists()
 
 
+def _sync_room_locations(lodging: LodgingEstablishment) -> int:
+    """Copia la ubicacion del establecimiento a todas sus habitaciones.
+
+    Una habitacion no tiene ubicacion propia: la hereda del hotel al crearse y
+    su formulario no acepta ubicacion a proposito. Si el hotel se muda y esto no
+    corriera, las habitaciones quedarian anunciadas en la ciudad anterior **sin
+    forma de corregirlas desde ninguna interfaz**.
+
+    Es un solo UPDATE dentro de la transaccion de ``update_lodging``, asi que
+    hotel y habitaciones no pueden quedar desincronizados ni por un instante.
+    El ``actualizado_en`` lo pone el trigger ``trg_producto_actualizado`` de
+    PostgreSQL, que ``.update()`` no evita.
+
+    No hace falta filtrar por tenant: ``lodging`` ya viene de una consulta
+    acotada al tenant, y las FK compuestas garantizan que sus habitaciones sean
+    de la misma empresa.
+    """
+    return TourismProduct.objects.filter(room__establishment=lodging).update(
+        city_id=lodging.product.city_id,
+        locality=lodging.product.locality,
+    )
+
+
 def _publishable_room_exists(**lookup) -> Exists:
     """Subconsulta: existe una habitacion ofertable para el establecimiento.
 
@@ -280,6 +303,51 @@ def _publishable_room_exists(**lookup) -> Exists:
             **lookup,
         )
     )
+
+
+def _reconcile_lodging_publication(
+    *, lodging_id: int, actor=None, tenant_id: int | None = None, request=None
+) -> bool:
+    """Baja el hotel a BORRADOR si perdio su ultima habitacion ofertable.
+
+    Se ejecuta despues de cada operacion sobre habitaciones. Sin esto, el hotel
+    quedaba ``PUBLICADO`` pero invisible en el Marketplace -- la consulta publica
+    exige una habitacion ofertable -- y la empresa no tenia como enterarse: el
+    panel le mostraba "Publicado".
+
+    **Solo baja, nunca publica.** Publicar es una decision de la empresa;
+    automatizarlo pondria oferta en el Marketplace sin que nadie lo pidiera, y
+    un hotel que la empresa dejo en borrador a proposito se publicaria solo al
+    cargarle una habitacion.
+
+    Devuelve ``True`` si cambio el estado, para que quien llame pueda informarlo.
+    """
+    lodging = (
+        LodgingEstablishment.objects.select_related("product")
+        .filter(id=lodging_id)
+        .first()
+    )
+    if lodging is None or lodging.product.status != TourismProduct.Status.PUBLISHED:
+        return False
+    if _has_publishable_room(lodging_id):
+        return False
+
+    lodging.product.status = TourismProduct.Status.DRAFT
+    lodging.product.save(update_fields=["status", "updated_at"])
+    record_audit(
+        actor=actor,
+        tenant_id=tenant_id,
+        action="RECONCILIAR",
+        entity="establecimiento_hospedaje",
+        entity_id=str(lodging.id),
+        previous_data={"estado": TourismProduct.Status.PUBLISHED},
+        new_data={
+            "estado": TourismProduct.Status.DRAFT,
+            "motivo": "sin habitaciones publicadas con precio mayor a 0",
+        },
+        request=request,
+    )
+    return True
 
 
 def _check_lodging_publishable(lodging_id: int) -> None:
@@ -496,10 +564,20 @@ def update_lodging(*, actor, tenant_id: int, lodging_id: int, request=None, **da
             setattr(lodging.product, field, value)
         lodging.product.save(update_fields=[*product_values.keys(), "updated_at"])
 
+    # La ubicacion del hotel manda sobre la de sus habitaciones. Mover el hotel
+    # sin esto las dejaria publicadas en la ciudad anterior.
+    habitaciones_movidas = 0
+    if "city" in product_values or "locality" in product_values:
+        habitaciones_movidas = _sync_room_locations(lodging)
+
     record_audit(
         actor=actor, tenant_id=tenant_id, action="ACTUALIZAR", entity="establecimiento_hospedaje",
         entity_id=str(lodging.id), previous_data=previous,
-        new_data={"nombre": lodging.product.name, "estado": lodging.product.status},
+        new_data={
+            "nombre": lodging.product.name,
+            "estado": lodging.product.status,
+            **({"habitaciones_reubicadas": habitaciones_movidas} if habitaciones_movidas else {}),
+        },
         request=request,
     )
     return lodging
@@ -614,10 +692,20 @@ def update_room(*, actor, tenant_id: int, room_id: int, request=None, **data) ->
             setattr(room.product, field, value)
         room.product.save(update_fields=[*product_values.keys(), "updated_at"])
 
+    # Despublicar o desactivar la ultima habitacion ofertable deja al hotel sin
+    # precio que mostrar: se reconcilia en la misma transaccion.
+    reconciliado = _reconcile_lodging_publication(
+        lodging_id=room.establishment_id, actor=actor, tenant_id=tenant_id, request=request
+    )
+
     record_audit(
         actor=actor, tenant_id=tenant_id, action="ACTUALIZAR", entity="habitacion",
         entity_id=str(room.id), previous_data=previous,
-        new_data={"nombre": room.product.name, "estado": room.product.status},
+        new_data={
+            "nombre": room.product.name,
+            "estado": room.product.status,
+            **({"hospedaje_a_borrador": True} if reconciliado else {}),
+        },
         request=request,
     )
     return room
