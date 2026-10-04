@@ -1,0 +1,13 @@
+:host { display: block; }
+.icon-button { display:flex; width:2.5rem; height:2.5rem; align-items:center; justify-content:center; border-radius:.75rem; color:#64748b; }
+.icon-button:hover { background:#f1f5f9; color:#0f172a; }
+.country-row { display:flex; width:100%; align-items:center; gap:.75rem; border-radius:.75rem; padding:.75rem; transition:background-color .15s ease; }
+.country-row:hover { background:#f8fafc; }
+.country-row-active { background:#ecfdf8; }
+.country-code { display:flex; height:2.5rem; width:3rem; flex:none; align-items:center; justify-content:center; border-radius:.65rem; background:#f1f5f9; color:#475569; font-size:.7rem; font-weight:800; letter-spacing:.08em; }
+.country-row-active .country-code { background:#ccfbf1; color:#0f766e; }
+.status-dot { width:.55rem; height:.55rem; flex:none; border-radius:9999px; background:#059669; }
+.status-dot.inactive { background:#94a3b8; }
+.location-mark { display:flex; height:2.75rem; width:2.75rem; flex:none; align-items:center; justify-content:center; border-radius:.8rem; background:#ecfdf8; color:#0f766e; }
+.city-state { border-radius:9999px; background:#ecfdf5; padding:.2rem .55rem; color:#047857; font-size:.7rem; font-weight:700; }
+.city-state.inactive { background:#f1f5f9; color:#64748b; }

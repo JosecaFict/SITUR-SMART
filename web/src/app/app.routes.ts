@@ -5,6 +5,7 @@ import {
   companyPermissionGuard,
   guestGuard,
   permissionGuard,
+  superAdminGuard,
 } from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell/app-shell';
 
@@ -81,6 +82,12 @@ export const routes: Routes = [
         canActivate: [companyRegistryGuard],
         loadComponent: () =>
           import('./features/admin/empresas/empresa-detalle').then((m) => m.EmpresaDetalle),
+      },
+      {
+        path: 'ubicaciones',
+        canActivate: [superAdminGuard],
+        loadComponent: () =>
+          import('./features/admin/ubicaciones/ubicaciones').then((m) => m.Ubicaciones),
       },
       {
         path: 'roles',

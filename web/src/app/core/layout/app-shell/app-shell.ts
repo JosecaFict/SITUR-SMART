@@ -7,6 +7,7 @@ import {
   LucideLayoutDashboard,
   LucideLogOut,
   LucideMenu,
+  LucideMapPinned,
   LucidePackageOpen,
   LucideScrollText,
   LucideShieldCheck,
@@ -19,7 +20,7 @@ import { AuthService } from '../../auth/auth.service';
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
+  icon: 'dashboard' | 'companies' | 'locations' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
@@ -41,6 +42,7 @@ interface NavItem {
     LucideLayoutDashboard,
     LucideLogOut,
     LucideMenu,
+    LucideMapPinned,
     LucidePackageOpen,
     LucideScrollText,
     LucideShieldCheck,
@@ -68,6 +70,13 @@ export class AppShell {
       icon: 'companies',
       anyPermission: ['TENANTS_LEER', 'TENANTS_GESTIONAR'],
       anyRole: ['TENANT_ADMIN'],
+      hideForCustomer: true,
+    },
+    {
+      label: 'Países y ciudades',
+      path: '/ubicaciones',
+      icon: 'locations',
+      superAdminOnly: true,
       hideForCustomer: true,
     },
     {

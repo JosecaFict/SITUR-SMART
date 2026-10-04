@@ -1,0 +1,195 @@
+<section class="mx-auto max-w-7xl space-y-6">
+  <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="font-heading text-title text-3xl font-bold tracking-tight">Países y ciudades</h1>
+      <p class="text-text-secondary mt-1 max-w-2xl text-sm sm:text-base">
+        Define las ubicaciones disponibles para empresas, hospedajes y el Marketplace.
+      </p>
+    </div>
+    <button type="button" (click)="startCountryCreate()" class="btn-accent inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white">
+      <svg lucideCirclePlus class="h-4 w-4" [strokeWidth]="2"></svg>
+      Nuevo país
+    </button>
+  </header>
+
+  @if (successMessage(); as message) {
+    <div role="status" class="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+      <svg lucideCheck class="mt-0.5 h-4 w-4" [strokeWidth]="2.2"></svg>
+      {{ message }}
+    </div>
+  }
+  @if (errorMessage(); as message) {
+    <div role="alert" class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <svg lucideCircleAlert class="mt-0.5 h-4 w-4" [strokeWidth]="2.2"></svg>
+      {{ message }}
+    </div>
+  }
+
+  @if (pendingStatus(); as pending) {
+    <div class="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+      <p>
+        ¿Confirmas que <strong>{{ pending.name }}</strong> quede {{ pending.active ? 'activo' : 'inactivo' }}?
+        @if (pending.kind === 'country' && !pending.active) {
+          <span class="block text-xs">El país solo puede desactivarse cuando no tenga ciudades activas.</span>
+        }
+      </p>
+      <div class="flex gap-2">
+        <button type="button" (click)="pendingStatus.set(null)" class="secondary-button">Cancelar</button>
+        <button type="button" (click)="confirmStatus()" [disabled]="saving()" class="primary-button">
+          @if (saving()) { <svg lucideRefreshCw class="h-4 w-4 animate-spin" [strokeWidth]="2"></svg> }
+          Confirmar
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (formMode() === 'country-create' || formMode() === 'country-edit') {
+    <form [formGroup]="countryForm" (ngSubmit)="submitCountry()" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div class="flex items-start justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
+        <div>
+          <h2 class="font-heading text-title text-lg font-semibold">{{ formMode() === 'country-create' ? 'Registrar país' : 'Editar país' }}</h2>
+          <p class="text-text-secondary mt-1 text-sm">El código ISO queda fijo después de crear el país.</p>
+        </div>
+        <button type="button" (click)="closeForm()" class="icon-button" aria-label="Cerrar formulario"><svg lucideX class="h-5 w-5" [strokeWidth]="2"></svg></button>
+      </div>
+      <div class="grid gap-4 p-5 sm:grid-cols-[12rem_1fr] sm:p-6">
+        <label>
+          <span class="field-label">Código ISO</span>
+          <input formControlName="codigo" maxlength="3" class="field-control uppercase" placeholder="BOL" [readOnly]="formMode() === 'country-edit'" />
+        </label>
+        <label>
+          <span class="field-label">Nombre</span>
+          <input formControlName="nombre" class="field-control" placeholder="Bolivia" />
+        </label>
+      </div>
+      <div class="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 px-5 py-4">
+        <button type="button" (click)="closeForm()" class="secondary-button">Cancelar</button>
+        <button type="submit" [disabled]="saving()" class="primary-button">Guardar país</button>
+      </div>
+    </form>
+  }
+
+  @if (formMode() === 'city-create' || formMode() === 'city-edit') {
+    <form [formGroup]="cityForm" (ngSubmit)="submitCity()" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div class="flex items-start justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
+        <div>
+          <h2 class="font-heading text-title text-lg font-semibold">{{ formMode() === 'city-create' ? 'Registrar ciudad' : 'Editar ciudad' }}</h2>
+          <p class="text-text-secondary mt-1 text-sm">{{ selectedCountry()?.nombre }} · marca el centro urbano para orientar los mapas.</p>
+        </div>
+        <button type="button" (click)="closeForm()" class="icon-button" aria-label="Cerrar formulario"><svg lucideX class="h-5 w-5" [strokeWidth]="2"></svg></button>
+      </div>
+      <div class="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(260px,0.7fr)_minmax(400px,1.3fr)]">
+        <div class="space-y-4">
+          <label>
+            <span class="field-label">Nombre de la ciudad</span>
+            <input formControlName="nombre" class="field-control" placeholder="Ej. Sucre" />
+          </label>
+          <label>
+            <span class="field-label">Zona horaria</span>
+            <input formControlName="zona_horaria" class="field-control" placeholder="America/La_Paz" />
+          </label>
+          <div class="rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+            @if (mapPoint(); as point) {
+              Punto seleccionado: <strong>{{ point.lat.toFixed(6) }}, {{ point.lng.toFixed(6) }}</strong>
+            } @else {
+              Las coordenadas son opcionales. Haz clic en el mapa para registrarlas.
+            }
+          </div>
+        </div>
+        <situr-mapa-ubicacion [value]="mapPoint()" [center]="mapPoint()" [editable]="true" (picked)="pickPoint($event)" />
+      </div>
+      <div class="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 px-5 py-4">
+        <button type="button" (click)="closeForm()" class="secondary-button">Cancelar</button>
+        <button type="submit" [disabled]="saving()" class="primary-button">Guardar ciudad</button>
+      </div>
+    </form>
+  }
+
+  <div class="grid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid-cols-[22rem_minmax(0,1fr)]">
+    <aside class="border-b border-gray-200 lg:border-r lg:border-b-0">
+      <div class="border-b border-gray-100 p-4">
+        <label class="relative block">
+          <span class="sr-only">Buscar país</span>
+          <svg lucideSearch class="text-text-secondary pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+          <input type="search" [value]="countrySearch()" (input)="updateCountrySearch($event)" (keyup.enter)="loadCountries()" class="field-control pl-10" placeholder="Buscar país o código" />
+        </label>
+        <p class="text-text-secondary mt-3 text-xs">{{ activeCountries() }} países activos</p>
+      </div>
+      <div class="max-h-[36rem] overflow-y-auto p-2">
+        @if (loading()) {
+          <p class="text-text-secondary p-4 text-sm">Cargando países…</p>
+        } @for (country of countries(); track country.id) {
+          <button type="button" (click)="selectCountry(country)" class="country-row" [class.country-row-active]="selectedCountry()?.id === country.id">
+            <span class="country-code">{{ country.codigo }}</span>
+            <span class="min-w-0 flex-1 text-left">
+              <strong class="text-title block truncate text-sm">{{ country.nombre }}</strong>
+              <small class="text-text-secondary">{{ country.ciudades }} ciudades</small>
+            </span>
+            <span class="status-dot" [class.inactive]="!country.activo" [attr.title]="country.activo ? 'Activo' : 'Inactivo'"></span>
+          </button>
+        } @empty {
+          @if (!loading()) { <p class="text-text-secondary p-6 text-center text-sm">No hay países registrados.</p> }
+        }
+      </div>
+    </aside>
+
+    <div class="min-w-0">
+      @if (selectedCountry(); as country) {
+        <header class="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div class="flex min-w-0 items-center gap-3">
+            <span class="location-mark"><svg lucideGlobe2 class="h-5 w-5" [strokeWidth]="2"></svg></span>
+            <div class="min-w-0">
+              <h2 class="font-heading text-title truncate text-xl font-semibold">{{ country.nombre }}</h2>
+              <p class="text-text-secondary text-sm">Código {{ country.codigo }} · {{ country.activo ? 'Activo' : 'Inactivo' }}</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" (click)="startCountryEdit(country)" class="secondary-button"><svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>Editar</button>
+            <button type="button" (click)="requestStatus('country', country)" class="secondary-button">{{ country.activo ? 'Desactivar' : 'Activar' }}</button>
+            <button type="button" (click)="startCityCreate()" [disabled]="!country.activo" class="primary-button"><svg lucideCirclePlus class="h-4 w-4" [strokeWidth]="2"></svg>Nueva ciudad</button>
+          </div>
+        </header>
+        <div class="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <label class="relative block w-full sm:max-w-sm">
+            <span class="sr-only">Buscar ciudad</span>
+            <svg lucideSearch class="text-text-secondary pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" [strokeWidth]="2"></svg>
+            <input type="search" [value]="citySearch()" (input)="updateCitySearch($event)" (keyup.enter)="loadCities()" class="field-control pl-10" placeholder="Buscar ciudad" />
+          </label>
+          <span class="text-text-secondary text-sm">{{ cities().length }} ciudades mostradas</span>
+        </div>
+        @if (loadingCities()) {
+          <p class="text-text-secondary p-6 text-sm">Cargando ciudades…</p>
+        } @else if (cities().length === 0) {
+          <div class="px-6 py-14 text-center">
+            <svg lucideMapPin class="text-accent-dark mx-auto h-7 w-7" [strokeWidth]="1.8"></svg>
+            <h3 class="text-title mt-3 font-semibold">Todavía no hay ciudades</h3>
+            <p class="text-text-secondary mt-1 text-sm">Registra la primera ciudad disponible en {{ country.nombre }}.</p>
+          </div>
+        } @else {
+          <div class="divide-y divide-gray-100">
+            @for (city of cities(); track city.id) {
+              <article class="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-title truncate font-semibold">{{ city.nombre }}</h3>
+                    <span class="city-state" [class.inactive]="!city.activo">{{ city.activo ? 'Activa' : 'Inactiva' }}</span>
+                  </div>
+                  <p class="text-text-secondary mt-1 text-xs">
+                    {{ city.zona_horaria || 'Sin zona horaria' }}
+                    @if (city.latitud && city.longitud) { · {{ city.latitud }}, {{ city.longitud }} }
+                  </p>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" (click)="startCityEdit(city)" class="secondary-button"><svg lucidePencil class="h-4 w-4" [strokeWidth]="2"></svg>Editar</button>
+                  <button type="button" (click)="requestStatus('city', city)" class="secondary-button">{{ city.activo ? 'Desactivar' : 'Activar' }}</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      } @else {
+        <div class="p-12 text-center text-sm text-gray-500">Selecciona o registra un país.</div>
+      }
+    </div>
+  </div>
+</section>
