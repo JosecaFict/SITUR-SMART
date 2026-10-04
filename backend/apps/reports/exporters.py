@@ -17,12 +17,13 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    Image as PdfImage,
-)
-from reportlab.platypus import (
+    HRFlowable,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
+)
+from reportlab.platypus import (
+    Image as PdfImage,
 )
 from reportlab.platypus import (
     Table as PdfTable,
@@ -70,6 +71,18 @@ def generated_at():
     return timezone.localtime().strftime("%d/%m/%Y %H:%M")
 
 
+def filter_labels(report):
+    filters = report.get("filtros", {})
+    date_from = filters.get("desde") or "Inicio"
+    date_to = filters.get("hasta") or "Actualidad"
+    return {
+        "alcance": report["empresa"]["nombre"] if report.get("empresa") else "Toda la plataforma",
+        "periodo": f"{date_from} a {date_to}",
+        "filtro": filters.get("estado") or "Todos los estados",
+        "registros": len(report["filas"]),
+    }
+
+
 def build_csv(report) -> str:
     output = StringIO()
     output.write("\ufeff")
@@ -77,6 +90,9 @@ def build_csv(report) -> str:
     writer.writerow(["SITUR-SMART", report_title(report)])
     writer.writerow(["Alcance", report["empresa"]["nombre"] if report.get("empresa") else "Toda la plataforma"])
     writer.writerow(["Generado", generated_at()])
+    filters = filter_labels(report)
+    writer.writerow(["Período", filters["periodo"]])
+    writer.writerow(["Filtro", filters["filtro"]])
     writer.writerow([])
     writer.writerow(["Indicador", "Valor", "Detalle"])
     for metric in report["indicadores"]:
@@ -113,7 +129,8 @@ def build_xlsx(report) -> bytes:
     title.alignment = Alignment(vertical="center", horizontal="left")
     sheet.row_dimensions[1].height = 38
 
-    scope = report["empresa"]["nombre"] if report.get("empresa") else "Toda la plataforma"
+    filters = filter_labels(report)
+    scope = filters["alcance"]
     sheet.merge_cells(start_row=2, start_column=title_column, end_row=2, end_column=width)
     meta = sheet.cell(2, title_column, f"Alcance: {scope}   •   Generado: {generated_at()}")
     meta.font = Font(size=10, color="D6EFEC")
@@ -121,19 +138,29 @@ def build_xlsx(report) -> bytes:
     meta.alignment = Alignment(vertical="top")
     sheet.row_dimensions[2].height = 24
 
+    sheet.merge_cells(start_row=3, start_column=1, end_row=3, end_column=width)
+    summary = sheet.cell(
+        3, 1,
+        f"ALCANCE: {scope}     PERÍODO: {filters['periodo']}     FILTRO: {filters['filtro']}     REGISTROS: {filters['registros']}",
+    )
+    summary.font = Font(size=9, bold=True, color=INK)
+    summary.fill = PatternFill("solid", fgColor=LIGHT)
+    summary.alignment = Alignment(vertical="center")
+    sheet.row_dimensions[3].height = 24
+
     for index, metric in enumerate(report["indicadores"], start=1):
         if index > width:
             break
-        cell = sheet.cell(4, index, metric["etiqueta"])
+        cell = sheet.cell(5, index, metric["etiqueta"])
         cell.font = Font(size=9, bold=True, color=MUTED)
         cell.fill = PatternFill("solid", fgColor=LIGHT)
-        value = sheet.cell(5, index, metric["valor"])
+        value = sheet.cell(6, index, metric["valor"])
         value.font = Font(size=16, bold=True, color=INK)
         value.fill = PatternFill("solid", fgColor=LIGHT)
         value.alignment = Alignment(vertical="top")
-    sheet.row_dimensions[5].height = 28
+    sheet.row_dimensions[6].height = 28
 
-    header_row = 7
+    header_row = 8
     for col, (_, label) in enumerate(columns, start=1):
         cell = sheet.cell(header_row, col, label)
         cell.font = Font(bold=True, color="FFFFFF")
@@ -210,10 +237,20 @@ def build_pdf(report) -> bytes:
     styles.add(ParagraphStyle(name="Cell", parent=styles["Normal"], fontSize=7, leading=9, textColor=pdf_color(INK)))
     styles.add(ParagraphStyle(name="CellHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7, leading=9, textColor=colors.white))
 
-    scope = report["empresa"]["nombre"] if report.get("empresa") else "Toda la plataforma"
+    filters = filter_labels(report)
+    scope = filters["alcance"]
+    control = PdfTable(
+        [[Paragraph(generated_at(), styles["Meta"]), Paragraph("Reporte operativo - SITUR-SMART", styles["Meta"]) ]],
+        colWidths=[(page_size[0] - 28 * mm) / 2] * 2,
+    )
+    control.setStyle(PdfTableStyle([
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
     report_heading = [
-        Paragraph(report_title(report), ParagraphStyle(name="ReportTitle", parent=styles["Heading2"], fontSize=14, leading=17, textColor=pdf_color(BRAND_DARK), spaceAfter=4)),
-        Paragraph(f"Alcance: {_pdf_value(scope)}  |  Generado: {generated_at()}", styles["Meta"]),
+        Paragraph(report_title(report).upper(), ParagraphStyle(name="ReportTitle", parent=styles["Heading2"], fontSize=13, leading=16, alignment=2, textColor=pdf_color(BRAND), spaceAfter=3)),
+        Paragraph(f"Emisión: {generated_at()}", ParagraphStyle(name="Emission", parent=styles["Meta"], alignment=2)),
     ]
     logo = logo_path()
     if logo:
@@ -228,7 +265,25 @@ def build_pdf(report) -> bytes:
         ]))
     else:
         header = PdfTable([[Paragraph("SITUR-<font color='#009688'>SMART</font>", styles["Brand"]), report_heading]], colWidths=[62 * mm, page_size[0] - 90 * mm])
-    story = [header, Spacer(1, 7 * mm)]
+    filter_data = [[
+        Paragraph(f"<b>Alcance:</b> {_pdf_value(scope)}", styles["Meta"]),
+        Paragraph(f"<b>Período:</b> {_pdf_value(filters['periodo'])}", styles["Meta"]),
+        Paragraph(f"<b>Filtro:</b> {_pdf_value(filters['filtro'])}", styles["Meta"]),
+        Paragraph(f"<b>Registros:</b> {filters['registros']}", ParagraphStyle(name="RecordCount", parent=styles["Meta"], alignment=2)),
+    ]]
+    filter_table = PdfTable(filter_data, colWidths=[60 * mm, 58 * mm, 62 * mm, page_size[0] - 208 * mm])
+    filter_table.setStyle(PdfTableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), pdf_color("F8FAFC")),
+        ("BOX", (0, 0), (-1, -1), 0.5, pdf_color(GRID)),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+    story = [
+        control, Spacer(1, 4 * mm), header, Spacer(1, 3 * mm),
+        HRFlowable(width="100%", thickness=1.5, color=pdf_color(BRAND), spaceBefore=0, spaceAfter=4 * mm),
+        filter_table, Spacer(1, 5 * mm),
+    ]
 
     metric_cells = []
     for metric in report["indicadores"]:

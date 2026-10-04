@@ -216,5 +216,10 @@ def build_report(*, user, tenant_id, params):
         "tipo": filters["tipo"],
         "alcance": "GLOBAL" if global_scope and effective_tenant_id is None else "EMPRESA",
         "empresa": {"id": tenant.id, "nombre": tenant.trade_name} if tenant else None,
+        "filtros": {
+            "desde": filters["desde"].isoformat() if filters["desde"] else None,
+            "hasta": filters["hasta"].isoformat() if filters["hasta"] else None,
+            "estado": filters["estado"] or None,
+        },
         **result,
     }
