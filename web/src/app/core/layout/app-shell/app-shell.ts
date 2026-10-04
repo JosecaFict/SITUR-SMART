@@ -10,6 +10,7 @@ import {
   LucideMenu,
   LucideMapPinned,
   LucidePackageOpen,
+  LucideChartNoAxesCombined,
   LucideScrollText,
   LucideShieldCheck,
   LucideUser,
@@ -21,7 +22,7 @@ import { AuthService } from '../../auth/auth.service';
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'profile' | 'explore';
+  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
@@ -46,6 +47,7 @@ interface NavItem {
     LucideMenu,
     LucideMapPinned,
     LucidePackageOpen,
+    LucideChartNoAxesCombined,
     LucideScrollText,
     LucideShieldCheck,
     LucideUser,
@@ -116,6 +118,13 @@ export class AppShell {
       icon: 'lodging',
       hideForCustomer: true,
       permission: 'PRODUCTOS_LEER',
+    },
+    {
+      label: 'Reportes',
+      path: '/reportes',
+      icon: 'reports',
+      hideForCustomer: true,
+      anyPermission: ['REPORTES_GLOBALES', 'REPORTES_TENANT'],
     },
     {
       label: 'Bitácora',

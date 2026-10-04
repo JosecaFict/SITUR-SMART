@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "apps.rbac",
     "apps.audit",
     "apps.backups",
+    "apps.reports",
     "apps.catalog",
     "apps.media",
 ]

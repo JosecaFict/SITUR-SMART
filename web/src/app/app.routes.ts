@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import {
   authGuard,
+  anyPermissionGuard,
   companyRegistryGuard,
   companyPermissionGuard,
   guestGuard,
@@ -141,6 +142,11 @@ export const routes: Routes = [
         data: { tab: 'habitaciones' },
         loadComponent: () =>
           import('./features/admin/hospedajes/hospedaje-detalle').then((m) => m.HospedajeDetalle),
+      },
+      {
+        path: 'reportes',
+        canActivate: [anyPermissionGuard(['REPORTES_GLOBALES', 'REPORTES_TENANT'])],
+        loadComponent: () => import('./features/admin/reportes/reportes').then((m) => m.Reportes),
       },
       {
         path: 'bitacora',
