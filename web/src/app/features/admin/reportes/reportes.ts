@@ -39,7 +39,7 @@ export class Reportes implements OnInit {
   protected readonly selectedCompanyId = signal<number | null>(null);
   protected readonly report = signal<ReportResponse | null>(null);
   protected readonly loading = signal(true);
-  protected readonly exporting = signal(false);
+  protected readonly exporting = signal<'csv' | 'xlsx' | 'pdf' | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly form = this.fb.nonNullable.group({
     tipo: ['plataforma' as ReportType],
@@ -94,21 +94,21 @@ export class Reportes implements OnInit {
     this.load();
   }
 
-  protected exportCsv(): void {
+  protected exportFile(format: 'csv' | 'xlsx' | 'pdf'): void {
     if (this.exporting()) return;
-    this.exporting.set(true);
-    this.reportsService.exportCsv(this.selectedCompanyId(), this.filters()).subscribe({
+    this.exporting.set(format);
+    this.reportsService.export(this.selectedCompanyId(), this.filters(), format).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = `reporte-${this.form.controls.tipo.value}.csv`;
+        anchor.download = `reporte-${this.form.controls.tipo.value}.${format}`;
         anchor.click();
         URL.revokeObjectURL(url);
-        this.exporting.set(false);
+        this.exporting.set(null);
       },
       error: (error: HttpErrorResponse) => {
-        this.exporting.set(false);
+        this.exporting.set(null);
         this.errorMessage.set(apiErrorMessage(error, 'No fue posible descargar el reporte.'));
       },
     });

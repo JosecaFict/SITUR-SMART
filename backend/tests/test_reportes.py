@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.reports.services import parse_filters, report_scope
-from apps.reports.views import ReportCsvView, ReportView
+from apps.reports.views import ReportCsvView, ReportExcelView, ReportPdfView, ReportView
 
 
 class ReportScopeTests(SimpleTestCase):
@@ -49,8 +49,13 @@ class ReportViewTests(SimpleTestCase):
         self.report = {
             "tipo": "catalogo",
             "alcance": "EMPRESA",
+            "empresa": {"id": 9, "nombre": "Empresa de prueba"},
+            "indicadores": [
+                {"clave": "total", "etiqueta": "Productos", "valor": 1, "detalle": ""}
+            ],
             "columnas": [["nombre", "Nombre"], ["detalle", "Detalle"]],
             "filas": [{"nombre": "Café, museo", "detalle": '=CMD("x")'}],
+            "nota": "Datos de prueba.",
         }
 
     @patch("apps.reports.views.build_report")
@@ -75,3 +80,27 @@ class ReportViewTests(SimpleTestCase):
         self.assertIn("'=CMD(\"\"x\"\")", body)
         self.assertIn("reporte-catalogo.csv", response["Content-Disposition"])
         record_audit.assert_called_once()
+
+    @patch("apps.reports.views.ReportExcelView._audit")
+    @patch("apps.reports.views.build_report")
+    def test_excel_is_a_real_xlsx_workbook(self, build_report, audit):
+        build_report.return_value = self.report
+        request = self.factory.get("/api/v1/reportes/exportar/excel/", HTTP_X_TENANT_ID="9")
+        force_authenticate(request, user=self.user)
+        response = ReportExcelView.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b"PK"))
+        self.assertIn("reporte-catalogo.xlsx", response["Content-Disposition"])
+        audit.assert_called_once()
+
+    @patch("apps.reports.views.ReportPdfView._audit")
+    @patch("apps.reports.views.build_report")
+    def test_pdf_is_a_real_pdf_document(self, build_report, audit):
+        build_report.return_value = self.report
+        request = self.factory.get("/api/v1/reportes/exportar/pdf/", HTTP_X_TENANT_ID="9")
+        force_authenticate(request, user=self.user)
+        response = ReportPdfView.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn("reporte-catalogo.pdf", response["Content-Disposition"])
+        audit.assert_called_once()

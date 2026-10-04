@@ -66,9 +66,17 @@
           <div class="flex items-center gap-2"><svg lucideChartNoAxesCombined class="h-5 w-5 text-accent-dark"></svg><h2 class="font-heading text-lg font-bold text-title">{{ reportLabel(result.tipo) }}</h2></div>
           <p class="mt-1 text-sm text-text-secondary">{{ result.empresa?.nombre ?? 'Toda la plataforma' }}</p>
         </div>
-        <button type="button" (click)="exportCsv()" [disabled]="exporting() || result.filas.length === 0" class="border-input-border flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-label hover:bg-input-bg disabled:opacity-50">
-          <svg lucideDownload class="h-4 w-4"></svg>{{ exporting() ? 'Preparando…' : 'Descargar CSV' }}
-        </button>
+        <div class="flex flex-wrap gap-2" aria-label="Formatos de descarga">
+          <button type="button" (click)="exportFile('pdf')" [disabled]="exporting() || result.filas.length === 0" class="bg-accent hover:bg-accent-dark flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+            <svg lucideDownload class="h-4 w-4"></svg>{{ exporting() === 'pdf' ? 'Preparando…' : 'PDF' }}
+          </button>
+          <button type="button" (click)="exportFile('xlsx')" [disabled]="exporting() || result.filas.length === 0" class="border-input-border flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-label hover:bg-input-bg disabled:opacity-50">
+            <svg lucideDownload class="h-4 w-4"></svg>{{ exporting() === 'xlsx' ? 'Preparando…' : 'Excel' }}
+          </button>
+          <button type="button" (click)="exportFile('csv')" [disabled]="exporting() || result.filas.length === 0" class="border-input-border flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-label hover:bg-input-bg disabled:opacity-50">
+            <svg lucideDownload class="h-4 w-4"></svg>{{ exporting() === 'csv' ? 'Preparando…' : 'CSV' }}
+          </button>
+        </div>
       </div>
 
       <dl class="border-input-border grid border-b sm:grid-cols-2 lg:grid-cols-4">

@@ -15,8 +15,9 @@ export class ReportsService {
     });
   }
 
-  exportCsv(tenantId: number | null, filters: ReportFilters): Observable<Blob> {
-    return this.http.get(`${environment.apiUrl}/reportes/exportar/`, {
+  export(tenantId: number | null, filters: ReportFilters, format: 'csv' | 'xlsx' | 'pdf'): Observable<Blob> {
+    const suffix = format === 'csv' ? '' : `${format === 'xlsx' ? 'excel' : 'pdf'}/`;
+    return this.http.get(`${environment.apiUrl}/reportes/exportar/${suffix}`, {
       headers: tenantId ? { 'X-Tenant-ID': tenantId.toString() } : {},
       params: this.params(filters),
       responseType: 'blob',
@@ -31,4 +32,3 @@ export class ReportsService {
     return params;
   }
 }
-
