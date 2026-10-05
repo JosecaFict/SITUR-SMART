@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "apps.reports",
     "apps.catalog",
     "apps.media",
+    "apps.assistant",
 ]
 
 MIDDLEWARE = [
@@ -157,6 +158,9 @@ REST_FRAMEWORK = {
         # Una copia ejecuta pg_dump sobre toda la base. El límite evita que
         # varios clics consecutivos compitan por CPU, disco y conexiones.
         "backup": os.getenv("BACKUP_THROTTLE_RATE", "3/hour"),
+        # Asistente IA (CU36): cada mensaje consume cuota del proveedor.
+        "asistente": os.getenv("IA_THROTTLE_RATE", "10/min"),
+        "asistente_voz": os.getenv("IA_VOICE_THROTTLE_RATE", "6/min"),
     },
 }
 
@@ -214,3 +218,17 @@ OPENROUTESERVICE_TIMEOUT_SECONDS = int(os.getenv("OPENROUTESERVICE_TIMEOUT_SECON
 # Recorte duro de la busqueda. En esta fase la plataforma solo opera en Bolivia.
 GEOCODING_COUNTRY = os.getenv("GEOCODING_COUNTRY", "BOL")
 
+
+# Asistente virtual IA (CU36)
+#
+# Cualquier proveedor con API compatible con OpenAI: Groq, Google Gemini,
+# xAI (Grok) u OpenRouter. Cambiar de proveedor es cambiar estas variables.
+# La clave solo la lee apps/assistant/llm.py y nunca viaja a Angular ni Flutter.
+# Sin clave, /asistente/estado/ responde chat=false y la web oculta el chat.
+IA_BASE_URL = os.getenv("IA_BASE_URL", "https://api.groq.com/openai/v1")
+IA_API_KEY = os.getenv("IA_API_KEY", "")
+IA_MODEL = os.getenv("IA_MODEL", "openai/gpt-oss-120b")
+# Modelo de voz a texto. Vacio desactiva el boton de voz.
+IA_STT_MODEL = os.getenv("IA_STT_MODEL", "whisper-large-v3-turbo")
+IA_TIMEOUT_SECONDS = int(os.getenv("IA_TIMEOUT_SECONDS", "30"))
+IA_MAX_TOKENS = int(os.getenv("IA_MAX_TOKENS", "1024"))
