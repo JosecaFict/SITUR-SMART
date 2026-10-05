@@ -1,0 +1,127 @@
+@if (visible()) {
+  @if (open()) {
+    <section
+      role="dialog"
+      aria-label="Asistente virtual SITUR"
+      class="border-input-border fixed inset-x-3 bottom-3 z-50 flex h-[min(600px,calc(100dvh-1.5rem))] flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[390px]"
+    >
+      <!-- Cabecera -->
+      <header class="bg-panel-bg flex items-center gap-3 px-4 py-3 text-white">
+        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
+          <svg lucideBot class="h-5 w-5"></svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="font-heading text-sm font-bold">Situr · Asistente IA</p>
+          <p class="text-xs text-white/70">Recomendaciones de hospedaje</p>
+        </div>
+        @if (canSpeak) {
+          <button type="button" (click)="toggleSpeak()" [attr.aria-pressed]="speak()"
+            [attr.aria-label]="speak() ? 'Desactivar lectura en voz alta' : 'Activar lectura en voz alta'"
+            class="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-white/15">
+            @if (speak()) { <svg lucideVolume2 class="h-4 w-4"></svg> } @else { <svg lucideVolumeX class="h-4 w-4"></svg> }
+          </button>
+        }
+        <button type="button" (click)="clear()" aria-label="Nueva conversación"
+          class="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-white/15">
+          <svg lucideTrash2 class="h-4 w-4"></svg>
+        </button>
+        <button type="button" (click)="toggle()" aria-label="Cerrar asistente"
+          class="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-white/15">
+          <svg lucideX class="h-4 w-4"></svg>
+        </button>
+      </header>
+
+      <!-- Conversación -->
+      <div #scroller class="flex-1 space-y-3 overflow-y-auto bg-gray-50 px-4 py-4" aria-live="polite">
+        @for (message of messages(); track $index) {
+          @if (message.rol === 'usuario') {
+            <div class="flex justify-end">
+              <p class="bg-accent-dark max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm whitespace-pre-line text-white">{{ message.contenido }}</p>
+            </div>
+          } @else {
+            <div class="flex flex-col items-start gap-2">
+              <p class="max-w-[90%] rounded-2xl rounded-bl-md px-3.5 py-2 text-sm whitespace-pre-line"
+                [class]="message.error ? 'border border-red-200 bg-red-50 text-red-700' : 'border-input-border border bg-white text-title'">{{ message.contenido }}</p>
+
+              @if (message.hospedajes?.length) {
+                <div class="flex w-full snap-x gap-2 overflow-x-auto pb-1">
+                  @for (card of message.hospedajes; track card.id) {
+                    <a [routerLink]="card.url" (click)="toggle()"
+                      class="border-input-border hover:border-accent-dark w-52 shrink-0 snap-start overflow-hidden rounded-xl border bg-white transition">
+                      @if (card.imagen_url) {
+                        <img [src]="card.imagen_url" [alt]="card.nombre" class="h-24 w-full object-cover" loading="lazy" />
+                      } @else {
+                        <div class="bg-demo-bg text-accent-dark flex h-24 items-center justify-center"><svg lucideSparkles class="h-6 w-6"></svg></div>
+                      }
+                      <div class="space-y-1 p-2.5">
+                        <p class="truncate text-sm font-semibold text-title">{{ card.nombre }}</p>
+                        <p class="flex items-center gap-1 truncate text-xs text-text-secondary">
+                          <svg lucideMapPin class="h-3 w-3 shrink-0"></svg>{{ card.localidad || card.ciudad }}
+                          @if (card.estrellas) {
+                            <span class="ml-auto flex items-center gap-0.5 text-amber-500"><svg lucideStar class="h-3 w-3 fill-current"></svg>{{ card.estrellas }}</span>
+                          }
+                        </p>
+                        @if (card.precio_desde) {
+                          <p class="text-accent-dark text-xs font-bold">Desde {{ card.moneda }} {{ card.precio_desde }}</p>
+                        }
+                      </div>
+                    </a>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+
+        @if (busy()) {
+          <div class="flex items-center gap-2 text-xs text-text-secondary">
+            <svg lucideLoaderCircle class="h-4 w-4 animate-spin"></svg>
+            {{ transcribing() ? 'Escuchando lo que dijiste…' : 'Situr está pensando…' }}
+          </div>
+        }
+
+        @if (messages().length === 1 && !busy()) {
+          <div class="flex flex-wrap gap-2 pt-1">
+            @for (suggestion of suggestions; track suggestion) {
+              <button type="button" (click)="send(suggestion)"
+                class="border-demo-border bg-demo-bg text-accent-dark hover:bg-accent/20 rounded-full border px-3 py-1.5 text-xs font-medium transition">
+                {{ suggestion }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Entrada -->
+      <form (submit)="$event.preventDefault(); send()" class="border-input-border flex items-end gap-2 border-t bg-white p-3">
+        <textarea
+          [(ngModel)]="draft" name="draft" rows="1" maxlength="1000"
+          (keydown)="onKeydown($event)"
+          [disabled]="recording()"
+          [placeholder]="recording() ? 'Grabando… toca ■ para terminar' : 'Escribe tu consulta…'"
+          aria-label="Mensaje para el asistente"
+          class="bg-input-bg border-input-border focus:border-accent-dark focus:ring-accent/15 max-h-28 min-h-11 flex-1 resize-none rounded-xl border px-3 py-2.5 text-sm text-title outline-none placeholder:text-text-secondary focus:ring-4"
+        ></textarea>
+
+        @if (voiceEnabled() && canRecord) {
+          <button type="button" (click)="toggleRecording()" [disabled]="busy()"
+            [attr.aria-label]="recording() ? 'Terminar grabación' : 'Hablar con el asistente'"
+            [class]="recording() ? 'bg-red-500 text-white animate-pulse' : 'border-input-border border bg-white text-label hover:text-accent-dark'"
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-50">
+            @if (recording()) { <svg lucideSquare class="h-4 w-4 fill-current"></svg> } @else { <svg lucideMic class="h-5 w-5"></svg> }
+          </button>
+        }
+
+        <button type="submit" [disabled]="busy() || recording() || !draft.trim()" aria-label="Enviar mensaje"
+          class="btn-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white transition disabled:opacity-50">
+          <svg lucideSend class="h-4 w-4"></svg>
+        </button>
+      </form>
+    </section>
+  } @else {
+    <button type="button" (click)="toggle()" aria-label="Abrir asistente virtual"
+      class="btn-accent fixed right-5 bottom-5 z-50 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition hover:scale-105 sm:right-6 sm:bottom-6">
+      <svg lucideBot class="h-7 w-7"></svg>
+    </button>
+  }
+}
