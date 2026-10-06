@@ -1,4 +1,4 @@
-package com.example.mobile
+package bo.situr.smart
 
 import io.flutter.embedding.android.FlutterActivity
 

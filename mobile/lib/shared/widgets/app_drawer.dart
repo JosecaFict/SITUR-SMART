@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/storage/token_storage.dart';
 import '../../core/theme/app_theme.dart';
+import '../../features/usuarios/data/auth_service.dart';
 
 
 class AppDrawer extends StatelessWidget {
@@ -114,9 +117,9 @@ class AppDrawer extends StatelessWidget {
 
               context,
 
-              Icons.explore_outlined,
+              Icons.people_outline,
 
-              'Explorar',
+              'Usuarios',
 
               1,
 
@@ -197,154 +200,28 @@ class AppDrawer extends StatelessWidget {
 
             const Spacer(),
 
-
-
-
-
-            Container(
-
-              margin:
-                  const EdgeInsets.all(16),
-
-
-              padding:
-                  const EdgeInsets.all(12),
-
-
-              decoration:
-
-                  BoxDecoration(
-
-                color:
-                    Colors.black12,
-
-                borderRadius:
-
-                    BorderRadius.circular(14),
-
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.white),
+              title: const Text(
+                'Cerrar sesión',
+                style: TextStyle(color: Colors.white, fontSize: 16),
               ),
-
-
-
-              child:
-
-                  const Row(
-
-                children: [
-
-
-
-                  CircleAvatar(
-
-                    backgroundColor:
-
-                        AppTheme.accent,
-
-                    child:
-
-                        Icon(
-
-                      Icons.person,
-
-                      color:
-                          Colors.white,
-
-                    ),
-
-                  ),
-
-
-
-                  SizedBox(
-
-                    width:12,
-
-                  ),
-
-
-
-                  Expanded(
-
-                    child:
-
-                        Column(
-
-                      crossAxisAlignment:
-
-                          CrossAxisAlignment.start,
-
-                      children: [
-
-
-
-                        Text(
-
-                          'Administrador',
-
-                          style:
-
-                              TextStyle(
-
-                            color:
-                                Colors.white,
-
-                            fontWeight:
-
-                                FontWeight.bold,
-
-                          ),
-
-                        ),
-
-
-
-                        Text(
-
-                          'SUPER_ADMIN',
-
-                          style:
-
-                              TextStyle(
-
-                            color:
-
-                                Colors.white70,
-
-                          ),
-
-                        ),
-
-
-                      ],
-
-                    ),
-
-                  ),
-
-
-                ],
-
-              ),
-
+              onTap: () => _logout(context),
             ),
 
-
-
+            const _UserCard(),
           ],
-
         ),
-
       ),
-
     );
-
   }
 
-
-
-
-
-
+  Future<void> _logout(BuildContext context) async {
+    final router = GoRouter.of(context);
+    Navigator.pop(context);
+    await AuthService().logout();
+    router.go('/login');
+  }
 
   Widget _item(
 
@@ -413,4 +290,62 @@ class AppDrawer extends StatelessWidget {
   }
 
 
+}
+
+
+/// Usuario de la sesión actual, leído del almacenamiento local.
+class _UserCard extends StatelessWidget {
+  const _UserCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: TokenStorage().getUser(),
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        final name = '${user?['nombres'] ?? ''} ${user?['apellidos'] ?? ''}'.trim();
+        final roles = user?['roles'];
+        final tenants = user?['tenants'];
+        final subtitle = [
+          if (roles is List && roles.isNotEmpty) roles.join(', '),
+          if (tenants is List && tenants.isNotEmpty) tenants.first['name'],
+        ].join(' · ');
+        return Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.black12,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: AppTheme.accent,
+                child: Icon(Icons.person, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? (user?['email'] ?? '') : name,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    if (subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }

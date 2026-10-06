@@ -7,7 +7,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/storage/token_storage.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/auth_service.dart';
 
@@ -36,7 +35,6 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoading = false;
 
-  bool _rememberMe = false;
 
   String? _errorMessage;
 
@@ -70,27 +68,11 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text,
       );
 
-
-      final storage = TokenStorage();
-
-
-      await storage.saveTokens(
-        access: response['access'],
-        refresh: response['refresh'],
-      );
-
-
-      await storage.saveUser(
-        response['user'],
-      );
-
-
       if (!mounted) {
         return;
       }
 
-
-      context.go('/dashboard');
+      context.go(AuthService.homeRouteFor(response['user'] as Map<String, dynamic>?));
 
 
     } catch (e) {
@@ -248,26 +230,12 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 15),
 
 
-                  Row(
-
-                    children: [
-
-                      Checkbox(
-                        value: _rememberMe,
-
-                        onChanged: (value) {
-
-                          setState(() {
-                            _rememberMe = value ?? false;
-                          });
-
-                        },
-                      ),
-
-                      const Text(
-                        'Recordarme',
-                      ),
-                    ],
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _isLoading ? null : () => context.go('/recuperar-password'),
+                      child: const Text('¿Olvidaste tu contraseña?'),
+                    ),
                   ),
 
 
@@ -294,6 +262,19 @@ class _LoginPageState extends State<LoginPage> {
                                   'Iniciar sesión',
                                 ),
                     ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('¿No tienes cuenta?'),
+                      TextButton(
+                        onPressed: _isLoading ? null : () => context.go('/registrar-usuario'),
+                        child: const Text('Crear cuenta'),
+                      ),
+                    ],
                   ),
 
                 ],

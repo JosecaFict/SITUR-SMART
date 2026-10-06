@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/usuarios/data/auth_service.dart';
 import '../../features/usuarios/presentation/pages/forgot_password_page.dart';
 import '../../features/usuarios/presentation/pages/login_page.dart';
 import '../../features/usuarios/presentation/pages/register_page.dart';
+import '../../features/usuarios/presentation/pages/splash_page.dart';
 import '../../features/usuarios/presentation/pages/users_page.dart';
 
 import '../../features/main/presentation/main_shell_page.dart';
@@ -18,10 +20,15 @@ class AppRouter {
 
   static final GoRouter router = GoRouter(
 
-    initialLocation: '/login',
+    initialLocation: '/',
 
 
     routes: <RouteBase>[
+      GoRoute(
+        path: '/',
+        name: 'inicio',
+        builder: (context, state) => const SplashPage(),
+      ),
 
 
 
@@ -211,60 +218,55 @@ class AppRouter {
 
 
 
+/// Pantalla provisoria de un módulo que todavía no está construido. Explica qué
+/// falta y permite cerrar sesión, para que nadie quede atrapado en ella.
 class _PlaceholderPage extends StatelessWidget {
-
-
   final String titulo;
 
-
-
   const _PlaceholderPage({
-
     required this.titulo,
-
   });
 
-
+  Future<void> _logout(BuildContext context) async {
+    final router = GoRouter.of(context);
+    await AuthService().logout();
+    router.go('/login');
+  }
 
   @override
   Widget build(BuildContext context) {
-
-
     return Scaffold(
-
       appBar: AppBar(
-
-        title:
-            Text(titulo),
-
-      ),
-
-
-      body:
-          Center(
-
-        child:
-            Text(
-
-          titulo,
-
-          style:
-              const TextStyle(
-
-            fontSize: 24,
-
-            fontWeight:
-                FontWeight.bold,
-
+        title: Text(titulo),
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout),
+            onPressed: () => _logout(context),
           ),
-
-        ),
-
+        ],
       ),
-
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.construction_outlined, size: 56, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                titulo,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Este módulo todavía está en construcción.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
-
-
   }
-
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -9,6 +10,15 @@ class ApiClient {
     'API_URL',
     defaultValue: 'http://10.0.2.2:8000/api/v1/',
   );
+
+  /// Se ejecuta cuando la sesión no puede renovarse (refresh vencido o
+  /// revocado). La app lo usa para volver al login.
+  static void Function()? onSessionExpired;
+
+  /// Renovación en curso. El backend rota el refresh token: cada uso invalida
+  /// el anterior, así que si varias peticiones reciben 401 a la vez todas deben
+  /// esperar a la misma renovación en lugar de lanzar una cada una.
+  static Future<String?>? _refreshing;
 
   final TokenStorage _storage = TokenStorage();
 
@@ -31,9 +41,12 @@ class ApiClient {
     String token, {
     int? tenantId,
   }) async {
-    final response = await http.get(
-      _uri(endpoint),
-      headers: _headers(token: token, tenantId: tenantId),
+    final response = await _authorized(
+      (accessToken) => http.get(
+        _uri(endpoint),
+        headers: _headers(token: accessToken, tenantId: tenantId),
+      ),
+      token: token,
     );
     final data = _decode(response);
     if (data is List<dynamic>) return data;
@@ -45,9 +58,12 @@ class ApiClient {
     String token, {
     int? tenantId,
   }) async {
-    final response = await http.get(
-      _uri(endpoint),
-      headers: _headers(token: token, tenantId: tenantId),
+    final response = await _authorized(
+      (accessToken) => http.get(
+        _uri(endpoint),
+        headers: _headers(token: accessToken, tenantId: tenantId),
+      ),
+      token: token,
     );
     return _decodeMap(response);
   }
@@ -57,11 +73,12 @@ class ApiClient {
     Map<String, dynamic> body, {
     int? tenantId,
   }) async {
-    final token = await _requiredToken();
-    final response = await http.post(
-      _uri(endpoint),
-      headers: _headers(token: token, tenantId: tenantId),
-      body: jsonEncode(body),
+    final response = await _authorized(
+      (accessToken) => http.post(
+        _uri(endpoint),
+        headers: _headers(token: accessToken, tenantId: tenantId),
+        body: jsonEncode(body),
+      ),
     );
     return _decodeMap(response);
   }
@@ -71,11 +88,12 @@ class ApiClient {
     Map<String, dynamic> body, {
     int? tenantId,
   }) async {
-    final token = await _requiredToken();
-    final response = await http.patch(
-      _uri(endpoint),
-      headers: _headers(token: token, tenantId: tenantId),
-      body: jsonEncode(body),
+    final response = await _authorized(
+      (accessToken) => http.patch(
+        _uri(endpoint),
+        headers: _headers(token: accessToken, tenantId: tenantId),
+        body: jsonEncode(body),
+      ),
     );
     return _decodeMap(response);
   }
@@ -85,22 +103,89 @@ class ApiClient {
     Map<String, dynamic> body, {
     int? tenantId,
   }) async {
-    final token = await _requiredToken();
-    final response = await http.put(
-      _uri(endpoint),
-      headers: _headers(token: token, tenantId: tenantId),
-      body: jsonEncode(body),
+    final response = await _authorized(
+      (accessToken) => http.put(
+        _uri(endpoint),
+        headers: _headers(token: accessToken, tenantId: tenantId),
+        body: jsonEncode(body),
+      ),
     );
     return _decodeMap(response);
   }
 
   Future<void> deleteAuth(String endpoint, {int? tenantId}) async {
-    final token = await _requiredToken();
-    final response = await http.delete(
-      _uri(endpoint),
-      headers: _headers(token: token, tenantId: tenantId),
+    final response = await _authorized(
+      (accessToken) => http.delete(
+        _uri(endpoint),
+        headers: _headers(token: accessToken, tenantId: tenantId),
+      ),
     );
     _decode(response, allowEmpty: true);
+  }
+
+  /// Renueva el access token con el refresh guardado y devuelve el nuevo, o
+  /// null si la sesión ya no se puede renovar.
+  Future<String?> refreshSession() {
+    return _refreshing ??= _doRefresh().whenComplete(() {
+      _refreshing = null;
+    });
+  }
+
+  Future<String?> _doRefresh() async {
+    final refresh = await _storage.getRefreshToken();
+    if (refresh == null || refresh.isEmpty) return null;
+    try {
+      final response = await http.post(
+        _uri('auth/refresh/'),
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh': refresh}),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        // 401: refresh vencido o revocado. Cualquier otro código tampoco
+        // deja una sesión usable.
+        await _storage.clearTokens();
+        return null;
+      }
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is! Map<String, dynamic>) return null;
+      await _storage.saveTokens(
+        access: data['access'] as String,
+        refresh: data['refresh'] as String,
+      );
+      if (data['user'] is Map<String, dynamic>) {
+        await _storage.saveUser(data['user'] as Map<String, dynamic>);
+      }
+      return data['access'] as String;
+    } on http.ClientException {
+      // Sin conexión: no se borra la sesión, puede funcionar al reintentar.
+      return null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Envía una petición autenticada. Si el access token venció (401), renueva
+  /// la sesión una vez y reintenta; si no se puede renovar, avisa a la app.
+  Future<http.Response> _authorized(
+    Future<http.Response> Function(String accessToken) send, {
+    String? token,
+  }) async {
+    final accessToken =
+        (token != null && token.isNotEmpty) ? token : await _requiredToken();
+    final response = await send(accessToken);
+    if (response.statusCode != 401) return response;
+
+    final renewed = await refreshSession();
+    if (renewed == null) {
+      if (await _storage.getRefreshToken() == null) {
+        onSessionExpired?.call();
+      }
+      throw const ApiException(
+        'La sesión ha finalizado. Inicia sesión nuevamente.',
+        statusCode: 401,
+      );
+    }
+    return send(renewed);
   }
 
   Uri _uri(String endpoint) {
@@ -129,7 +214,7 @@ class ApiClient {
     }
     if (allowEmpty && response.body.trim().isEmpty) return null;
     try {
-      return jsonDecode(response.body);
+      return jsonDecode(utf8.decode(response.bodyBytes));
     } on FormatException {
       throw const ApiException('El backend devolvió una respuesta no válida.');
     }
@@ -143,7 +228,7 @@ class ApiClient {
 
   String _errorMessage(http.Response response) {
     try {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
       if (data is Map<String, dynamic>) {
         final error = data['error'];
         if (error is Map<String, dynamic> && error['message'] is String) {

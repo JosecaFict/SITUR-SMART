@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../data/auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -12,18 +13,24 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _nombresController = TextEditingController();
+  final _apellidosController = TextEditingController();
+  final _telefonoController = TextEditingController();
   final _emailController = TextEditingController();
+  final AuthService _authService = AuthService();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _nombresController.dispose();
+    _apellidosController.dispose();
+    _telefonoController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -36,17 +43,41 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    setState(() => _isLoading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 800));
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cuenta creada correctamente.')), 
-    );
-    setState(() => _isLoading = false);
-    context.go('/login');
+    try {
+      final response = await _authService.register(
+        nombres: _nombresController.text.trim(),
+        apellidos: _apellidosController.text.trim(),
+        email: _emailController.text.trim().toLowerCase(),
+        password: _passwordController.text,
+        telefono: _telefonoController.text.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cuenta creada. ¡Bienvenido a SITUR-SMART!')),
+      );
+      // El backend devuelve la sesión iniciada: no hace falta volver al login.
+      context.go(AuthService.homeRouteFor(response['user'] as Map<String, dynamic>?));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
+
+  Widget _label(String text) => Text(
+        text,
+        style: const TextStyle(
+          fontSize: 15,
+          color: AppTheme.labelColor,
+          fontWeight: FontWeight.w600,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -122,25 +153,59 @@ class _RegisterPageState extends State<RegisterPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Nombre completo',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      color: AppTheme.labelColor,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                                  if (_errorMessage != null) ...[
+                                    Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                                    const SizedBox(height: 16),
+                                  ],
+                                  _label('Nombres'),
                                   const SizedBox(height: 8),
                                   TextFormField(
-                                    controller: _nameController,
+                                    controller: _nombresController,
                                     textInputAction: TextInputAction.next,
+                                    textCapitalization: TextCapitalization.words,
                                     decoration: const InputDecoration(
-                                      hintText: 'Juan García',
+                                      hintText: 'Juan Carlos',
                                       suffixIcon: Icon(Icons.person_outline),
                                     ),
                                     validator: (value) {
                                       if (value == null || value.trim().isEmpty) {
-                                        return 'El nombre es obligatorio.';
+                                        return 'Los nombres son obligatorios.';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _label('Apellidos'),
+                                  const SizedBox(height: 8),
+                                  TextFormField(
+                                    controller: _apellidosController,
+                                    textInputAction: TextInputAction.next,
+                                    textCapitalization: TextCapitalization.words,
+                                    decoration: const InputDecoration(
+                                      hintText: 'García Rojas',
+                                      suffixIcon: Icon(Icons.person_outline),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) {
+                                        return 'Los apellidos son obligatorios.';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _label('Teléfono (opcional)'),
+                                  const SizedBox(height: 8),
+                                  TextFormField(
+                                    controller: _telefonoController,
+                                    keyboardType: TextInputType.phone,
+                                    textInputAction: TextInputAction.next,
+                                    decoration: const InputDecoration(
+                                      hintText: '+591 70000000',
+                                      suffixIcon: Icon(Icons.phone_outlined),
+                                    ),
+                                    validator: (value) {
+                                      if (value != null && value.trim().length > 30) {
+                                        return 'Máximo 30 caracteres.';
                                       }
                                       return null;
                                     },
@@ -407,47 +472,6 @@ class _BrandPanel extends StatelessWidget {
             color: Colors.white70,
             fontSize: 20,
             height: 1.5,
-          ),
-        ),
-        const SizedBox(height: 30),
-        const Row(
-          children: [
-            _Metric(title: '1.2K+', subtitle: 'Destinos'),
-            SizedBox(width: 32),
-            _Metric(title: '48K', subtitle: 'Visitantes'),
-            SizedBox(width: 32),
-            _Metric(title: '99.9%', subtitle: 'Disponibilidad'),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _Metric extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _Metric({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 15,
           ),
         ),
       ],
