@@ -13,7 +13,7 @@ y del SuperAdmin vive en la web.
 | 3.2 | Reservas con cupo automático, pago con Stripe Checkout, voucher con QR, Mis viajes | Hecha |
 | 3.3 | Notificaciones en la app y correo de reserva confirmada (Brevo) | Hecha |
 | 3.4 | Push con Firebase (FCM): aviso en el celular y al tocarlo abre la reserva | Hecha |
-| 3.5 | Itinerarios | **Pendiente** |
+| 3.5 | Itinerarios: viaje por días con actividades y las reservas pagadas en su día | Hecha |
 
 Pruebas manuales: se decidió probar **todo junto en el APK al final**, no etapa por etapa.
 
@@ -26,6 +26,9 @@ Pruebas manuales: se decidió probar **todo junto en el APK al final**, no etapa
   webhook; si no llega, consultar la reserva concilia con Stripe.
 - Solo se cancela **antes de pagar**. Cancelar una reserva pagada (reembolso, políticas de
   penalización) queda para más adelante.
+- **Itinerarios**: las reservas pagadas no se copian al itinerario, se mezclan al leer (un
+  hospedaje en su llegada y su salida). Se agregan productos desde su ficha ("Agregar a mi
+  itinerario") o actividades libres. Sin armado por IA.
 - **QR sin prioridad**: el voucher existe; no se hará el escáner para empresas.
 - **Notificaciones**: se guardan en la bandeja y salen por push desde
   `backend/apps/notifications/services.py::notify()`; reservas y pagos no saben de Firebase.
@@ -71,4 +74,6 @@ La suite de integración crea su propia base `situr_smart_pruebas` en el Postgre
 Registro e inicio de sesión · Explorar con filtros · ficha de hospedaje y "Ver en el mapa" ·
 favoritos · reservar una habitación y un tour · pagar con `4242 4242 4242 4242` · ver la reserva
 confirmada con su QR en Viajes · notificación y correo de confirmación · reserva sin pagar que
-vence o se cancela · Asistente por texto y por voz · Mi Perfil.
+vence o se cancela · push con la app cerrada (al tocarlo abre la reserva) · crear un itinerario,
+agregar un tour desde su ficha y ver la reserva pagada en su día · Asistente por texto y por voz ·
+Mi Perfil.

@@ -5,6 +5,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/marketplace_service.dart';
 import '../../favoritos/presentation/favorite_button.dart';
+import '../../itinerarios/presentation/add_to_itinerary.dart';
 import '../../reservas/data/booking_models.dart';
 import '../../reservas/presentation/booking_sheet.dart';
 import '../models/marketplace_models.dart';
@@ -158,6 +159,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     ),
                     icon: const Icon(Icons.event_available),
                     label: const Text('Reservar'),
+                  ),
+                ],
+                if (!product.esHabitacion) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => addProductToItinerary(
+                      context,
+                      productId: product.id,
+                      productName: product.nombre,
+                    ),
+                    icon: const Icon(Icons.playlist_add),
+                    label: const Text('Agregar a mi itinerario'),
                   ),
                 ],
                 // Un hotel o una habitación abiertos por enlace directo: su ficha

@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/asistente/presentation/assistant_page.dart';
 import '../../features/favoritos/presentation/favorites_page.dart';
+import '../../features/itinerarios/presentation/itinerary_detail_page.dart';
 import '../../features/main/presentation/main_shell_page.dart';
 import '../../features/marketplace/presentation/explore_page.dart';
 import '../../features/marketplace/presentation/lodging_detail_page.dart';
@@ -107,6 +108,13 @@ class AppRouter {
         name: 'reserva',
         builder: (context, state) =>
             BookingDetailPage(bookingId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0),
+      ),
+
+      GoRoute(
+        path: '/itinerario/:id',
+        name: 'itinerario',
+        builder: (context, state) =>
+            ItineraryDetailPage(itineraryId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0),
       ),
 
       GoRoute(

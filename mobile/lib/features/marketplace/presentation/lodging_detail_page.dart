@@ -5,6 +5,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/marketplace_service.dart';
 import '../../favoritos/presentation/favorite_button.dart';
+import '../../itinerarios/presentation/add_to_itinerary.dart';
 import '../../reservas/presentation/booking_sheet.dart';
 import '../models/marketplace_models.dart';
 import 'widgets/marketplace_widgets.dart';
@@ -216,6 +217,16 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
                     note: 'por habitación/noche',
                   ),
                 ],
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => addProductToItinerary(
+                    context,
+                    productId: lodging.productoId,
+                    productName: lodging.nombre,
+                  ),
+                  icon: const Icon(Icons.playlist_add),
+                  label: const Text('Agregar a mi itinerario'),
+                ),
                 if (lodging.tieneUbicacion) ...[
                   const SizedBox(height: 20),
                   const _SectionTitle('Ubicación'),

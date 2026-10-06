@@ -4,17 +4,21 @@ import 'package:intl/intl.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../itinerarios/data/itinerary_service.dart';
+import '../../itinerarios/presentation/itineraries_view.dart';
 import '../../notificaciones/presentation/notification_bell.dart';
 import '../../marketplace/presentation/widgets/marketplace_widgets.dart';
 import '../data/booking_models.dart';
 import '../data/booking_service.dart';
 import 'booking_status_chip.dart';
 
-/// Reservas del turista agrupadas en pendientes, próximas y anteriores.
+/// Pestaña Viajes: las reservas del turista (pendientes, próximas y
+/// anteriores) y sus itinerarios.
 class MyTripsPage extends StatefulWidget {
-  const MyTripsPage({super.key, this.service});
+  const MyTripsPage({super.key, this.service, this.itineraryService});
 
   final BookingService? service;
+  final ItineraryService? itineraryService;
 
   @override
   State<MyTripsPage> createState() => _MyTripsPageState();
@@ -62,14 +66,23 @@ class _MyTripsPageState extends State<MyTripsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppTheme.accentDark,
-        foregroundColor: Colors.white,
-        title: const Text('Mis viajes', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: const [NotificationBell()],
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: AppTheme.accentDark,
+          foregroundColor: Colors.white,
+          title: const Text('Mis viajes', style: TextStyle(fontWeight: FontWeight.bold)),
+          actions: const [NotificationBell()],
+          bottom: const TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: [Tab(text: 'Reservas'), Tab(text: 'Itinerarios')],
+          ),
+        ),
+        body: TabBarView(children: [_body(), ItinerariesView(service: widget.itineraryService)]),
       ),
-      body: _body(),
     );
   }
 
