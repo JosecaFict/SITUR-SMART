@@ -43,6 +43,24 @@ Sin `--dart-define`, la app usa `http://10.0.2.2:8000/api/v1/` (emulador contra 
   panel.
 - Las cuentas de prueba están en `CREDENCIALES_DEMO.md`, en la raíz del repositorio.
 
+## App del turista
+
+Barra inferior con tres pestañas, que conservan su estado al cambiar entre ellas:
+
+- **Explorar**: marketplace público (`marketplace/productos/` y `marketplace/hospedajes/`) con
+  búsqueda, categorías, filtros de ciudad, precio y orden, y carga de más resultados al llegar al
+  final. Un hospedaje abre su ficha con servicios, ubicación en OpenStreetMap y tipos de
+  habitación; los demás productos abren su detalle.
+- **Asistente**: chat con el asistente IA (`asistente/chat/`). Las recomendaciones de hospedaje
+  abren su ficha. El micrófono graba una nota de hasta 30 s, el backend la transcribe
+  (`asistente/voz/`) y el texto queda en la caja para revisarlo antes de enviarlo. Si el backend
+  no tiene proveedor de IA configurado, la pestaña lo indica.
+- **Mi Perfil**: datos personales y documento (`GET/PATCH auth/me/`), cambio de contraseña y
+  cierre de sesión.
+
+Permisos: micrófono (`RECORD_AUDIO` en Android, `NSMicrophoneUsageDescription` en iOS), pedido
+la primera vez que se usa la voz.
+
 ## Verificación
 
 ```powershell

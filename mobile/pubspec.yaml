@@ -27,6 +27,13 @@ dependencies:
   # Guardar JWT (access y refresh token)
   shared_preferences: ^2.5.3
 
+  # Abrir la ubicación de un hospedaje en el mapa
+  url_launcher: ^6.3.1
+
+  # Notas de voz del asistente: grabar y guardar en un archivo temporal
+  record: ^6.1.1
+  path_provider: ^2.1.5
+
 
 dev_dependencies:
   flutter_test:

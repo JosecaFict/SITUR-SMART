@@ -36,6 +36,41 @@ class ApiClient {
     return _decodeMap(response);
   }
 
+  /// GET a un endpoint público (marketplace, catálogos). Va sin token a
+  /// propósito: con un access vencido el backend respondería 401 aunque la
+  /// vista sea pública. Los parámetros nulos o vacíos no se envían.
+  Future<dynamic> getPublic(
+    String endpoint, {
+    Map<String, Object?> query = const {},
+  }) async {
+    final params = <String, String>{
+      for (final entry in query.entries)
+        if (entry.value != null && entry.value.toString().isNotEmpty)
+          entry.key: entry.value.toString(),
+    };
+    final uri = _uri(endpoint);
+    final response = await http.get(
+      params.isEmpty ? uri : uri.replace(queryParameters: params),
+      headers: const {'Accept': 'application/json'},
+    );
+    return _decode(response);
+  }
+
+  /// Sube un archivo como multipart/form-data con la sesión iniciada.
+  Future<Map<String, dynamic>> postFileAuth(
+    String endpoint, {
+    required String field,
+    required String filePath,
+  }) async {
+    final response = await _authorized((accessToken) async {
+      final request = http.MultipartRequest('POST', _uri(endpoint))
+        ..headers['Authorization'] = 'Bearer $accessToken'
+        ..files.add(await http.MultipartFile.fromPath(field, filePath));
+      return http.Response.fromStream(await request.send());
+    });
+    return _decodeMap(response);
+  }
+
   Future<List<dynamic>> getList(
     String endpoint,
     String token, {
