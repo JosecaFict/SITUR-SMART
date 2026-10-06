@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mobile/features/asistente/data/assistant_service.dart';
 import 'package:mobile/features/marketplace/data/marketplace_service.dart';
@@ -89,6 +90,7 @@ void main() {
     test('un establecimiento trae estrellas y coordenadas', () {
       final lodging = Lodging.fromJson({
         'id': 3,
+        'producto_id': 10,
         'tipo_hospedaje': 'Hotel',
         'nombre': 'Los Tajibos',
         'ciudad': 'Santa Cruz de la Sierra',
@@ -108,6 +110,7 @@ void main() {
       expect(shortTime(lodging.horaCheckIn), '14:00');
       final card = MarketplaceCard.fromLodging(lodging);
       expect(card.estrellas, 5);
+      expect(card.productoId, 10, reason: 'el favorito de un hotel es su producto');
       expect(card.precio, isNull);
     });
   });
@@ -138,6 +141,7 @@ void main() {
   });
 
   testWidgets('Explorar lista resultados y filtra por categoría', (tester) async {
+    SharedPreferences.setMockInitialValues({});
     final service = _FakeMarketplaceService();
     await tester.pumpWidget(MaterialApp(home: ExplorePage(service: service)));
     await tester.pumpAndSettle();

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/marketplace_service.dart';
+import '../../favoritos/presentation/favorite_button.dart';
 import '../models/marketplace_models.dart';
 import 'widgets/marketplace_widgets.dart';
 
@@ -138,6 +139,7 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
             expandedHeight: 240,
             backgroundColor: AppTheme.accentDark,
             foregroundColor: Colors.white,
+            actions: [FavoriteButton(productId: lodging.productoId, onImage: true)],
             flexibleSpace: FlexibleSpaceBar(
               background: ProductImage(url: lodging.imagenUrl, icon: Icons.hotel_outlined),
             ),

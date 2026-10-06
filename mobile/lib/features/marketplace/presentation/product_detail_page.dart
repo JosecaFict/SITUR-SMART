@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/marketplace_service.dart';
+import '../../favoritos/presentation/favorite_button.dart';
 import '../models/marketplace_models.dart';
 import 'widgets/marketplace_widgets.dart';
 
@@ -99,6 +100,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             expandedHeight: 240,
             backgroundColor: AppTheme.accentDark,
             foregroundColor: Colors.white,
+            actions: [FavoriteButton(productId: product.id, onImage: true)],
             flexibleSpace: FlexibleSpaceBar(
               background: ProductImage(url: product.imagenUrl, icon: Icons.landscape_outlined),
             ),

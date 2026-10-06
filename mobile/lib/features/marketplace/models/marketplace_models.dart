@@ -101,6 +101,7 @@ List<ProductType> visibleTypes(List<ProductType> types) => [
 class MarketplaceCard {
   const MarketplaceCard({
     required this.id,
+    required this.productoId,
     required this.tipo,
     required this.nombre,
     required this.ciudad,
@@ -117,6 +118,9 @@ class MarketplaceCard {
   });
 
   final int id;
+
+  /// Producto que se marca como favorito. En un hospedaje difiere de [id].
+  final int productoId;
   final String tipo;
   final String nombre;
   final String ciudad;
@@ -152,6 +156,7 @@ class MarketplaceCard {
     }
     return MarketplaceCard(
       id: product.id,
+      productoId: product.id,
       tipo: product.tipo,
       nombre: product.nombre,
       ciudad: product.ciudad,
@@ -170,6 +175,7 @@ class MarketplaceCard {
   /// Establecimiento de marketplace/hospedajes/.
   factory MarketplaceCard.fromLodging(Lodging lodging) => MarketplaceCard(
         id: lodging.id,
+        productoId: lodging.productoId,
         tipo: lodging.tipoHospedaje,
         nombre: lodging.nombre,
         ciudad: lodging.ciudad,
@@ -247,6 +253,7 @@ class Product {
 class Lodging {
   const Lodging({
     required this.id,
+    required this.productoId,
     required this.tipoHospedaje,
     required this.nombre,
     required this.ciudad,
@@ -268,6 +275,9 @@ class Lodging {
   });
 
   final int id;
+
+  /// Producto del hotel: es lo que se marca como favorito.
+  final int productoId;
   final String tipoHospedaje;
   final String nombre;
   final String ciudad;
@@ -291,6 +301,7 @@ class Lodging {
 
   factory Lodging.fromJson(Map<String, dynamic> json) => Lodging(
         id: _intOrNull(json['id']) ?? 0,
+        productoId: _intOrNull(json['producto_id']) ?? 0,
         tipoHospedaje: json['tipo_hospedaje']?.toString() ?? 'Hospedaje',
         nombre: json['nombre']?.toString() ?? '',
         ciudad: json['ciudad']?.toString() ?? '',

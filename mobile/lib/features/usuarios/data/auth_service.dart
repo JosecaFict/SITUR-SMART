@@ -1,5 +1,6 @@
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
+import '../../favoritos/data/favorites_store.dart';
 
 /// Autenticación contra la API: login, registro de turistas, cierre de sesión,
 /// restauración de la sesión guardada y recuperación de contraseña por OTP.
@@ -50,6 +51,7 @@ class AuthService {
       // Sin conexión o refresh ya vencido: igual se cierra la sesión local.
     } finally {
       await _storage.clearTokens();
+      FavoritesStore.instance.clear();
     }
   }
 
@@ -93,6 +95,8 @@ class AuthService {
   }
 
   Future<void> _saveSession(Map<String, dynamic> response) async {
+    // Una cuenta nueva no hereda las marcas de la anterior.
+    FavoritesStore.instance.clear();
     await _storage.saveTokens(
       access: response['access'] as String,
       refresh: response['refresh'] as String,

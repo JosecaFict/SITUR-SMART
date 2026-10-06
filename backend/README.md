@@ -32,6 +32,20 @@ python manage.py spectacular --file openapi.yaml --validate
 pytest
 ```
 
+### Pruebas de integración con PostgreSQL
+
+`pytest` corre en SQLite, donde no existen las tablas del esquema (`managed = False`). Lo que
+depende de PostgreSQL —favoritos, reservas, cupos y pagos, con sus triggers, CHECK y bloqueos de
+fila— se prueba aparte:
+
+```powershell
+pytest --ds=config.settings.test_pg tests/integracion
+```
+
+Usa el servidor PostgreSQL de `.env`, pero nunca su base: crea desde cero `situr_smart_pruebas`
+con los scripts de `database/migrations`, `migrate`, un SuperAdmin y `seed_bolivia`. El usuario
+de `.env` necesita permiso para crear bases.
+
 ## Base existente
 
 Las tablas de negocio ya fueron creadas mediante los scripts de `database/migrations`. Los modelos
