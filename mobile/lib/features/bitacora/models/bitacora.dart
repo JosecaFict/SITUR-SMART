@@ -2,7 +2,6 @@
 ///
 /// Corresponde a la tabla:
 /// bitacora
-
 class Bitacora {
 
 

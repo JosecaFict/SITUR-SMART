@@ -173,7 +173,7 @@ class _ProfilePageState extends State<ProfilePage> {
         .take(2)
         .map((part) => part[0].toUpperCase())
         .join();
-    final types = {..._documentTypes, if (_tipoDocumento != null) _tipoDocumento!};
+    final types = {..._documentTypes, ?_tipoDocumento};
 
     return RefreshIndicator(
       onRefresh: _load,

@@ -3,6 +3,7 @@
 /// Los nombres siguen a la API en español. Los precios llegan como texto
 /// ("450.00") desde los DecimalField de Django y así se muestran, sin pasar
 /// por double, para no perder ni agregar decimales.
+library;
 
 int? _intOrNull(Object? value) {
   if (value == null) return null;

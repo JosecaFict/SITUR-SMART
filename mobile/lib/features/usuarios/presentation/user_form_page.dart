@@ -361,6 +361,7 @@ class _UserFormPageState extends State<UserFormPage> {
 
 
     }catch(e){
+      if (!mounted) return;
 
 
 
@@ -557,7 +558,7 @@ class _UserFormPageState extends State<UserFormPage> {
               DropdownButtonFormField<String>(
 
 
-                value:
+                initialValue:
                     _estado,
 
 
@@ -627,7 +628,7 @@ class _UserFormPageState extends State<UserFormPage> {
                 DropdownButtonFormField<int>(
 
 
-                  value:
+                  initialValue:
                       _selectedTenant,
 
 
@@ -686,7 +687,7 @@ class _UserFormPageState extends State<UserFormPage> {
                 DropdownButtonFormField<int>(
 
 
-                  value:
+                  initialValue:
                       _selectedRole,
 
 
