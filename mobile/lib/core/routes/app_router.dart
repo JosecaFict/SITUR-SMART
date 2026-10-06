@@ -7,6 +7,8 @@ import '../../features/marketplace/presentation/explore_page.dart';
 import '../../features/marketplace/presentation/lodging_detail_page.dart';
 import '../../features/marketplace/presentation/product_detail_page.dart';
 import '../../features/perfil/presentation/profile_page.dart';
+import '../../features/reservas/presentation/booking_detail_page.dart';
+import '../../features/reservas/presentation/my_trips_page.dart';
 import '../../features/turista/tourist_shell_page.dart';
 import '../../features/usuarios/presentation/pages/forgot_password_page.dart';
 import '../../features/usuarios/presentation/pages/login_page.dart';
@@ -62,6 +64,13 @@ class AppRouter {
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
+              path: '/viajes',
+              name: 'viajes',
+              builder: (context, state) => const MyTripsPage(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
               path: '/asistente',
               name: 'asistente',
               builder: (context, state) => const AssistantPage(),
@@ -90,6 +99,13 @@ class AppRouter {
         name: 'producto',
         builder: (context, state) =>
             ProductDetailPage(productId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0),
+      ),
+
+      GoRoute(
+        path: '/reserva/:id',
+        name: 'reserva',
+        builder: (context, state) =>
+            BookingDetailPage(bookingId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0),
       ),
 
       // Panel del personal de empresas y del SuperAdmin.

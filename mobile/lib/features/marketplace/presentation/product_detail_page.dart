@@ -5,6 +5,8 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/marketplace_service.dart';
 import '../../favoritos/presentation/favorite_button.dart';
+import '../../reservas/data/booking_models.dart';
+import '../../reservas/presentation/booking_sheet.dart';
 import '../models/marketplace_models.dart';
 import 'widgets/marketplace_widgets.dart';
 
@@ -141,7 +143,22 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 ],
                 if (price != null) ...[
                   const SizedBox(height: 20),
-                  PriceBox(label: 'Desde', price: price),
+                  PriceBox(label: 'Desde', price: price, note: 'por persona'),
+                ],
+                if (_bookable(product) && price != null) ...[
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => showBookingSheet(
+                      context,
+                      productId: product.id,
+                      title: product.nombre,
+                      isRoom: false,
+                      maxQuantity: product.capacidadMaxima ?? 1,
+                      capacityPerUnit: 1,
+                    ),
+                    icon: const Icon(Icons.event_available),
+                    label: const Text('Reservar'),
+                  ),
                 ],
                 // Un hotel o una habitación abiertos por enlace directo: su ficha
                 // completa vive en la página del hospedaje.
@@ -161,3 +178,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 }
+
+/// Se reserva desde aquí todo lo reservable menos una habitación, que se
+/// reserva desde su hospedaje (allí están sus fechas de llegada y salida).
+bool _bookable(Product product) =>
+    bookableTypes.contains(product.tipoCodigo) && !product.esHabitacion && (product.capacidadMaxima ?? 0) > 0;

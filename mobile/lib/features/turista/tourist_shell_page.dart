@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// Navegación principal del turista: Explorar, Favoritos, Asistente y Mi Perfil.
+/// Navegación principal del turista: Explorar, Favoritos, Viajes, Asistente y
+/// Mi Perfil.
 ///
 /// Cada pestaña es una rama de StatefulShellRoute, así que al cambiar de
 /// pestaña no se pierde la búsqueda ni la conversación en curso.
@@ -35,6 +36,11 @@ class TouristShellPage extends StatelessWidget {
             icon: Icon(Icons.favorite_border),
             selectedIcon: Icon(Icons.favorite),
             label: 'Favoritos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.luggage_outlined),
+            selectedIcon: Icon(Icons.luggage),
+            label: 'Viajes',
           ),
           NavigationDestination(
             icon: Icon(Icons.smart_toy_outlined),

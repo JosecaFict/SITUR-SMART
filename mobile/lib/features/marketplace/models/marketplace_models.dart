@@ -332,6 +332,7 @@ class Room {
     required this.nombre,
     required this.monedaSimbolo,
     required this.precioNoche,
+    this.productoId = 0,
     required this.capacidadMaxima,
     required this.capacidadAdultos,
     required this.capacidadNinos,
@@ -346,6 +347,9 @@ class Room {
   final String nombre;
   final String monedaSimbolo;
   final String? precioNoche;
+
+  /// Producto de la habitación: es lo que se reserva.
+  final int productoId;
   final int capacidadMaxima;
   final int capacidadAdultos;
   final int capacidadNinos;
@@ -360,6 +364,7 @@ class Room {
         nombre: json['nombre']?.toString() ?? '',
         monedaSimbolo: json['moneda_simbolo']?.toString() ?? '',
         precioNoche: _textOrNull(json['precio_noche']),
+        productoId: _intOrNull(json['producto_id']) ?? 0,
         capacidadMaxima: _intOrNull(json['capacidad_maxima']) ?? 0,
         capacidadAdultos: _intOrNull(json['capacidad_adultos']) ?? 0,
         capacidadNinos: _intOrNull(json['capacidad_ninos']) ?? 0,

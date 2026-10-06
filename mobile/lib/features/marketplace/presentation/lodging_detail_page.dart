@@ -5,6 +5,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/marketplace_service.dart';
 import '../../favoritos/presentation/favorite_button.dart';
+import '../../reservas/presentation/booking_sheet.dart';
 import '../models/marketplace_models.dart';
 import 'widgets/marketplace_widgets.dart';
 
@@ -92,7 +93,20 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _RoomSheet(room: room),
+      builder: (sheetContext) => _RoomSheet(
+        room: room,
+        onBook: () {
+          Navigator.pop(sheetContext);
+          showBookingSheet(
+            context,
+            productId: room.productoId,
+            title: '${_lodging!.nombre} · ${room.nombre}',
+            isRoom: true,
+            maxQuantity: room.cantidad,
+            capacityPerUnit: room.capacidadMaxima,
+          );
+        },
+      ),
     );
   }
 
@@ -337,9 +351,10 @@ class _RoomTile extends StatelessWidget {
 }
 
 class _RoomSheet extends StatelessWidget {
-  const _RoomSheet({required this.room});
+  const _RoomSheet({required this.room, required this.onBook});
 
   final Room room;
+  final VoidCallback onBook;
 
   @override
   Widget build(BuildContext context) {
@@ -384,6 +399,12 @@ class _RoomSheet extends StatelessWidget {
           if (price != null) ...[
             const SizedBox(height: 20),
             PriceBox(label: 'Precio', price: price, note: 'por habitación/noche'),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: onBook,
+              icon: const Icon(Icons.event_available),
+              label: const Text('Reservar esta habitación'),
+            ),
           ],
         ],
       ),

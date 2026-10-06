@@ -107,11 +107,12 @@ class ApiClient {
     String endpoint,
     Map<String, dynamic> body, {
     int? tenantId,
+    Map<String, String> extraHeaders = const {},
   }) async {
     final response = await _authorized(
       (accessToken) => http.post(
         _uri(endpoint),
-        headers: _headers(token: accessToken, tenantId: tenantId),
+        headers: {..._headers(token: accessToken, tenantId: tenantId), ...extraHeaders},
         body: jsonEncode(body),
       ),
     );

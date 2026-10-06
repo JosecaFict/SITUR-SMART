@@ -32,6 +32,9 @@ dependencies:
 
   # Notas de voz del asistente: grabar y guardar en un archivo temporal
   record: ^6.1.1
+
+  # Voucher de la reserva
+  qr_flutter: ^4.1.0
   path_provider: ^2.1.5
 
 
