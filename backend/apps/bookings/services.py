@@ -606,6 +606,24 @@ def list_customer_bookings(*, user) -> list[Booking]:
     return list(_customer_bookings(user)) if stale else bookings
 
 
+def paid_bookings_touching(*, user, start: date, end: date) -> list[Booking]:
+    """Reservas pagadas del turista con algun cupo entre ``start - 1`` y ``end``.
+
+    El dia anterior entra para no perder la salida de un hotel cuya ultima
+    noche es la vispera del rango. No consulta a Stripe: una reserva pagada ya
+    no depende del pago. Quien llama decide que dias le tocan.
+    """
+    return list(
+        _customer_bookings(user)
+        .filter(
+            status__in=OCCUPYING_STATES,
+            details__slot__start__gte=_slot_start(start - timedelta(days=1)),
+            details__slot__start__lt=_slot_start(end + timedelta(days=1)),
+        )
+        .distinct()
+    )
+
+
 def _needs_sync(booking: Booking) -> bool:
     if booking.status == BookingState.CREATED:
         return True

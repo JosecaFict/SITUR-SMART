@@ -6,7 +6,7 @@ from apps.catalog.services import marketplace_visible_products, with_lodging_fro
 from .models import Favorite
 
 
-def _public_products():
+def public_products():
     """Productos que el Marketplace muestra hoy, con el precio "desde" anotado.
 
     Misma regla que el detalle publico: publicado, empresa activa y, si es un
@@ -29,13 +29,13 @@ def list_favorites(*, user) -> list[TourismProduct]:
     vuelve a publicar, reaparece en la lista. Solo se oculta mientras tanto.
     """
     ids = list(Favorite.objects.filter(user=user).values_list("product_id", flat=True))
-    products = {product.id: product for product in _public_products().filter(id__in=ids)}
+    products = {product.id: product for product in public_products().filter(id__in=ids)}
     return [products[product_id] for product_id in ids if product_id in products]
 
 
 def add_favorite(*, user, product_id: int) -> bool:
     """Marca un producto. Devuelve True si se creo, False si ya estaba."""
-    if not _public_products().filter(id=product_id).exists():
+    if not public_products().filter(id=product_id).exists():
         raise NotFound("Producto no encontrado.")
     _, created = Favorite.objects.get_or_create(user=user, product_id=product_id)
     return created
