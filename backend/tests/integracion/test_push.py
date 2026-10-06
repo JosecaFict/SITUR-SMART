@@ -4,12 +4,9 @@ Firebase se reemplaza por una funcion que anota lo enviado: aqui se prueba a
 quien le llega y que se hace con los tokens vencidos, no la red.
 """
 
-from types import SimpleNamespace
-
 import pytest
 from rest_framework.test import APIClient
 
-from apps.bookings import events
 from apps.notifications import push
 from apps.notifications.models import PushDevice
 
@@ -24,22 +21,6 @@ from .datos import (
 )
 
 pytestmark = pytest.mark.django_db(transaction=False)
-
-
-@pytest.fixture
-def firebase(monkeypatch):
-    """Firebase falso. ``rechazos`` mapea token -> codigo de error de FCM."""
-
-    falso = SimpleNamespace(enviados=[], rechazos={})
-
-    def enviar(message):
-        falso.enviados.append(message["message"])
-        return falso.rechazos.get(message["message"]["token"])
-
-    monkeypatch.setattr(push, "is_configured", lambda: True)
-    monkeypatch.setattr(push, "send_one", enviar)
-    monkeypatch.setattr(events, "send_email", lambda **kwargs: True)
-    return falso
 
 
 def _registrar(token, email=TURISTA):

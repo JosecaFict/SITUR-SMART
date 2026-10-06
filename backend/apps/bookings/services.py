@@ -34,7 +34,7 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.core import signing
 from django.db import connection, transaction
-from django.db.models import Prefetch, Sum
+from django.db.models import Max, Prefetch, Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound, ValidationError
@@ -563,6 +563,21 @@ def expire_overdue() -> int:
     count = 0
     for booking in overdue:
         if sync(booking).status != BookingState.CREATED:
+            count += 1
+    return count
+
+
+def complete_finished() -> int:
+    """Marca COMPLETADA cada reserva confirmada cuyo ultimo dia ya paso. Para cron.
+
+    Sin esto solo se completan cuando el turista abre la reserva.
+    """
+    finished = Booking.objects.annotate(last_slot=Max("details__slot__start")).filter(
+        status=BookingState.CONFIRMED, last_slot__lt=_slot_start(timezone.localdate())
+    )
+    count = 0
+    for booking in finished:
+        if sync(booking).status == BookingState.COMPLETED:
             count += 1
     return count
 

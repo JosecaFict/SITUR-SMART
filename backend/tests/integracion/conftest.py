@@ -9,6 +9,7 @@ En la suite normal (SQLite) estos archivos ni se recolectan.
 """
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import psycopg
 import pytest
@@ -16,6 +17,8 @@ from django.conf import settings
 from django.core.management import call_command
 from django.db import connections
 
+from apps.bookings import events
+from apps.notifications import push
 from apps.payments import gateway
 
 from .datos import WEBHOOK_SECRET
@@ -119,3 +122,18 @@ def stripe(monkeypatch, settings):
     monkeypatch.setattr(gateway, "retrieve_session", fake.retrieve_session)
     monkeypatch.setattr(gateway, "expire_session", fake.expire_session)
     return fake
+
+
+@pytest.fixture
+def firebase(monkeypatch):
+    """Firebase falso: anota cada push. ``rechazos`` mapea token -> codigo de error de FCM."""
+    falso = SimpleNamespace(enviados=[], rechazos={})
+
+    def enviar(message):
+        falso.enviados.append(message["message"])
+        return falso.rechazos.get(message["message"]["token"])
+
+    monkeypatch.setattr(push, "is_configured", lambda: True)
+    monkeypatch.setattr(push, "send_one", enviar)
+    monkeypatch.setattr(events, "send_email", lambda **kwargs: True)
+    return falso

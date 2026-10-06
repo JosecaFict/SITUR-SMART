@@ -107,6 +107,20 @@ Start:      gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
 Health:     /api/v1/health/
 ```
 
+### Cron de reservas
+
+Un segundo servicio de Railway, desde el mismo repositorio y con las mismas variables, corre cada
+10 minutos el comando que vence las reservas sin pagar (con su aviso y push) y completa las que
+ya pasaron. El webhook de Stripe hace lo mismo al instante; el cron es el respaldo.
+
+```text
+Root:       /backend
+Start:      python manage.py expirar_reservas
+Cron:       */10 * * * *
+```
+
+El servicio no lleva Pre-Deploy ni Health: arranca, procesa y termina.
+
 ## Endpoints iniciales
 
 ```text
