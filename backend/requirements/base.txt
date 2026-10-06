@@ -8,4 +8,4 @@ python-dotenv>=1.1,<2
 argon2-cffi>=23.1,<26
 whitenoise>=6.9,<7
 cloudinary>=1.40.0,<2
-
+stripe>=13,<14

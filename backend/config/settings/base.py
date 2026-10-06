@@ -72,6 +72,8 @@ INSTALLED_APPS = [
     "apps.media",
     "apps.assistant",
     "apps.favorites",
+    "apps.bookings",
+    "apps.payments",
 ]
 
 MIDDLEWARE = [
@@ -233,3 +235,16 @@ IA_MODEL = os.getenv("IA_MODEL", "openai/gpt-oss-120b")
 IA_STT_MODEL = os.getenv("IA_STT_MODEL", "whisper-large-v3-turbo")
 IA_TIMEOUT_SECONDS = int(os.getenv("IA_TIMEOUT_SECONDS", "30"))
 IA_MAX_TOKENS = int(os.getenv("IA_MAX_TOKENS", "1024"))
+
+# Pagos con Stripe Checkout (reservas del turista)
+#
+# Solo el backend habla con Stripe: la app abre la pagina de pago que devuelve
+# la API y la confirmacion llega por webhook. Sin STRIPE_SECRET_KEY no se puede
+# reservar (la API responde 503). STRIPE_WEBHOOK_SECRET es el "Signing secret"
+# del endpoint /api/v1/pagos/stripe/webhook/ creado en el panel de Stripe.
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+# Minutos que el cupo queda apartado mientras el turista paga. Stripe exige
+# que la sesion de Checkout dure al menos 30 minutos y vence a la vez.
+RESERVA_MINUTOS_PAGO = max(31, int(os.getenv("RESERVA_MINUTOS_PAGO", "35")))
