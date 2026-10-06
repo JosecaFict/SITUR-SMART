@@ -50,6 +50,22 @@ python manage.py createsituradmin
 
 La contraseña se procesa con los hashers de Django y nunca se guarda en texto plano.
 
+## Datos de demostración
+
+Con un SuperAdmin creado, carga empresas turísticas de Bolivia con hoteles, habitaciones,
+restaurantes, tours, experiencias, atracciones, paquetes, empleados y turistas:
+
+```powershell
+python manage.py seed_bolivia                       # se puede repetir: lo que existe se omite
+python manage.py seed_bolivia --reset               # borra lo que creó el seed y lo recarga
+python manage.py seed_bolivia --limpiar-demo-viejo  # desactiva las empresas del seed anterior
+python manage.py seed_bolivia --credenciales        # regenera CREDENCIALES_DEMO.md
+```
+
+Los datos viven en `apps/catalog/seed/bolivia.py`. Todas las cuentas usan la contraseña
+`Admin123*` y están listadas en `CREDENCIALES_DEMO.md`, en la raíz del repositorio. No se cargan
+imágenes: se suben desde el panel.
+
 ## Administración interna de Django
 
 Después de ejecutar las migraciones y crear el SuperAdmin, iniciar el servidor:
