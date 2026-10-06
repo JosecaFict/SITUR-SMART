@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../favoritos/data/favorites_store.dart';
 import '../../notificaciones/data/notifications_store.dart';
+import '../../notificaciones/data/push_service.dart';
 
 /// Autenticación contra la API: login, registro de turistas, cierre de sesión,
 /// restauración de la sesión guardada y recuperación de contraseña por OTP.
@@ -43,6 +46,9 @@ class AuthService {
   /// Revoca el refresh token en el backend y borra la sesión local. La sesión
   /// local se borra aunque el backend no responda.
   Future<void> logout() async {
+    // Primero, mientras la sesión sigue válida: el celular deja de recibir
+    // los avisos de esta cuenta.
+    await PushService.instance.unregisterDevice();
     final refresh = await _storage.getRefreshToken();
     try {
       if (refresh != null && refresh.isNotEmpty) {
@@ -64,6 +70,8 @@ class AuthService {
     if (refresh == null || refresh.isEmpty) return null;
     final access = await _apiClient.refreshSession();
     if (access == null) return null;
+    // Sin esperar: el push no debe demorar la entrada a la app.
+    unawaited(PushService.instance.registerDevice());
     return _storage.getUser();
   }
 
@@ -107,6 +115,7 @@ class AuthService {
     if (response['user'] is Map<String, dynamic>) {
       await _storage.saveUser(response['user'] as Map<String, dynamic>);
     }
+    unawaited(PushService.instance.registerDevice());
   }
 
   /// Ruta de inicio según el usuario: los turistas van a Explorar y el

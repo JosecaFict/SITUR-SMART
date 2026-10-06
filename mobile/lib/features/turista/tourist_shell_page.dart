@@ -13,8 +13,8 @@ import '../notificaciones/data/notifications_store.dart';
 /// pestaña no se pierde la búsqueda ni la conversación en curso.
 ///
 /// Mientras la app está abierta, el contador de notificaciones se pone al día
-/// cada minuto y al volver a la app. Cuando llegue el push de Firebase, el
-/// aviso llegará al instante y esta consulta quedará como respaldo.
+/// cada minuto y al volver a la app. El push de Firebase lo actualiza al
+/// instante; esta consulta queda como respaldo si el push no llega.
 class TouristShellPage extends StatefulWidget {
   const TouristShellPage({super.key, required this.navigationShell});
 

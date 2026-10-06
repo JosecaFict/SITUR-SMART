@@ -37,6 +37,10 @@ dependencies:
   qr_flutter: ^4.1.0
   path_provider: ^2.1.5
 
+  # Notificaciones push (Firebase Cloud Messaging)
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
+
 
 dev_dependencies:
   flutter_test:

@@ -12,7 +12,7 @@ y del SuperAdmin vive en la web.
 | 3.1 | Favoritos | Hecha |
 | 3.2 | Reservas con cupo automático, pago con Stripe Checkout, voucher con QR, Mis viajes | Hecha |
 | 3.3 | Notificaciones en la app y correo de reserva confirmada (Brevo) | Hecha |
-| 3.4 | Push con Firebase (FCM) | **Pendiente** |
+| 3.4 | Push con Firebase (FCM): aviso en el celular y al tocarlo abre la reserva | Hecha |
 | 3.5 | Itinerarios | **Pendiente** |
 
 Pruebas manuales: se decidió probar **todo junto en el APK al final**, no etapa por etapa.
@@ -27,18 +27,25 @@ Pruebas manuales: se decidió probar **todo junto en el APK al final**, no etapa
 - Solo se cancela **antes de pagar**. Cancelar una reserva pagada (reembolso, políticas de
   penalización) queda para más adelante.
 - **QR sin prioridad**: el voucher existe; no se hará el escáner para empresas.
-- **Notificaciones**: primero en la app (hecho); el push de Firebase se engancha en
-  `backend/apps/notifications/services.py::notify()`, sin tocar reservas ni pagos.
+- **Notificaciones**: se guardan en la bandeja y salen por push desde
+  `backend/apps/notifications/services.py::notify()`; reservas y pagos no saben de Firebase.
+  El celular se registra al iniciar sesión (`me/dispositivos/`) y se quita al cerrarla.
 
-## Pendiente de configurar
+## Configuración
 
-- **Railway**: ya están `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY`. Falta
-  `STRIPE_WEBHOOK_SECRET`. Después del deploy: Stripe (modo prueba) → Developers → Webhooks →
-  Add endpoint → `https://situr-smart-production.up.railway.app/api/v1/pagos/stripe/webhook/`,
-  eventos `checkout.session.completed` y `checkout.session.expired`; el *Signing secret*
-  (`whsec_…`) va a Railway.
-- **Firebase (para 3.4)**: crear el proyecto, agregar la app Android `bo.situr.smart`, descargar
-  `google-services.json` y generar una clave de cuenta de servicio para Railway.
+Ya cargada:
+
+- **Stripe**: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` y `STRIPE_WEBHOOK_SECRET` en Railway.
+  Endpoint en Stripe (modo prueba):
+  `https://situr-smart-production.up.railway.app/api/v1/pagos/stripe/webhook/`, eventos
+  `checkout.session.completed` y `checkout.session.expired`.
+- **Firebase**: proyecto `situr-smart-ac780` (cuenta Gmail personal: el correo institucional no
+  deja crear claves de cuenta de servicio). `mobile/android/app/google-services.json` va en el
+  repo (no es secreto). La clave de la cuenta de servicio va **solo** en Railway como
+  `FIREBASE_CREDENTIALS_BASE64`; `GET /api/v1/health/` muestra `"firebase": true` si se lee bien.
+
+Pendiente:
+
 - **Opcional**: `openapi.yaml` está desactualizado desde antes de estas etapas; regenerarlo en un
   commit propio.
 

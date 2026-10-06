@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mismo id que ANDROID_CHANNEL_ID en backend/apps/notifications/push.py -->
+    <string name="notification_channel_id" translatable="false">situr_avisos</string>
+    <!-- AppTheme.accentDark -->
+    <color name="notification_color">#0F766E</color>
+</resources>

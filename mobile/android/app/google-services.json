@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "166180646428",
+    "project_id": "situr-smart-ac780",
+    "storage_bucket": "situr-smart-ac780.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:166180646428:android:fb4c2fa9eaae28494439d9",
+        "android_client_info": {
+          "package_name": "bo.situr.smart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBaP1qsgNHUlLH2ZOX4GVid5nG1OKy023k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

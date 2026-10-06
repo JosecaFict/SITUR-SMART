@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mobile/features/notificaciones/data/notifications_store.dart';
+import 'package:mobile/features/notificaciones/data/push_service.dart';
 import 'package:mobile/features/notificaciones/presentation/notification_bell.dart';
 import 'package:mobile/features/notificaciones/presentation/notifications_page.dart';
 
@@ -77,5 +78,18 @@ void main() {
     expect(service.marked, [1]);
     expect(store.unread, 1);
     expect(find.text('Marcar todas'), findsNothing);
+  });
+
+  test('un push con reserva abre esa reserva; sin reserva no navega', () {
+    // FCM entrega los datos como texto.
+    expect(PushService.routeFor({'reserva_id': '12', 'tipo': 'RESERVA_CONFIRMADA'}), '/reserva/12');
+    expect(PushService.routeFor({'tipo': 'PAGO_REVISION'}), isNull);
+    expect(PushService.routeFor({'reserva_id': 'x'}), isNull);
+  });
+
+  test('sin Firebase iniciado, registrar o quitar el celular no hace nada', () async {
+    await PushService.instance.registerDevice();
+    await PushService.instance.unregisterDevice();
+    expect(PushService.instance.takePendingRoute(), isNull);
   });
 }

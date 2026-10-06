@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routes/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../notificaciones/data/push_service.dart';
 import '../../data/auth_service.dart';
 
 /// Primera pantalla de la app. Si hay una sesión guardada la renueva y entra
@@ -29,7 +31,14 @@ class _SplashPageState extends State<SplashPage> {
       user = null;
     }
     if (!mounted) return;
-    context.go(user == null ? '/login' : AuthService.homeRouteFor(user));
+    if (user == null) {
+      context.go('/login');
+      return;
+    }
+    context.go(AuthService.homeRouteFor(user));
+    // La app se abrió tocando un push: se abre esa reserva sobre el inicio.
+    final pushRoute = PushService.instance.takePendingRoute();
+    if (pushRoute != null) AppRouter.router.push(pushRoute);
   }
 
   @override
