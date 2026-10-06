@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from .models import Notification
+from .models import Notification, PushDevice
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -62,6 +62,45 @@ class MarkReadView(APIView):
     def post(self, request, pk):
         notification = services.mark_read(user=request.user, notification_id=pk)
         return Response(NotificationSerializer(notification).data)
+
+
+class DeviceSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=512, trim_whitespace=True)
+    plataforma = serializers.ChoiceField(choices=PushDevice.Platform.choices, default=PushDevice.Platform.ANDROID)
+
+
+class DeviceTokenSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=512, trim_whitespace=True)
+
+
+class DeviceView(APIView):
+    """La app registra aqui su token de Firebase al iniciar sesion y cuando Firebase lo rota."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=DeviceSerializer, responses={204: None})
+    def post(self, request):
+        serializer = DeviceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.register_device(
+            user=request.user,
+            token=serializer.validated_data["token"],
+            platform=serializer.validated_data["plataforma"],
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DeviceRemoveView(APIView):
+    """Al cerrar sesion: ese celular deja de recibir los avisos de la cuenta."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=DeviceTokenSerializer, responses={204: None})
+    def post(self, request):
+        serializer = DeviceTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.unregister_device(user=request.user, token=serializer.validated_data["token"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MarkAllReadView(APIView):

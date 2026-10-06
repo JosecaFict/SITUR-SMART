@@ -18,3 +18,4 @@ DEBUG = False
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 DATABASES["default"]["TEST"] = {"NAME": "situr_smart_pruebas"}  # noqa: F405
 CORREOS_EN_SEGUNDO_PLANO = False
+PUSH_EN_SEGUNDO_PLANO = False

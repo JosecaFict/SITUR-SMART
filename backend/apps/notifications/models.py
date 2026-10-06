@@ -29,3 +29,27 @@ class Notification(models.Model):
         managed = False
         db_table = "notificacion"
         ordering = ("-created_at", "-id")
+
+
+class PushDevice(models.Model):
+    """Celular con la app instalada que recibe los avisos por Firebase."""
+
+    class Platform(models.TextChoices):
+        ANDROID = "ANDROID", "Android"
+        IOS = "IOS", "iOS"
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        db_column="id_usuario",
+        on_delete=models.CASCADE,
+        related_name="push_devices",
+    )
+    token = models.CharField(max_length=512, unique=True)
+    platform = models.CharField(db_column="plataforma", max_length=20, default=Platform.ANDROID)
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+    updated_at = models.DateTimeField(db_column="actualizado_en", auto_now=True)
+
+    class Meta:
+        managed = False
+        db_table = "dispositivo_push"

@@ -252,3 +252,15 @@ RESERVA_MINUTOS_PAGO = max(31, int(os.getenv("RESERVA_MINUTOS_PAGO", "35")))
 # Los correos transaccionales (reserva confirmada) salen en un hilo aparte para
 # no demorar la respuesta. Las pruebas lo apagan para verificar el envio.
 CORREOS_EN_SEGUNDO_PLANO = os.getenv("CORREOS_EN_SEGUNDO_PLANO", "true").lower() == "true"
+
+# Notificaciones push con Firebase Cloud Messaging
+#
+# Clave de la cuenta de servicio del proyecto de Firebase (Configuracion del
+# proyecto > Cuentas de servicio > Generar nueva clave privada). Va en base64
+# para que los saltos de linea de la clave privada no se rompan en Railway;
+# FIREBASE_SERVICE_ACCOUNT_JSON acepta el JSON tal cual. Solo la lee
+# apps/notifications/push.py. Sin clave, los avisos quedan solo en la bandeja.
+FIREBASE_CREDENTIALS_BASE64 = os.getenv("FIREBASE_CREDENTIALS_BASE64", "")
+FIREBASE_SERVICE_ACCOUNT_JSON = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "")
+# Igual que el correo: el push sale en un hilo aparte. Las pruebas lo apagan.
+PUSH_EN_SEGUNDO_PLANO = os.getenv("PUSH_EN_SEGUNDO_PLANO", "true").lower() == "true"

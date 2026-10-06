@@ -9,3 +9,5 @@ argon2-cffi>=23.1,<26
 whitenoise>=6.9,<7
 cloudinary>=1.40.0,<2
 stripe>=13,<14
+# Notificaciones push (Firebase Cloud Messaging, API HTTP v1)
+google-auth[requests]>=2.40,<3

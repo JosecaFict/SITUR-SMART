@@ -13,3 +13,5 @@ openpyxl>=3.1,<4
 reportlab>=4.2,<5
 # Pagos con tarjeta (Stripe Checkout)
 stripe>=13,<14
+# Notificaciones push (Firebase Cloud Messaging, API HTTP v1)
+google-auth[requests]>=2.40,<3

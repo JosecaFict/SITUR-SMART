@@ -12,7 +12,7 @@ class HealthViewTests(SimpleTestCase):
         payload = response.json()
         assert payload["status"] == "ok"
         assert payload["database"] == "ok"
-        assert set(payload["integraciones"]) == {"cloudinary", "brevo", "openrouteservice"}
+        assert set(payload["integraciones"]) == {"cloudinary", "brevo", "openrouteservice", "firebase"}
 
     @patch("apps.common.views.HealthView.database_is_available", return_value=True)
     def test_health_reports_integrations_as_booleans(self, database_is_available):
@@ -20,6 +20,7 @@ class HealthViewTests(SimpleTestCase):
             patch("apps.common.views.CloudinaryService.is_configured", return_value=True),
             patch("apps.common.views.brevo_is_configured", return_value=False),
             patch("apps.common.views.geocoding_is_configured", return_value=True),
+            patch("apps.common.views.push_is_configured", return_value=False),
         ):
             response = self.client.get(reverse("health"))
 
@@ -28,6 +29,7 @@ class HealthViewTests(SimpleTestCase):
             "cloudinary": True,
             "brevo": False,
             "openrouteservice": True,
+            "firebase": False,
         }
 
     @patch("apps.common.views.HealthView.database_is_available", return_value=True)

@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from apps.accounts.brevo import is_configured as brevo_is_configured
 from apps.catalog.geocoding import is_configured as geocoding_is_configured
 from apps.media.services import CloudinaryService
+from apps.notifications.push import is_configured as push_is_configured
 
 
 class HealthView(APIView):
@@ -35,6 +36,7 @@ class HealthView(APIView):
             "cloudinary": CloudinaryService.is_configured(),
             "brevo": brevo_is_configured(),
             "openrouteservice": geocoding_is_configured(),
+            "firebase": push_is_configured(),
         }
 
     @extend_schema(
