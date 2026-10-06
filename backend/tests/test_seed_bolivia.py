@@ -12,7 +12,7 @@ from decimal import Decimal
 
 from django.test import SimpleTestCase
 
-from apps.catalog.seed import bolivia, credenciales
+from apps.catalog.seed import bolivia, credenciales, sql
 
 # Cupos de la migracion 0003_plan_suscripcion (max_usuarios, max_productos).
 PLAN_QUOTAS = {"BASICO": (3, 15), "PROFESIONAL": (10, 60), "EMPRESARIAL": (None, None)}
@@ -156,3 +156,30 @@ class CredentialsFileTests(SimpleTestCase):
         self.assertEqual(credenciales.resumen_oferta(cortez), "1 hotel, 4 tipos de habitación")
         tupiza = next(e for e in bolivia.EMPRESAS if e["nombre"] == "Tupiza Tours")
         self.assertEqual(credenciales.resumen_oferta(tupiza), "Sin oferta cargada todavía")
+
+
+class SqlScriptTests(SimpleTestCase):
+    def setUp(self):
+        self.script = sql.render(limpiar_demo_viejo=True)
+
+    def test_is_a_single_atomic_block(self):
+        self.assertEqual(self.script.count("DO $seed$"), 1)
+        self.assertTrue(self.script.rstrip().endswith("$seed$;"))
+
+    def test_loads_every_company_and_account(self):
+        for empresa in bolivia.EMPRESAS:
+            self.assertIn(f"nombre_comercial = {sql.q(empresa['nombre'])}", self.script)
+        for email in bolivia.todos_los_emails():
+            self.assertIn(f"'{email}'", self.script)
+
+    def test_passwords_travel_hashed(self):
+        self.assertNotIn(f"'{bolivia.PASSWORD}'", self.script)
+
+    def test_quotes_are_escaped(self):
+        self.assertIn("Cal Orck''o", self.script)
+        self.assertEqual(sql.q(None), "NULL")
+        self.assertEqual(sql.q(True), "TRUE")
+
+    def test_old_demo_cleanup_is_optional(self):
+        self.assertIn("Andes Boutique Hotels", self.script)
+        self.assertNotIn("Andes Boutique Hotels", sql.render())

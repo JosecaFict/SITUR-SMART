@@ -7,7 +7,7 @@ from django.db import DatabaseError, connection, transaction
 from apps.accounts.models import CustomerProfile, User
 from apps.accounts.services import create_or_link_tenant_user
 from apps.audit.services import record_audit
-from apps.catalog.seed import bolivia, credenciales
+from apps.catalog.seed import bolivia, credenciales, sql
 from apps.catalog.services import (
     create_lodging,
     create_product,
@@ -25,6 +25,7 @@ from apps.tenancy.services import (
 )
 
 CREDENTIALS_PATH = Path(settings.BASE_DIR).parent / "CREDENCIALES_DEMO.md"
+SQL_PATH = Path(settings.BASE_DIR) / "database" / "seed_bolivia.sql"
 
 # Orden de borrado de --reset: primero lo que depende de otra fila. rol_permiso,
 # sesion_usuario y token_recuperacion caen solos por ON DELETE CASCADE.
@@ -67,11 +68,25 @@ class Command(BaseCommand):
             action="store_true",
             help="Solo regenera CREDENCIALES_DEMO.md en la raíz del repositorio; no toca la base.",
         )
+        parser.add_argument(
+            "--sql",
+            action="store_true",
+            help=(
+                "Solo genera database/seed_bolivia.sql para ejecutarlo en pgAdmin (Query Tool); "
+                "no toca la base. Respeta --limpiar-demo-viejo."
+            ),
+        )
 
     def handle(self, *args, **options):
         if options["credenciales"]:
             CREDENTIALS_PATH.write_text(credenciales.render(), encoding="utf-8")
             self.stdout.write(self.style.SUCCESS(f"Credenciales escritas en {CREDENTIALS_PATH}"))
+            return
+        if options["sql"]:
+            SQL_PATH.write_text(
+                sql.render(limpiar_demo_viejo=options["limpiar_demo_viejo"]), encoding="utf-8"
+            )
+            self.stdout.write(self.style.SUCCESS(f"Script SQL escrito en {SQL_PATH}"))
             return
 
         admin = next(

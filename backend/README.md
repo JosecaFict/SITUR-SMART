@@ -60,7 +60,11 @@ python manage.py seed_bolivia                       # se puede repetir: lo que e
 python manage.py seed_bolivia --reset               # borra lo que creó el seed y lo recarga
 python manage.py seed_bolivia --limpiar-demo-viejo  # desactiva las empresas del seed anterior
 python manage.py seed_bolivia --credenciales        # regenera CREDENCIALES_DEMO.md
+python manage.py seed_bolivia --sql --limpiar-demo-viejo  # regenera database/seed_bolivia.sql
 ```
+
+`database/seed_bolivia.sql` hace lo mismo que el comando y sirve para una base a la que no se
+llega con `manage.py`: se abre en el Query Tool de pgAdmin y se ejecuta.
 
 Los datos viven en `apps/catalog/seed/bolivia.py`. Todas las cuentas usan la contraseña
 `Admin123*` y están listadas en `CREDENCIALES_DEMO.md`, en la raíz del repositorio. No se cargan
