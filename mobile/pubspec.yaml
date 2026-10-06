@@ -55,3 +55,4 @@ flutter:
 
   assets:
     - web/favicon.png
+    - assets/branding/

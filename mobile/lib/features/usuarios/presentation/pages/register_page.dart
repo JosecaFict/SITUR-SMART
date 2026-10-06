@@ -405,31 +405,8 @@ class _BrandPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              height: 44,
-              width: 44,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white24),
-                color: Colors.white10,
-              ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.explore, color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'SITUR-SMART',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-              ),
-            ),
-          ],
-        ),
+        // Versión con "SITUR" blanco: este panel tiene fondo oscuro.
+        Image.asset('assets/branding/logo-oscuro.png', height: 52, semanticLabel: 'SITUR-SMART'),
         const Spacer(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

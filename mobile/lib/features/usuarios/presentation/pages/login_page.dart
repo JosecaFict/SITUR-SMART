@@ -297,44 +297,11 @@ class _MobileLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    return Row(
-
-      children: [
-
-        Container(
-
-          width: 50,
-
-          height: 50,
-
-          decoration: BoxDecoration(
-
-            color: AppTheme.accent,
-
-            borderRadius:
-                BorderRadius.circular(14),
-
-          ),
-
-          child: const Icon(
-            Icons.travel_explore,
-            color: Colors.white,
-          ),
-        ),
-
-
-        const SizedBox(width: 12),
-
-
-        const Text(
-          'SITUR-SMART',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-      ],
+    // Versión con "SITUR" oscuro: el login tiene fondo blanco.
+    return Image.asset(
+      'assets/branding/logo-claro.png',
+      height: 56,
+      semanticLabel: 'SITUR-SMART',
     );
   }
 }

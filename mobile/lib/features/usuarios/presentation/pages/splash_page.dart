@@ -49,13 +49,12 @@ class _SplashPageState extends State<SplashPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.travel_explore, color: Colors.white, size: 56),
-            SizedBox(height: 16),
-            Text(
-              'SITUR-SMART',
-              style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+            // Versión con "SITUR" blanco, sobre el verde del splash.
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 48),
+              child: Image(image: AssetImage('assets/branding/logo-oscuro.png'), semanticLabel: 'SITUR-SMART'),
             ),
-            SizedBox(height: 24),
+            SizedBox(height: 32),
             CircularProgressIndicator(color: Colors.white),
           ],
         ),
