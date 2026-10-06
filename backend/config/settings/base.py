@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "apps.favorites",
     "apps.bookings",
     "apps.payments",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -248,3 +249,6 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 # Minutos que el cupo queda apartado mientras el turista paga. Stripe exige
 # que la sesion de Checkout dure al menos 30 minutos y vence a la vez.
 RESERVA_MINUTOS_PAGO = max(31, int(os.getenv("RESERVA_MINUTOS_PAGO", "35")))
+# Los correos transaccionales (reserva confirmada) salen en un hilo aparte para
+# no demorar la respuesta. Las pruebas lo apagan para verificar el envio.
+CORREOS_EN_SEGUNDO_PLANO = os.getenv("CORREOS_EN_SEGUNDO_PLANO", "true").lower() == "true"

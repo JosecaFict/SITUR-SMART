@@ -57,6 +57,16 @@ Barra inferior con tres pestañas, que conservan su estado al cambiar entre ella
   no tiene proveedor de IA configurado, la pestaña lo indica.
 - **Mi Perfil**: datos personales y documento (`GET/PATCH auth/me/`), cambio de contraseña y
   cierre de sesión.
+- **Favoritos**: corazón en tarjetas y fichas (`me/favoritos/`).
+- **Viajes**: reservas del turista (`me/reservas/`). Se reserva desde la habitación de un
+  hospedaje o desde la ficha de un tour, experiencia, atracción, restaurante o paquete; el pago se
+  abre en Stripe Checkout y la reserva se confirma sola al volver a la app. Las pagadas muestran
+  su voucher con QR.
+- **Notificaciones**: campana con el contador de no leídas en las pestañas
+  (`me/notificaciones/`). Se pone al día cada minuto y al volver a la app; al confirmarse una
+  reserva también llega un correo (Brevo).
+
+Pago de prueba: tarjeta `4242 4242 4242 4242`, cualquier fecha futura y cualquier CVC.
 
 Permisos: micrófono (`RECORD_AUDIO` en Android, `NSMicrophoneUsageDescription` en iOS), pedido
 la primera vez que se usa la voz.

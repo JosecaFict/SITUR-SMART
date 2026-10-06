@@ -16,6 +16,10 @@ from django.conf import settings
 from django.core.management import call_command
 from django.db import connections
 
+from apps.payments import gateway
+
+from .datos import WEBHOOK_SECRET
+
 if settings.DATABASES["default"]["ENGINE"].endswith("sqlite3"):
     collect_ignore_glob = ["test_*.py"]
 
@@ -70,3 +74,48 @@ def django_db_setup(django_db_blocker):
         )
         call_command("seed_bolivia", verbosity=0)
     yield
+
+
+class StripeFalso:
+    def __init__(self):
+        self.sessions: dict[str, dict] = {}
+        self.created: list[dict] = []
+        self.fail = False
+
+    def create_checkout_session(self, **kwargs):
+        if self.fail:
+            raise gateway.PaymentUnavailable()
+        session_id = f"cs_test_{len(self.created) + 1}"
+        self.created.append(kwargs)
+        self.sessions[session_id] = {"status": "open", "payment_status": "unpaid"}
+        return self._session(session_id)
+
+    def retrieve_session(self, session_id):
+        return self._session(session_id) if session_id in self.sessions else None
+
+    def expire_session(self, session_id):
+        if self.sessions.get(session_id, {}).get("status") == "open":
+            self.sessions[session_id]["status"] = "expired"
+
+    def pay(self, session_id):
+        self.sessions[session_id] = {"status": "complete", "payment_status": "paid"}
+
+    def _session(self, session_id):
+        data = self.sessions[session_id]
+        return gateway.CheckoutSession(
+            id=session_id,
+            url=f"https://checkout.stripe.test/{session_id}",
+            status=data["status"],
+            payment_status=data["payment_status"],
+        )
+
+
+@pytest.fixture
+def stripe(monkeypatch, settings):
+    fake = StripeFalso()
+    settings.STRIPE_SECRET_KEY = "sk_test_pruebas"
+    settings.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET
+    monkeypatch.setattr(gateway, "create_checkout_session", fake.create_checkout_session)
+    monkeypatch.setattr(gateway, "retrieve_session", fake.retrieve_session)
+    monkeypatch.setattr(gateway, "expire_session", fake.expire_session)
+    return fake

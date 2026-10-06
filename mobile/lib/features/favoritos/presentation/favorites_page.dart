@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../notificaciones/presentation/notification_bell.dart';
 import '../../marketplace/models/marketplace_models.dart';
 import '../../marketplace/presentation/widgets/marketplace_widgets.dart';
 import '../../marketplace/presentation/widgets/result_card.dart';
@@ -67,6 +68,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
         backgroundColor: AppTheme.accentDark,
         foregroundColor: Colors.white,
         title: const Text('Mis favoritos', style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: const [NotificationBell()],
       ),
       body: _body(),
     );

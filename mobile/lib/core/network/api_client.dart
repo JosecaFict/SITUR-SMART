@@ -119,6 +119,18 @@ class ApiClient {
     return _decodeMap(response);
   }
 
+  /// POST autenticado cuya respuesta puede venir vacía (204).
+  Future<void> postAuthEmpty(String endpoint, {Map<String, dynamic> body = const {}}) async {
+    final response = await _authorized(
+      (accessToken) => http.post(
+        _uri(endpoint),
+        headers: _headers(token: accessToken),
+        body: jsonEncode(body),
+      ),
+    );
+    _decode(response, allowEmpty: true);
+  }
+
   Future<Map<String, dynamic>> patchAuth(
     String endpoint,
     Map<String, dynamic> body, {

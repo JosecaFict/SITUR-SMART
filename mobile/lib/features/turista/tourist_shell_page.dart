@@ -1,30 +1,65 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../notificaciones/data/notifications_store.dart';
 
 /// Navegación principal del turista: Explorar, Favoritos, Viajes, Asistente y
 /// Mi Perfil.
 ///
 /// Cada pestaña es una rama de StatefulShellRoute, así que al cambiar de
 /// pestaña no se pierde la búsqueda ni la conversación en curso.
-class TouristShellPage extends StatelessWidget {
+///
+/// Mientras la app está abierta, el contador de notificaciones se pone al día
+/// cada minuto y al volver a la app. Cuando llegue el push de Firebase, el
+/// aviso llegará al instante y esta consulta quedará como respaldo.
+class TouristShellPage extends StatefulWidget {
   const TouristShellPage({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
+  State<TouristShellPage> createState() => _TouristShellPageState();
+}
+
+class _TouristShellPageState extends State<TouristShellPage> with WidgetsBindingObserver {
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    NotificationsStore.instance.refresh();
+    _poll = Timer.periodic(const Duration(minutes: 1), (_) => NotificationsStore.instance.refresh());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) NotificationsStore.instance.refresh();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final shell = widget.navigationShell;
     return Scaffold(
-      body: navigationShell,
+      body: shell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
+        selectedIndex: shell.currentIndex,
         indicatorColor: AppTheme.demoBorder,
         backgroundColor: Colors.white,
-        onDestinationSelected: (index) => navigationShell.goBranch(
+        onDestinationSelected: (index) => shell.goBranch(
           index,
           // Tocar la pestaña activa la devuelve a su inicio.
-          initialLocation: index == navigationShell.currentIndex,
+          initialLocation: index == shell.currentIndex,
         ),
         destinations: const [
           NavigationDestination(

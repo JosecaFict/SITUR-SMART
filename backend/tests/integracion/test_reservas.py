@@ -5,123 +5,31 @@ permite marcarlas como pagadas o vencidas, igual que lo haria Stripe. El
 webhook se prueba con una firma calculada como la calcula Stripe.
 """
 
-import hashlib
-import hmac
-import json
-import time
 from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 from django.db import connection
-from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.bookings.models import Booking, InventoryLock, Order
 from apps.bookings.services import read_voucher
 from apps.catalog.models import TourismProduct
-from apps.payments import gateway
 from apps.payments.models import Payment
 
-from .datos import OTRO_TURISTA, cliente, habitacion_publicada, tour_publicado
+from .datos import (
+    OTRO_TURISTA,
+    _hoy,
+    _pedido_habitacion,
+    _session_id,
+    _vencer,
+    _webhook,
+    cliente,
+    habitacion_publicada,
+    tour_publicado,
+)
 
 pytestmark = pytest.mark.django_db
-
-WEBHOOK_SECRET = "whsec_pruebas"
-
-
-class StripeFalso:
-    def __init__(self):
-        self.sessions: dict[str, dict] = {}
-        self.created: list[dict] = []
-        self.fail = False
-
-    def create_checkout_session(self, **kwargs):
-        if self.fail:
-            raise gateway.PaymentUnavailable()
-        session_id = f"cs_test_{len(self.created) + 1}"
-        self.created.append(kwargs)
-        self.sessions[session_id] = {"status": "open", "payment_status": "unpaid"}
-        return self._session(session_id)
-
-    def retrieve_session(self, session_id):
-        return self._session(session_id) if session_id in self.sessions else None
-
-    def expire_session(self, session_id):
-        if self.sessions.get(session_id, {}).get("status") == "open":
-            self.sessions[session_id]["status"] = "expired"
-
-    def pay(self, session_id):
-        self.sessions[session_id] = {"status": "complete", "payment_status": "paid"}
-
-    def _session(self, session_id):
-        data = self.sessions[session_id]
-        return gateway.CheckoutSession(
-            id=session_id,
-            url=f"https://checkout.stripe.test/{session_id}",
-            status=data["status"],
-            payment_status=data["payment_status"],
-        )
-
-
-@pytest.fixture
-def stripe(monkeypatch, settings):
-    fake = StripeFalso()
-    settings.STRIPE_SECRET_KEY = "sk_test_pruebas"
-    settings.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET
-    monkeypatch.setattr(gateway, "create_checkout_session", fake.create_checkout_session)
-    monkeypatch.setattr(gateway, "retrieve_session", fake.retrieve_session)
-    monkeypatch.setattr(gateway, "expire_session", fake.expire_session)
-    return fake
-
-
-def _hoy():
-    return timezone.localdate()
-
-
-def _pedido_habitacion(room, *, dias=10, noches=2, cantidad=1, huespedes=None):
-    llegada = _hoy() + timedelta(days=dias)
-    return {
-        "producto_id": room.product_id,
-        "fecha_inicio": llegada.isoformat(),
-        "fecha_fin": (llegada + timedelta(days=noches)).isoformat(),
-        "cantidad": cantidad,
-        "huespedes": huespedes or cantidad,
-    }
-
-
-def _session_id(booking_id: int) -> str:
-    return Payment.objects.get(booking_id=booking_id).reference
-
-
-def _webhook(event_type: str, session_id: str, payment_status="paid", secret=WEBHOOK_SECRET):
-    payload = json.dumps(
-        {
-            "id": "evt_test",
-            "object": "event",
-            "type": event_type,
-            "data": {"object": {"id": session_id, "object": "checkout.session", "payment_status": payment_status}},
-        }
-    )
-    timestamp = int(time.time())
-    signature = hmac.new(secret.encode(), f"{timestamp}.{payload}".encode(), hashlib.sha256).hexdigest()
-    return APIClient().post(
-        "/api/v1/pagos/stripe/webhook/",
-        data=payload,
-        content_type="application/json",
-        HTTP_STRIPE_SIGNATURE=f"t={timestamp},v1={signature}",
-    )
-
-
-def _vencer(booking_id: int) -> None:
-    """Lleva la reserva al pasado: la base exige vencimiento posterior a la creacion."""
-    hace_una_hora = timezone.now() - timedelta(hours=1)
-    hace_un_minuto = timezone.now() - timedelta(minutes=1)
-    InventoryLock.objects.filter(booking_id=booking_id).update(
-        created_at=hace_una_hora, expires_at=hace_un_minuto
-    )
-    Booking.objects.filter(id=booking_id).update(created_at=hace_una_hora, expires_at=hace_un_minuto)
-
 
 # --- Cotizacion -----------------------------------------------------------------
 

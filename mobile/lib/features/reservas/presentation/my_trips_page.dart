@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../notificaciones/presentation/notification_bell.dart';
 import '../../marketplace/presentation/widgets/marketplace_widgets.dart';
 import '../data/booking_models.dart';
 import '../data/booking_service.dart';
@@ -66,6 +67,7 @@ class _MyTripsPageState extends State<MyTripsPage> {
         backgroundColor: AppTheme.accentDark,
         foregroundColor: Colors.white,
         title: const Text('Mis viajes', style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: const [NotificationBell()],
       ),
       body: _body(),
     );

@@ -8,6 +8,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../marketplace/presentation/widgets/marketplace_widgets.dart';
+import '../../notificaciones/data/notifications_store.dart';
 import '../data/booking_models.dart';
 import '../data/booking_service.dart';
 import 'booking_status_chip.dart';
@@ -67,6 +68,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
     try {
       final booking = await _service.detail(widget.bookingId);
       if (!mounted) return;
+      // Se acaba de confirmar: el backend dejo un aviso nuevo en la bandeja.
+      if (_booking?.pendingPayment == true && !booking.pendingPayment) {
+        NotificationsStore.instance.refresh();
+      }
       setState(() {
         _booking = booking;
         _loading = false;

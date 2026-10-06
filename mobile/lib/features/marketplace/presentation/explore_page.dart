@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../notificaciones/presentation/notification_bell.dart';
 import '../data/marketplace_service.dart';
 import '../models/marketplace_models.dart';
 import 'widgets/marketplace_widgets.dart';
@@ -158,6 +159,7 @@ class _ExplorePageState extends State<ExplorePage> {
         backgroundColor: AppTheme.accentDark,
         foregroundColor: Colors.white,
         title: const Text('Explorar Bolivia', style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: const [NotificationBell()],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
           child: Padding(

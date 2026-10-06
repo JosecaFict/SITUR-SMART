@@ -44,6 +44,7 @@ from apps.catalog.models import ROOM_PRODUCT_CODE, Availability, TourismProduct
 from apps.payments import gateway
 from apps.payments.models import Payment
 
+from . import events
 from .models import (
     Booking,
     BookingDetail,
@@ -291,6 +292,9 @@ def _transition(booking: Booking, new_status: str, *, user=None, reason: str | N
     BookingStatusHistory.objects.create(
         booking=booking, user=user, previous_status=previous, new_status=new_status, reason=reason
     )
+    # Avisos y correo solo si la transaccion se confirma.
+    actor_id = getattr(user, "id", None)
+    transaction.on_commit(lambda: events.booking_changed(booking.id, new_status, actor_id))
 
 
 def _description(quote: Quote) -> str:
@@ -476,6 +480,7 @@ def confirm_paid_session(session_id: str) -> Booking | None:
                 )
             except NoCapacity:
                 _record(booking, "Pago recibido sin cupo disponible: requiere reembolso.")
+                transaction.on_commit(lambda: events.payment_needs_review(booking.id))
             else:
                 _transition(booking, BookingState.CONFIRMED, reason="Pago aprobado después del vencimiento.")
         return booking

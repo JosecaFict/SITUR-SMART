@@ -6,6 +6,7 @@ import '../../features/main/presentation/main_shell_page.dart';
 import '../../features/marketplace/presentation/explore_page.dart';
 import '../../features/marketplace/presentation/lodging_detail_page.dart';
 import '../../features/marketplace/presentation/product_detail_page.dart';
+import '../../features/notificaciones/presentation/notifications_page.dart';
 import '../../features/perfil/presentation/profile_page.dart';
 import '../../features/reservas/presentation/booking_detail_page.dart';
 import '../../features/reservas/presentation/my_trips_page.dart';
@@ -106,6 +107,12 @@ class AppRouter {
         name: 'reserva',
         builder: (context, state) =>
             BookingDetailPage(bookingId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0),
+      ),
+
+      GoRoute(
+        path: '/notificaciones',
+        name: 'notificaciones',
+        builder: (context, state) => const NotificationsInboxPage(),
       ),
 
       // Panel del personal de empresas y del SuperAdmin.

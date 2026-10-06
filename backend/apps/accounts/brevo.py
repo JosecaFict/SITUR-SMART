@@ -93,51 +93,27 @@ def build_otp_email_html(recipient_name: str, otp_code: str, expiration_minutes:
 """
 
 
-def send_password_reset_otp_email(
-    *,
-    to_email: str,
-    recipient_name: str,
-    otp_code: str,
-    expiration_minutes: int = 15,
-) -> bool:
-    """
-    Envía un correo electrónico con el código OTP usando la API de Brevo.
-    Si BREVO_API_KEY no está configurada, registra el código en la consola para desarrollo local.
+def send_email(*, to_email: str, to_name: str | None, subject: str, html: str) -> bool:
+    """Envia un correo con la API de Brevo. Nunca levanta: devuelve si salio.
+
+    Sin BREVO_API_KEY no envia nada y devuelve False; quien llama decide si eso
+    importa (el OTP lo registra en los logs para desarrollo local).
     """
     api_key = getattr(settings, "BREVO_API_KEY", "").strip()
     sender_email = getattr(settings, "BREVO_SENDER_EMAIL", "jcvillarroeld126@ficct.uagrm.edu.bo").strip()
     sender_name = getattr(settings, "BREVO_SENDER_NAME", "SITUR-SMART").strip()
-
     if not api_key:
-        logger.info(
-            "[DEV / FALLBACK] BREVO_API_KEY no configurada. Código OTP para %s: %s (expira en %d min)",
-            to_email,
-            otp_code,
-            expiration_minutes,
-        )
-        return True
-
-    html_content = build_otp_email_html(recipient_name, otp_code, expiration_minutes)
+        return False
 
     payload = {
-        "sender": {
-            "name": sender_name,
-            "email": sender_email,
-        },
-        "to": [
-            {
-                "email": to_email,
-                "name": recipient_name if recipient_name else to_email,
-            }
-        ],
-        "subject": f"Código de recuperación: {otp_code} - SITUR-SMART",
-        "htmlContent": html_content,
+        "sender": {"name": sender_name, "email": sender_email},
+        "to": [{"email": to_email, "name": to_name or to_email}],
+        "subject": subject,
+        "htmlContent": html,
     }
-
-    data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         BREVO_API_URL,
-        data=data,
+        data=json.dumps(payload).encode("utf-8"),
         headers={
             "accept": "application/json",
             "api-key": api_key,
@@ -151,7 +127,7 @@ def send_password_reset_otp_email(
         with urllib.request.urlopen(req, timeout=10) as response:
             status_code = response.getcode()
             if 200 <= status_code < 300:
-                logger.info("Correo OTP de recuperación enviado exitosamente a %s vía Brevo.", to_email)
+                logger.info("Correo \"%s\" enviado a %s via Brevo.", subject, to_email)
                 return True
             logger.error("Brevo respondió con código no esperado: %d", status_code)
             return False
@@ -163,5 +139,33 @@ def send_password_reset_otp_email(
         logger.error("Error de conexión al llamar a Brevo API: %s", exc.reason)
         return False
     except Exception as exc:
-        logger.exception("Error inesperado enviando correo OTP con Brevo: %s", exc)
+        logger.exception("Error inesperado enviando correo con Brevo: %s", exc)
         return False
+
+
+def send_password_reset_otp_email(
+    *,
+    to_email: str,
+    recipient_name: str,
+    otp_code: str,
+    expiration_minutes: int = 15,
+) -> bool:
+    """
+    Envía un correo electrónico con el código OTP usando la API de Brevo.
+    Si BREVO_API_KEY no está configurada, registra el código en la consola para desarrollo local.
+    """
+    if not getattr(settings, "BREVO_API_KEY", "").strip():
+        logger.info(
+            "[DEV / FALLBACK] BREVO_API_KEY no configurada. Código OTP para %s: %s (expira en %d min)",
+            to_email,
+            otp_code,
+            expiration_minutes,
+        )
+        return True
+
+    return send_email(
+        to_email=to_email,
+        to_name=recipient_name,
+        subject=f"Código de recuperación: {otp_code} - SITUR-SMART",
+        html=build_otp_email_html(recipient_name, otp_code, expiration_minutes),
+    )

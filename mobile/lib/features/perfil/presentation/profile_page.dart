@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../notificaciones/presentation/notification_bell.dart';
 import '../../marketplace/presentation/widgets/marketplace_widgets.dart';
 import '../../usuarios/data/auth_service.dart';
 import '../data/profile_service.dart';
@@ -154,6 +155,7 @@ class _ProfilePageState extends State<ProfilePage> {
         foregroundColor: Colors.white,
         title: const Text('Mi Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          const NotificationBell(),
           IconButton(tooltip: 'Cerrar sesión', onPressed: _logout, icon: const Icon(Icons.logout)),
         ],
       ),
