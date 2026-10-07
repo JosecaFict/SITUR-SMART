@@ -1,5 +1,12 @@
 from django.urls import path
 
+from .company_views import (
+    CheckInView,
+    CompanyBookingDetailView,
+    CompanyBookingListView,
+    ReportCustomerView,
+    VoucherLookupView,
+)
 from .views import (
     BookingCancelView,
     BookingDetailView,
@@ -19,4 +26,10 @@ urlpatterns = [
     path("me/reservas/<int:pk>/comprobante/", BookingReceiptLinkView.as_view(), name="booking-receipt"),
     # Publico pero firmado: lo abre el navegador del celular o el enlace del correo.
     path("comprobantes/<str:token>/", receipt_pdf, name="booking-receipt-public"),
+    # La empresa que vende (X-Tenant-ID): sus reservas, llegada y reportes.
+    path("empresa/reservas/", CompanyBookingListView.as_view(), name="company-booking-list"),
+    path("empresa/reservas/validar/", VoucherLookupView.as_view(), name="company-voucher-lookup"),
+    path("empresa/reservas/<int:pk>/", CompanyBookingDetailView.as_view(), name="company-booking-detail"),
+    path("empresa/reservas/<int:pk>/llegada/", CheckInView.as_view(), name="company-booking-checkin"),
+    path("empresa/reservas/<int:pk>/reportar/", ReportCustomerView.as_view(), name="company-booking-report"),
 ]

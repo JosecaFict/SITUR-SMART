@@ -60,6 +60,12 @@ class Booking(models.Model):
     status = models.CharField(db_column="estado", max_length=25, default=BookingState.CREATED)
     expires_at = models.DateTimeField(db_column="fecha_expiracion", null=True)
     guests = models.PositiveIntegerField(db_column="huespedes", null=True)
+    # La empresa valida el voucher al llegar el cliente; despues no se reusa.
+    checked_in_at = models.DateTimeField(db_column="llegada_en", null=True)
+    checked_in_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, db_column="id_llegada_validada_por", on_delete=models.SET_NULL,
+        null=True, related_name="+",
+    )
     created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
     updated_at = models.DateTimeField(db_column="actualizado_en", auto_now=True)
 
@@ -147,3 +153,27 @@ class BookingStatusHistory(models.Model):
     class Meta:
         managed = False
         db_table = "historial_estado_reserva"
+
+
+class CustomerReport(models.Model):
+    """Una empresa avisa a la plataforma de un problema con un cliente.
+
+    No lo bloquea: el SuperAdmin lo ve en la ficha del cliente y decide.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    tenant = models.ForeignKey("tenancy.Tenant", db_column="id_tenant", on_delete=models.CASCADE, related_name="+")
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, db_column="id_cliente", on_delete=models.CASCADE, related_name="reports_received"
+    )
+    booking = models.ForeignKey(Booking, db_column="id_reserva", on_delete=models.SET_NULL, null=True, related_name="+")
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, db_column="id_reportado_por", on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    reason = models.TextField(db_column="motivo")
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = "reporte_cliente"
+        ordering = ("-created_at", "-id")

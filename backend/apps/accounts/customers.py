@@ -99,6 +99,7 @@ def paid_totals(user_ids: list[int]) -> dict[int, list[dict]]:
 
 def customer_detail(*, actor, user_id: int) -> dict:
     """La ficha: cuenta, actividad, dispositivos y el historial de acciones sobre ella."""
+    from apps.bookings.company import reports_for_customer
     from apps.bookings.models import Booking
     from apps.bookings.serializers import BookingSerializer
     from apps.bookings.services import OCCUPYING_STATES
@@ -144,6 +145,7 @@ def customer_detail(*, actor, user_id: int) -> dict:
             }
             for booking in bookings
         ],
+        "reportes": reports_for_customer(customer.id),
         "historial": [
             {
                 "fecha": log.created_at,
