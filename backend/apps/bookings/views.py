@@ -1,11 +1,16 @@
+from django.core import signing
+from django.http import Http404, HttpResponse
 from django.urls import reverse
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import services
+from . import receipt, services
+from .models import Booking
 from .serializers import BookingRequestSerializer, BookingSerializer, QuoteSerializer
 
 
@@ -29,7 +34,7 @@ def _request_args(request) -> dict:
 def _return_url(request, result: str) -> str:
     """Pagina a la que Stripe devuelve al turista al terminar o abandonar."""
     url = request.build_absolute_uri(reverse("stripe-return"))
-    return f"{url}?resultado={result}&reserva={{CODIGO}}"
+    return f"{url}?resultado={result}&reserva={{CODIGO}}&id={{ID}}"
 
 
 class QuoteView(APIView):
@@ -106,3 +111,37 @@ class BookingCancelView(APIView):
         services.cancel_booking(user=request.user, booking_id=pk)
         booking = services.get_customer_booking(user=request.user, booking_id=pk)
         return Response(BookingSerializer(booking).data)
+
+
+class BookingReceiptLinkView(APIView):
+    """Enlace firmado al comprobante PDF de una reserva pagada.
+
+    La app lo abre en el navegador del celular: el PDF se baja sin mandar la
+    sesion del turista.
+    """
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request, pk):
+        booking = services.get_customer_booking(user=request.user, booking_id=pk)
+        if booking.status not in services.OCCUPYING_STATES:
+            raise ValidationError("El comprobante está disponible cuando la reserva está pagada.")
+        return Response({"url": receipt.receipt_url(booking)})
+
+
+def receipt_pdf(request, token: str):
+    """El PDF del comprobante, por enlace firmado (correo o app)."""
+    try:
+        booking_id = receipt.read_receipt_token(token)
+    except signing.BadSignature:
+        raise Http404("El enlace del comprobante no es válido o venció.") from None
+    booking = Booking.objects.select_related("order__customer__user", "tenant", "currency").filter(
+        id=booking_id, status__in=services.OCCUPYING_STATES
+    ).first()
+    if booking is None:
+        raise Http404("Comprobante no disponible.")
+    response = HttpResponse(receipt.build_receipt_pdf(booking), content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="comprobante-{booking.code}.pdf"'
+    response["Cache-Control"] = "private, no-store"
+    return response

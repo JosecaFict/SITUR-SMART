@@ -93,7 +93,9 @@ def build_otp_email_html(recipient_name: str, otp_code: str, expiration_minutes:
 """
 
 
-def send_email(*, to_email: str, to_name: str | None, subject: str, html: str) -> bool:
+def send_email(
+    *, to_email: str, to_name: str | None, subject: str, html: str, attachments: list[dict] | None = None
+) -> bool:
     """Envia un correo con la API de Brevo. Nunca levanta: devuelve si salio.
 
     Sin BREVO_API_KEY no envia nada y devuelve False; quien llama decide si eso
@@ -111,6 +113,9 @@ def send_email(*, to_email: str, to_name: str | None, subject: str, html: str) -
         "subject": subject,
         "htmlContent": html,
     }
+    if attachments:
+        # Brevo: [{"name": "comprobante.pdf", "content": "<base64>"}]
+        payload["attachment"] = attachments
     req = urllib.request.Request(
         BREVO_API_URL,
         data=json.dumps(payload).encode("utf-8"),

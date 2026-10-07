@@ -272,3 +272,10 @@ WEB_APP_URL = os.getenv("WEB_APP_URL", "https://situr-smart-web.vercel.app")
 
 # Correo de contacto que ven los usuarios (cuenta suspendida, avisos).
 SOPORTE_EMAIL = os.getenv("SOPORTE_EMAIL", BREVO_SENDER_EMAIL)
+
+# Direccion publica de esta API. La usan los enlaces que salen en correos, como
+# el del comprobante de una reserva (en un webhook no hay request de donde sacarla).
+API_PUBLIC_URL = os.getenv("API_PUBLIC_URL", "https://situr-smart-production.up.railway.app")
+# Esquema con el que la pagina de retorno de Stripe vuelve a abrir la app movil
+# (AndroidManifest: intent-filter situr-smart://app).
+APP_DEEP_LINK = os.getenv("APP_DEEP_LINK", "situr-smart://app")

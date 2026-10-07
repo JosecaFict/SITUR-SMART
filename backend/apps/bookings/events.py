@@ -5,6 +5,7 @@ deshizo. El correo sale en un hilo aparte para no demorar al webhook de
 Stripe; el HTML se arma antes, asi el hilo no toca la base.
 """
 
+import base64
 import logging
 import threading
 from datetime import date
@@ -16,6 +17,7 @@ from apps.accounts.brevo import send_email
 from apps.notifications.models import Notification
 from apps.notifications.services import notify
 
+from . import receipt
 from .models import Booking, BookingState
 
 logger = logging.getLogger(__name__)
@@ -77,11 +79,14 @@ def booking_changed(booking_id: int, new_status: str, actor_id: int | None = Non
             message=f"{info['title']} · {info['when']}. Tu código es {info['code']}.",
             data=data,
         )
+        # El PDF y el enlace se arman aqui: el hilo del correo no toca la base.
+        info["receipt_url"] = receipt.receipt_url(booking)
         _send_later(
             to_email=customer.email,
             to_name=customer.get_full_name(),
             subject=f"Reserva confirmada {info['code']} - SITUR-SMART",
             html=confirmation_html(info, name=f"Hola {customer.first_names}"),
+            attachments=_receipt_attachment(booking),
         )
     elif new_status == BookingState.EXPIRED:
         notify(
@@ -122,6 +127,16 @@ def payment_needs_review(booking_id: int) -> None:
     )
 
 
+def _receipt_attachment(booking: Booking) -> list[dict] | None:
+    """El comprobante en PDF para adjuntar. Si no se pudo armar, el correo sale igual."""
+    try:
+        pdf = receipt.build_receipt_pdf(booking)
+    except Exception:
+        logger.exception("No se pudo generar el comprobante de %s", booking.code)
+        return None
+    return [{"name": f"comprobante-{booking.code}.pdf", "content": base64.b64encode(pdf).decode("ascii")}]
+
+
 def _send_later(**kwargs) -> None:
     def send() -> None:
         if not send_email(**kwargs):
@@ -153,6 +168,13 @@ def confirmation_html(info: dict, *, name: str) -> str:
         if value
     )
     subtitle = f'<p style="margin: 2px 0 0 0; color: #475569; font-size: 14px;">{e["subtitle"]}</p>' if e.get("subtitle") else ""
+    receipt_button = (
+        f'<p style="margin: 22px 0 0 0;"><a href="{e["receipt_url"]}" style="display: inline-block; padding: 11px 20px; '
+        'background-color: #0f766e; color: #ffffff; border-radius: 10px; text-decoration: none; font-weight: 700;">'
+        "Descargar comprobante</a></p>"
+        if e.get("receipt_url")
+        else ""
+    )
     return f"""<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -172,8 +194,10 @@ def confirmation_html(info: dict, *, name: str) -> str:
           <h2 style="margin: 0; color: #0f172a; font-size: 19px; font-weight: 700;">{e['title']}</h2>
           {subtitle}
           <table role="presentation" width="100%" style="margin-top: 16px; border-top: 1px solid #e2e8f0;">{table}</table>
+          {receipt_button}
           <p style="margin: 20px 0 0 0; color: #475569; font-size: 13px; line-height: 1.5;">
-            Muestra tu código de reserva al llegar. También lo encuentras en la app, en <strong>Mis viajes</strong>.
+            Muestra tu código o el QR del comprobante al llegar. Te lo adjuntamos en PDF y también
+            lo encuentras en la app, en <strong>Mis viajes</strong>.
           </p>
         </td></tr>
         <tr><td style="background-color: #f8fafc; padding: 18px 24px; text-align: center; border-top: 1px solid #e2e8f0;">

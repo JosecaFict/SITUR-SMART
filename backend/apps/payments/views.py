@@ -1,5 +1,7 @@
+import json
 import logging
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
@@ -63,30 +65,53 @@ main{{max-width:420px;text-align:center;background:#fff;border-radius:20px;paddi
 box-shadow:0 10px 30px rgba(15,118,110,.12)}}
 h1{{font-size:22px;margin:12px 0 8px}}p{{color:#4b5563;line-height:1.5}}
 .icono{{font-size:48px}}.codigo{{font-weight:700;color:#0f766e}}
+.boton{{display:inline-block;margin-top:8px;padding:12px 22px;border-radius:12px;background:#0f766e;
+color:#fff;font-weight:700;text-decoration:none}}
 </style></head><body><main>
 <div class="icono">{icon}</div><h1>{title}</h1><p>{message}</p>
 <p class="codigo">{code}</p>
-<p>Ya puedes cerrar esta ventana y volver a la app SITUR-SMART.</p>
-</main></body></html>"""
+{back}
+</main>{script}</body></html>"""
+
+
+def _deep_link(booking_id: str, result: str) -> str | None:
+    """situr-smart://app/reserva/12?pago=exito: la app abre esa reserva."""
+    if not booking_id.isdigit():
+        return None
+    outcome = "exito" if result == "exito" else "cancelado"
+    return f"{settings.APP_DEEP_LINK.rstrip('/')}/reserva/{booking_id}?pago={outcome}"
 
 
 @csrf_exempt
 def stripe_return(request):
     """Pagina a la que Stripe devuelve al turista. No confirma nada: eso lo
-    hace el webhook o la conciliacion al abrir la reserva en la app."""
+    hace el webhook o la conciliacion al abrir la reserva en la app.
+
+    Con el id de la reserva intenta volver sola a la app (la pestaña de pago se
+    cierra porque la app se abre en singleTask) y deja un boton por si el
+    navegador no lo permite sin un toque.
+    """
     code = escape(request.GET.get("reserva", ""))[:60]
-    if request.GET.get("resultado") == "exito":
+    result = request.GET.get("resultado")
+    link = _deep_link(request.GET.get("id", ""), result)
+    if link:
+        back = f'<a class="boton" href="{escape(link)}">Volver a SITUR-SMART</a>'
+        script = f"<script>setTimeout(function(){{window.location.replace({json.dumps(link)});}},400);</script>"
+    else:
+        back = "<p>Ya puedes cerrar esta ventana y volver a la app SITUR-SMART.</p>"
+        script = ""
+    if result == "exito":
         body = PAGE.format(
             icon="✅",
             title="¡Pago recibido!",
-            message="Estamos confirmando tu reserva. En la app la verás en Mis viajes.",
-            code=code,
+            message="Estamos confirmando tu reserva. Te llevamos a la app para ver tu voucher.",
+            code=code, back=back, script=script,
         )
     else:
         body = PAGE.format(
             icon="↩️",
             title="Pago no completado",
             message="No se cobró nada. Tu cupo queda apartado unos minutos por si quieres intentarlo de nuevo.",
-            code=code,
+            code=code, back=back, script=script,
         )
     return HttpResponse(body)
