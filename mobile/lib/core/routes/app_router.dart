@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import '../../features/asistente/presentation/assistant_page.dart';
 import '../../features/favoritos/presentation/favorites_page.dart';
 import '../../features/itinerarios/presentation/itinerary_detail_page.dart';
-import '../../features/main/presentation/main_shell_page.dart';
 import '../../features/marketplace/presentation/explore_page.dart';
 import '../../features/marketplace/presentation/lodging_detail_page.dart';
 import '../../features/marketplace/presentation/product_detail_page.dart';
@@ -16,7 +15,7 @@ import '../../features/usuarios/presentation/pages/forgot_password_page.dart';
 import '../../features/usuarios/presentation/pages/login_page.dart';
 import '../../features/usuarios/presentation/pages/register_page.dart';
 import '../../features/usuarios/presentation/pages/splash_page.dart';
-import '../../features/usuarios/presentation/pages/users_page.dart';
+import '../../features/usuarios/presentation/pages/staff_web_panel_page.dart';
 
 class AppRouter {
   AppRouter._();
@@ -123,26 +122,12 @@ class AppRouter {
         builder: (context, state) => const NotificationsInboxPage(),
       ),
 
-      // Panel del personal de empresas y del SuperAdmin.
+      // El personal de empresas y el SuperAdmin administran desde la web: aquí
+      // solo se les indica cómo llegar.
       GoRoute(
-        path: '/dashboard',
-        name: 'dashboard',
-        builder: (context, state) => const MainShellPage(),
-      ),
-      GoRoute(
-        path: '/users',
-        name: 'users',
-        builder: (context, state) => const UsersPage(),
-      ),
-      GoRoute(
-        path: '/roles',
-        name: 'roles',
-        builder: (context, state) => const MainShellPage(),
-      ),
-      GoRoute(
-        path: '/bitacora',
-        name: 'bitacora',
-        builder: (context, state) => const MainShellPage(),
+        path: '/panel-web',
+        name: 'panel-web',
+        builder: (context, state) => const StaffWebPanelPage(),
       ),
     ],
   );

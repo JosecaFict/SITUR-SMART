@@ -70,9 +70,10 @@ class AuthService {
     if (refresh == null || refresh.isEmpty) return null;
     final access = await _apiClient.refreshSession();
     if (access == null) return null;
+    final user = await _storage.getUser();
     // Sin esperar: el push no debe demorar la entrada a la app.
-    unawaited(PushService.instance.registerDevice());
-    return _storage.getUser();
+    if (!isStaff(user)) unawaited(PushService.instance.registerDevice());
+    return user;
   }
 
   /// Paso 1: pide el código de 6 dígitos. La respuesta es la misma exista o no
@@ -115,16 +116,20 @@ class AuthService {
     if (response['user'] is Map<String, dynamic>) {
       await _storage.saveUser(response['user'] as Map<String, dynamic>);
     }
-    unawaited(PushService.instance.registerDevice());
+    // Los avisos (reservas) son del turista; el personal no los recibe aquí.
+    if (!isStaff(response['user'] as Map<String, dynamic>?)) {
+      unawaited(PushService.instance.registerDevice());
+    }
   }
 
-  /// Ruta de inicio según el usuario: los turistas van a Explorar y el
-  /// personal de empresas y el SuperAdmin al panel.
-  static String homeRouteFor(Map<String, dynamic>? user) {
+  /// La app es del turista. El personal de empresas y el SuperAdmin
+  /// administran desde el panel web; aquí solo ven cómo llegar a él.
+  static bool isStaff(Map<String, dynamic>? user) {
     final roles = user?['roles'];
     final tenants = user?['tenants'];
-    final isStaff = (roles is List && roles.contains('SUPER_ADMIN')) ||
-        (tenants is List && tenants.isNotEmpty);
-    return isStaff ? '/dashboard' : '/explorar';
+    return (roles is List && roles.contains('SUPER_ADMIN')) || (tenants is List && tenants.isNotEmpty);
   }
+
+  /// Ruta de inicio según el usuario.
+  static String homeRouteFor(Map<String, dynamic>? user) => isStaff(user) ? '/panel-web' : '/explorar';
 }

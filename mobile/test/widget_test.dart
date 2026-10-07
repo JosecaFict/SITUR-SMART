@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mobile/features/usuarios/data/auth_service.dart';
+import 'package:mobile/features/usuarios/presentation/pages/staff_web_panel_page.dart';
 import 'package:mobile/main.dart';
 
 void main() {
@@ -26,7 +28,7 @@ void main() {
       );
     });
 
-    test('el personal de una empresa va al panel', () {
+    test('el personal de una empresa va al aviso del panel web', () {
       expect(
         AuthService.homeRouteFor({
           'roles': ['TENANT_ADMIN'],
@@ -34,19 +36,27 @@ void main() {
             {'id': 1, 'name': 'Hotel Cortez'},
           ],
         }),
-        '/dashboard',
+        '/panel-web',
       );
     });
 
-    test('el SuperAdmin va al panel', () {
+    test('el SuperAdmin va al aviso del panel web', () {
       expect(
         AuthService.homeRouteFor({'roles': ['SUPER_ADMIN'], 'tenants': []}),
-        '/dashboard',
+        '/panel-web',
       );
     });
 
     test('sin datos de usuario va a Explorar', () {
       expect(AuthService.homeRouteFor(null), '/explorar');
     });
+  });
+
+  testWidgets('el personal ve que la administración está en el panel web', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: StaffWebPanelPage()));
+
+    expect(find.text('La administración se hace desde el panel web'), findsOneWidget);
+    expect(find.text('Abrir el panel web'), findsOneWidget);
+    expect(find.text('Cerrar sesión'), findsOneWidget);
   });
 }
