@@ -69,3 +69,13 @@ def test_al_volver_de_stripe_la_pagina_reabre_la_app_en_la_reserva(stripe):
 
     cancelada = APIClient().get(urlparse(sesion["cancel_url"]).path + "?" + urlparse(sesion["cancel_url"]).query)
     assert f"situr-smart://app/reserva/{creada['id']}?pago=cancelado" in cancelada.content.decode()
+
+
+def test_desde_la_web_stripe_vuelve_a_mis_viajes(stripe, settings):
+    settings.WEB_APP_URL = "https://web.test"
+    creada = cliente().post(
+        "/api/v1/me/reservas/?origen=web", _pedido_habitacion(habitacion_publicada()), format="json"
+    ).json()
+    [sesion] = stripe.created
+    assert sesion["success_url"] == f"https://web.test/mis-viajes/{creada['id']}?pago=exito"
+    assert sesion["cancel_url"] == f"https://web.test/mis-viajes/{creada['id']}?pago=cancelado"

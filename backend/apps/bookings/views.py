@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core import signing
 from django.http import Http404, HttpResponse
 from django.urls import reverse
@@ -32,7 +33,14 @@ def _request_args(request) -> dict:
 
 
 def _return_url(request, result: str) -> str:
-    """Pagina a la que Stripe devuelve al turista al terminar o abandonar."""
+    """Pagina a la que Stripe devuelve al turista al terminar o abandonar.
+
+    Desde la app: la pagina del backend que reabre la app. Desde la web
+    (``?origen=web``): directo a Mis viajes de la web.
+    """
+    if request.query_params.get("origen") == "web":
+        outcome = "exito" if result == "exito" else "cancelado"
+        return f"{settings.WEB_APP_URL.rstrip('/')}/mis-viajes/{{ID}}?pago={outcome}"
     url = request.build_absolute_uri(reverse("stripe-return"))
     return f"{url}?resultado={result}&reserva={{CODIGO}}&id={{ID}}"
 
