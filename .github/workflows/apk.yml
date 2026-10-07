@@ -1,0 +1,82 @@
+# Compila el APK de la app del turista (mobile/) en los servidores de GitHub.
+#
+# - Al subir una etiqueta v* (v1.0, v1.1...) crea la Release con el APK listo
+#   para descargar: github.com/JosecaFict/SITUR-SMART/releases
+# - Desde Actions -> "APK de la app movil" -> Run workflow, lo compila sin
+#   etiqueta y lo deja como artefacto descargable de esa ejecucion.
+#
+# No usa secretos: google-services.json va en el repo (no es secreto) y la API
+# es la de Railway. Para apuntar a otra API, crear la variable de repositorio
+# API_URL (Settings -> Secrets and variables -> Actions -> Variables).
+name: APK de la app movil
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: "3.47.2"
+  API_URL: ${{ vars.API_URL || 'https://situr-smart-production.up.railway.app/api/v1/' }}
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      # AGP 9 y Gradle 9 piden JDK 17 o mas nuevo.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      - name: Analisis y pruebas
+        run: |
+          flutter analyze
+          flutter test
+
+      - name: Compilar APK release
+        run: flutter build apk --release --dart-define=API_URL=${{ env.API_URL }}
+
+      - name: Nombrar el APK con la version
+        id: apk
+        run: |
+          name="situr-smart-${GITHUB_REF_NAME//\//-}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$name"
+          echo "file=mobile/$name" >> "$GITHUB_OUTPUT"
+
+      - name: Guardar como artefacto de la ejecucion
+        uses: actions/upload-artifact@v4
+        with:
+          name: situr-smart-apk
+          path: ${{ steps.apk.outputs.file }}
+          retention-days: 30
+
+      - name: Publicar la Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SITUR-SMART ${{ github.ref_name }}
+          files: ${{ steps.apk.outputs.file }}
+          body: |
+            App del turista de SITUR-SMART para Android, conectada a ${{ env.API_URL }}
+
+            **Instalar:** descargar el `.apk` desde el celular, abrirlo y permitir la instalación desde esa fuente.
+            Si avisa Play Protect: *Más detalles → Instalar de todas formas*.
