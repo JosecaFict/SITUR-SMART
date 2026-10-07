@@ -76,4 +76,106 @@
       }
     </aside>
   </div>
+
+  <article class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+    <div class="flex items-start gap-4">
+      <span class="bg-demo-bg text-accent-dark flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
+        <svg lucideCalendarClock class="h-6 w-6"></svg>
+      </span>
+      <div>
+        <h2 class="text-title text-lg font-bold">Copia automática</h2>
+        <p class="text-text-secondary mt-1 text-sm leading-6">
+          SITUR-SMART genera la copia sola a las 03:00, la guarda de forma privada fuera del servidor y te
+          envía por correo un enlace para descargarla. Se conservan las últimas 8.
+        </p>
+      </div>
+    </div>
+
+    @if (schedule(); as current) {
+      @if (!current.almacen_configurado) {
+        <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Falta configurar Cloudinary en el servidor: sin almacén, las copias automáticas no se pueden guardar.
+        </div>
+      }
+
+      <div class="mt-5 flex flex-wrap gap-2" role="radiogroup" aria-label="Frecuencia de la copia automática">
+        @for (option of frequencies; track option.value) {
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="current.frecuencia === option.value"
+            [disabled]="savingSchedule()"
+            (click)="changeFrequency(option.value)"
+            class="rounded-lg border px-3.5 py-2 text-sm font-semibold transition disabled:opacity-65"
+            [class]="current.frecuencia === option.value
+              ? 'border-accent bg-accent text-white'
+              : 'border-input-border bg-white text-label hover:bg-input-bg'"
+          >
+            {{ option.label }}
+          </button>
+        }
+      </div>
+
+      <div class="border-input-border mt-5 grid gap-3 border-y py-4 sm:grid-cols-2">
+        <div>
+          <p class="text-text-secondary text-xs">Próxima copia</p>
+          <p class="text-title mt-1 font-semibold">
+            {{ current.proxima_ejecucion ? (current.proxima_ejecucion | date: 'dd/MM/yyyy HH:mm') : 'Desactivada' }}
+          </p>
+        </div>
+        <div>
+          <p class="text-text-secondary text-xs">Última copia automática</p>
+          <p class="text-title mt-1 font-semibold">
+            {{ current.ultima_ejecucion ? (current.ultima_ejecucion | date: 'dd/MM/yyyy HH:mm') : 'Todavía ninguna' }}
+          </p>
+        </div>
+      </div>
+    }
+
+    @if (autoMessage(); as message) {
+      <div class="border-accent/30 bg-demo-bg text-accent-dark mt-5 rounded-xl border px-4 py-3 text-sm">{{ message }}</div>
+    }
+    @if (autoError(); as error) {
+      <div class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</div>
+    }
+
+    <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+      <h3 class="text-title font-bold">Copias guardadas</h3>
+      <button
+        type="button"
+        (click)="createStored()"
+        [disabled]="creatingStored()"
+        class="border-accent text-accent-dark hover:bg-demo-bg rounded-lg border px-3.5 py-2 text-sm font-semibold disabled:cursor-wait disabled:opacity-65"
+      >
+        {{ creatingStored() ? 'Generando…' : 'Generar ahora y enviar por correo' }}
+      </button>
+    </div>
+
+    @if (stored().length === 0) {
+      <p class="text-text-secondary mt-3 text-sm">Todavía no hay copias guardadas.</p>
+    } @else {
+      <ul class="divide-input-border mt-3 divide-y">
+        @for (backup of stored(); track backup.id) {
+          <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+            <div class="min-w-0">
+              <p class="text-title break-all text-sm font-semibold">{{ backup.archivo }}</p>
+              <p class="text-text-secondary text-xs">
+                {{ backup.creado_en | date: 'dd/MM/yyyy HH:mm' }} · {{ formatBytes(backup.tamano_bytes) }} ·
+                {{ backup.origen === 'PROGRAMADA' ? 'Automática' : 'A pedido' }}
+              </p>
+            </div>
+            <button
+              type="button"
+              (click)="downloadStored(backup.id)"
+              [disabled]="downloadingId() !== null"
+              class="bg-accent hover:bg-accent-dark flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-65"
+            >
+              <svg lucideDownload class="h-4 w-4"></svg>
+              {{ downloadingId() === backup.id ? 'Preparando…' : 'Descargar' }}
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </article>
 </section>

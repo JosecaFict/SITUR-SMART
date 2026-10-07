@@ -265,3 +265,7 @@ FIREBASE_CREDENTIALS_BASE64 = os.getenv("FIREBASE_CREDENTIALS_BASE64", "")
 FIREBASE_SERVICE_ACCOUNT_JSON = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "")
 # Igual que el correo: el push sale en un hilo aparte. Las pruebas lo apagan.
 PUSH_EN_SEGUNDO_PLANO = os.getenv("PUSH_EN_SEGUNDO_PLANO", "true").lower() == "true"
+
+# Direccion de la web (Angular). La usan los correos que llevan al panel, como
+# el aviso de copia de seguridad lista.
+WEB_APP_URL = os.getenv("WEB_APP_URL", "https://situr-smart-web.vercel.app")

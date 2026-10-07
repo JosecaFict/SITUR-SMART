@@ -87,6 +87,20 @@ def _safe_failure_message(stderr: bytes) -> tuple[str, str]:
 
 def generate_backup(*, actor, request=None) -> BackupArtifact:
     require_backup_management(actor)
+    artifact = dump_database()
+    record_audit(
+        actor=actor,
+        action="GENERAR_COPIA",
+        entity="copia_seguridad",
+        entity_id=artifact.filename,
+        new_data={"archivo": artifact.filename, "tamano_bytes": artifact.size, "sha256": artifact.sha256},
+        request=request,
+    )
+    return artifact
+
+
+def dump_database() -> BackupArtifact:
+    """Ejecuta pg_dump y devuelve el archivo. Sin permisos ni bitacora: eso es de quien llama."""
     if shutil.which("pg_dump") is None:
         raise BackupUnavailable(
             "pg_dump no está instalado en el servidor. Revisa la configuración de despliegue."
@@ -126,14 +140,6 @@ def generate_backup(*, actor, request=None) -> BackupArtifact:
     timestamp = timezone.localtime().strftime("%Y%m%d-%H%M%S")
     filename = f"situr-smart-{timestamp}.dump"
     sha256 = digest.hexdigest()
-    record_audit(
-        actor=actor,
-        action="GENERAR_COPIA",
-        entity="copia_seguridad",
-        entity_id=filename,
-        new_data={"archivo": filename, "tamano_bytes": size, "sha256": sha256},
-        request=request,
-    )
     return BackupArtifact(
         file=backup_file,
         filename=filename,
