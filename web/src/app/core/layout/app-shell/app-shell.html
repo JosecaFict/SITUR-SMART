@@ -102,6 +102,9 @@
             @case ('profile') {
               <svg lucideUser class="h-5 w-5" [strokeWidth]="2"></svg>
             }
+            @case ('plan') {
+              <svg lucideCreditCard class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
           }
           {{ item.label }}
         </a>
@@ -145,6 +148,13 @@
   </aside>
 
   <main class="min-w-0 flex-1 p-4 sm:p-6 lg:p-8 xl:p-10">
+    @if (planAlert(); as alert) {
+      <a routerLink="/mi-plan" role="alert"
+        class="mb-5 block rounded-xl border px-4 py-3 text-sm font-medium"
+        [class]="alert.restricted ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-900'">
+        {{ alert.message }} <span class="underline">Ver Mi plan</span>
+      </a>
+    }
     <router-outlet></router-outlet>
   </main>
 </div>

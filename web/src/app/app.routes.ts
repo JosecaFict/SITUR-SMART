@@ -7,6 +7,7 @@ import {
   guestGuard,
   permissionGuard,
   superAdminGuard,
+  tenantMemberGuard,
 } from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell/app-shell';
 
@@ -89,6 +90,11 @@ export const routes: Routes = [
         canActivate: [superAdminGuard],
         loadComponent: () =>
           import('./features/admin/ubicaciones/ubicaciones').then((m) => m.Ubicaciones),
+      },
+      {
+        path: 'mi-plan',
+        canActivate: [tenantMemberGuard],
+        loadComponent: () => import('./features/empresa/mi-plan/mi-plan').then((m) => m.MiPlan),
       },
       {
         path: 'copias-seguridad',

@@ -4,6 +4,7 @@ import {
   LucideBedDouble,
   LucideBuilding2,
   LucideCompass,
+  LucideCreditCard,
   LucideDatabaseBackup,
   LucideLayoutDashboard,
   LucideLogOut,
@@ -18,17 +19,20 @@ import {
   LucideX,
 } from '@lucide/angular';
 import { AuthService } from '../../auth/auth.service';
+import { MyPlanService } from '../../subscription/my-plan.service';
 
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore';
+  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
   hideForSuperAdmin?: boolean;
   hideForCustomer?: boolean;
   customerOnly?: boolean;
+  /** Solo para quien pertenece a una empresa. */
+  tenantOnly?: boolean;
   permission?: string;
 }
 
@@ -41,6 +45,7 @@ interface NavItem {
     LucideBedDouble,
     LucideBuilding2,
     LucideCompass,
+  LucideCreditCard,
     LucideDatabaseBackup,
     LucideLayoutDashboard,
     LucideLogOut,
@@ -61,8 +66,34 @@ export class AppShell {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
+  private readonly myPlan = inject(MyPlanService);
+
   protected readonly session = this.auth.session;
   protected readonly menuOpen = signal(false);
+
+  /** Aviso arriba de todo cuando el plan de la empresa vence pronto o ya venció. */
+  protected readonly planAlert = signal<{ message: string; restricted: boolean } | null>(null);
+
+  constructor() {
+    const user = this.session()?.user;
+    const tenantId = user && !user.roles.includes('SUPER_ADMIN') ? user.tenants[0]?.id : undefined;
+    if (tenantId === undefined) return;
+    this.myPlan.get(tenantId).subscribe({
+      next: (plan) => {
+        if (plan.restringida) {
+          this.planAlert.set({
+            restricted: true,
+            message: 'El plan de tu empresa venció: tus productos no se muestran y no puedes crear ni publicar oferta.',
+          });
+        } else if (plan.estado === 'POR_VENCER' && plan.dias_restantes !== null) {
+          const when = plan.dias_restantes <= 1 ? 'mañana' : `en ${plan.dias_restantes} días`;
+          this.planAlert.set({ restricted: false, message: `Tu plan vence ${when}.` });
+        }
+      },
+      // Sin aviso si no se pudo consultar: no tiene que romper el panel.
+      error: () => this.planAlert.set(null),
+    });
+  }
 
   private readonly allNavItems: NavItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
@@ -89,6 +120,14 @@ export class AppShell {
       icon: 'backups',
       superAdminOnly: true,
       hideForCustomer: true,
+    },
+    {
+      label: 'Mi plan',
+      path: '/mi-plan',
+      icon: 'plan',
+      hideForSuperAdmin: true,
+      hideForCustomer: true,
+      tenantOnly: true,
     },
     {
       label: 'Empleados',
@@ -143,6 +182,7 @@ export class AppShell {
 
     return this.allNavItems.filter((item) => {
       if (item.customerOnly && !isCustomer) return false;
+      if (item.tenantOnly && (this.session()?.user.tenants.length ?? 0) === 0) return false;
       if (item.hideForCustomer && isCustomer) return false;
       if (item.superAdminOnly && !isSuperAdmin) return false;
       if (item.anyPermission && !isSuperAdmin) {

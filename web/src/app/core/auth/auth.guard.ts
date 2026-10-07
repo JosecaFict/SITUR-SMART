@@ -88,3 +88,14 @@ export const companyPermissionGuard = (permission: string): CanActivateFn => () 
 
   return router.createUrlTree(['/dashboard']);
 };
+
+/** Personal de una empresa (no el SuperAdmin ni un turista): su "Mi plan". */
+export const tenantMemberGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const user = auth.session()?.user;
+  if (user && !user.roles.includes('SUPER_ADMIN') && user.tenants.length > 0) {
+    return true;
+  }
+  return router.createUrlTree(['/dashboard']);
+};

@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -30,6 +31,7 @@ type FormMode = 'create' | 'edit' | 'owner' | 'plan' | null;
 @Component({
   selector: 'situr-empresas',
   imports: [
+    DatePipe,
     ReactiveFormsModule,
     RouterLink,
     LucideBuilding2,

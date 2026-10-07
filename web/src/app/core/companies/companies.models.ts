@@ -39,8 +39,16 @@ export interface Company {
   telefono: string | null;
   estado: CompanyStatus;
   propietario: CompanyOwner | null;
+  /** Plan vigente y su vencimiento; VENCIDA deja a la empresa restringida. */
+  plan?: CompanyPlanSummary;
   creado_en: string;
   actualizado_en: string;
+}
+
+export interface CompanyPlanSummary {
+  nombre: string | null;
+  vence: string | null;
+  estado: 'ACTIVA' | 'POR_VENCER' | 'VENCIDA' | 'CANCELADA' | 'SUSPENDIDA' | 'SIN_PLAN';
 }
 
 export interface OwnerPayload {

@@ -364,6 +364,13 @@
               } @else {
                 <p class="mt-1 text-sm font-medium text-amber-700">Sin propietario asignado</p>
               }
+              @if (company.plan; as plan) {
+                <p class="mt-2 text-xs"
+                  [class]="plan.estado === 'VENCIDA' ? 'font-semibold text-red-700' : plan.estado === 'POR_VENCER' ? 'font-semibold text-amber-700' : 'text-text-secondary'">
+                  Plan {{ plan.nombre || 'sin asignar' }}
+                  @if (plan.vence) { · {{ plan.estado === 'VENCIDA' ? 'venció' : 'vence' }} el {{ plan.vence | date: 'dd/MM/yyyy' }} }
+                </p>
+              }
             </div>
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
