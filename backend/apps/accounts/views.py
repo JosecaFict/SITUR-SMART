@@ -1,12 +1,24 @@
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.rbac.views import tenant_id_from_request
 
+from .customers import (
+    block_customer,
+    close_sessions,
+    customer_detail,
+    list_customers,
+    paid_totals,
+    send_password_reset,
+    summary_counts,
+    unblock_customer,
+)
 from .serializers import (
     AuthResponseSerializer,
     CustomerProfileUpdateSerializer,
@@ -35,7 +47,6 @@ from .services import (
     update_tenant_user,
     verify_password_reset_otp,
 )
-
 
 
 class LoginView(APIView):
@@ -233,4 +244,110 @@ class UserDetailView(APIView):
     def delete(self, request, pk):
         tenant_id = tenant_id_from_request(request, required=True)
         remove_tenant_user(actor=request.user, tenant_id=tenant_id, user_id=pk, request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# --- Clientes (turistas): administracion de la plataforma ----------------------------
+
+
+class CustomerRowSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    email = serializers.EmailField()
+    nombres = serializers.CharField(source="first_names")
+    apellidos = serializers.CharField(source="last_names")
+    telefono = serializers.CharField(source="phone", allow_null=True)
+    estado = serializers.CharField(source="status")
+    correo_verificado = serializers.SerializerMethodField()
+    registrado_en = serializers.DateTimeField(source="created_at")
+    ultimo_acceso = serializers.DateTimeField(source="last_login", allow_null=True)
+    reservas = serializers.IntegerField(source="bookings_count", default=0)
+
+    def get_correo_verificado(self, user) -> bool:
+        return user.email_verified_at is not None
+
+
+class CustomerReasonSerializer(serializers.Serializer):
+    motivo = serializers.CharField(max_length=500, trim_whitespace=True)
+
+
+class CustomerPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+class CustomerListView(APIView):
+    """Turistas registrados, con buscador y filtros. GET ?resumen=1 trae los totales."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=CustomerRowSerializer(many=True))
+    def get(self, request):
+        params = request.query_params
+        customers = list_customers(
+            actor=request.user,
+            search=params.get("buscar", "").strip(),
+            status=params.get("estado", "").strip(),
+            with_bookings=params.get("con_reservas", "").strip(),
+        )
+        paginator = CustomerPagination()
+        page = paginator.paginate_queryset(customers, request, view=self)
+        rows = CustomerRowSerializer(page, many=True).data
+        totals = paid_totals([row["id"] for row in rows])
+        for row in rows:
+            row["total_pagado"] = totals.get(row["id"], [])
+        response = paginator.get_paginated_response(rows)
+        response.data["resumen"] = summary_counts(actor=request.user)
+        return response
+
+
+class CustomerDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request, pk):
+        detail = customer_detail(actor=request.user, user_id=pk)
+        customer = detail.pop("cliente")
+        return Response({**CustomerRowSerializer(customer).data, **detail})
+
+
+class _CustomerActionView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def _detail(self, request, pk):
+        detail = customer_detail(actor=request.user, user_id=pk)
+        customer = detail.pop("cliente")
+        return Response({**CustomerRowSerializer(customer).data, **detail})
+
+    def _reason(self, request) -> str:
+        serializer = CustomerReasonSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data["motivo"]
+
+
+class CustomerBlockView(_CustomerActionView):
+    @extend_schema(request=CustomerReasonSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request, pk):
+        block_customer(actor=request.user, user_id=pk, reason=self._reason(request), request=request)
+        return self._detail(request, pk)
+
+
+class CustomerUnblockView(_CustomerActionView):
+    @extend_schema(request=CustomerReasonSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request, pk):
+        unblock_customer(actor=request.user, user_id=pk, reason=self._reason(request), request=request)
+        return self._detail(request, pk)
+
+
+class CustomerCloseSessionsView(_CustomerActionView):
+    @extend_schema(request=CustomerReasonSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request, pk):
+        close_sessions(actor=request.user, user_id=pk, reason=self._reason(request), request=request)
+        return self._detail(request, pk)
+
+
+class CustomerPasswordResetView(_CustomerActionView):
+    @extend_schema(request=None, responses={204: None})
+    def post(self, request, pk):
+        send_password_reset(actor=request.user, user_id=pk, request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -1,7 +1,13 @@
 from django.urls import path
 
 from .views import (
+    CustomerBlockView,
+    CustomerCloseSessionsView,
+    CustomerDetailView,
+    CustomerListView,
+    CustomerPasswordResetView,
     CustomerRegisterView,
+    CustomerUnblockView,
     LoginView,
     LogoutView,
     MeView,
@@ -37,4 +43,15 @@ urlpatterns = [
     ),
     path("usuarios/", UserListCreateView.as_view(), name="user-list-create"),
     path("usuarios/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
+    # Cuentas de los turistas: SuperAdmin o rol con CLIENTES_GESTIONAR.
+    path("admin/clientes/", CustomerListView.as_view(), name="customer-list"),
+    path("admin/clientes/<int:pk>/", CustomerDetailView.as_view(), name="customer-detail"),
+    path("admin/clientes/<int:pk>/bloquear/", CustomerBlockView.as_view(), name="customer-block"),
+    path("admin/clientes/<int:pk>/desbloquear/", CustomerUnblockView.as_view(), name="customer-unblock"),
+    path("admin/clientes/<int:pk>/cerrar-sesiones/", CustomerCloseSessionsView.as_view(), name="customer-sessions"),
+    path(
+        "admin/clientes/<int:pk>/recuperar-contrasena/",
+        CustomerPasswordResetView.as_view(),
+        name="customer-password-reset",
+    ),
 ]

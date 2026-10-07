@@ -269,3 +269,6 @@ PUSH_EN_SEGUNDO_PLANO = os.getenv("PUSH_EN_SEGUNDO_PLANO", "true").lower() == "t
 # Direccion de la web (Angular). La usan los correos que llevan al panel, como
 # el aviso de copia de seguridad lista.
 WEB_APP_URL = os.getenv("WEB_APP_URL", "https://situr-smart-web.vercel.app")
+
+# Correo de contacto que ven los usuarios (cuenta suspendida, avisos).
+SOPORTE_EMAIL = os.getenv("SOPORTE_EMAIL", BREVO_SENDER_EMAIL)

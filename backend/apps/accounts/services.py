@@ -52,13 +52,28 @@ def token_pair_for_user(user: User, request) -> dict[str, str]:
     return {"access": str(refresh.access_token), "refresh": raw_refresh}
 
 
+def inactive_account_message(user: User) -> str:
+    if user.status == User.Status.BLOCKED:
+        return (
+            "Tu cuenta está suspendida. Si crees que es un error, escríbenos a "
+            f"{settings.SOPORTE_EMAIL}."
+        )
+    return "La cuenta no se encuentra activa."
+
+
 @transaction.atomic
 def login_user(*, email: str, password: str, request) -> tuple[User, dict[str, str]]:
     user = authenticate(request=request, username=email, password=password)
     if user is None:
+        # authenticate() descarta las cuentas no activas. Solo si la contrasena
+        # es correcta se dice por que no entra: asi no se revela el estado de
+        # una cuenta a quien no conoce su clave.
+        candidate = User.objects.filter(email__iexact=email.strip()).first()
+        if candidate is not None and not candidate.is_active and candidate.check_password(password):
+            raise AuthenticationFailed(inactive_account_message(candidate))
         raise AuthenticationFailed("Credenciales incorrectas.")
     if not user.is_active:
-        raise AuthenticationFailed("La cuenta no se encuentra activa.")
+        raise AuthenticationFailed(inactive_account_message(user))
     user.last_login = timezone.now()
     user.save(update_fields=["last_login"])
     return user, token_pair_for_user(user, request)
@@ -82,7 +97,7 @@ def rotate_refresh_token(*, raw_refresh: str, request) -> tuple[User, dict[str, 
 
     user = User.objects.get(pk=user_id)
     if not user.is_active:
-        raise AuthenticationFailed("La cuenta no se encuentra activa.")
+        raise AuthenticationFailed(inactive_account_message(user))
     session.revoked_at = timezone.now()
     session.save(update_fields=["revoked_at"])
     return user, token_pair_for_user(user, request)

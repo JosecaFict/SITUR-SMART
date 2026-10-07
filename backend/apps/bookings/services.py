@@ -548,6 +548,23 @@ def cancel_booking(*, user, booking_id: int) -> Booking:
     return booking
 
 
+def cancel_unpaid_for_customer(*, customer, actor, reason: str) -> int:
+    """Cancela las reservas sin pagar de un turista (al bloquear su cuenta).
+
+    Las pagadas no se tocan: el turista ya pago y la empresa lo espera.
+    Devuelve cuantas se cancelaron.
+    """
+    pending = Booking.objects.filter(order__customer__user=customer, status=BookingState.CREATED)
+    count = 0
+    for booking in pending:
+        payment = booking.payments.filter(status=Payment.State.PENDING).exclude(reference=None).first()
+        if payment is not None:
+            gateway.expire_session(payment.reference)
+        _release(booking, BookingState.CANCELLED, user=actor, reason=reason)
+        count += 1
+    return count
+
+
 def checkout_url(*, user, booking_id: int) -> str:
     """Enlace para retomar el pago de una reserva pendiente."""
     booking = sync(get_customer_booking(user=user, booking_id=booking_id))
