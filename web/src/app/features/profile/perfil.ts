@@ -15,6 +15,7 @@ import {
   LucideUser,
 } from '@lucide/angular';
 import { AuthService } from '../../core/auth/auth.service';
+import { CuentaSeguridad } from './cuenta-seguridad';
 
 @Component({
   selector: 'situr-perfil',
@@ -32,6 +33,7 @@ import { AuthService } from '../../core/auth/auth.service';
     LucideShieldCheck,
     LucideSparkles,
     LucideCompass,
+    CuentaSeguridad,
   ],
   templateUrl: './perfil.html',
   styleUrl: './perfil.css',

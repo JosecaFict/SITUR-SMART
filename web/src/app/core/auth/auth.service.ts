@@ -142,6 +142,18 @@ export class AuthService {
     }
   }
 
+  /** Tokens nuevos tras cambiar la contraseña: el backend cerró las demás sesiones. */
+  replaceTokens(access: string, refresh: string): void {
+    const current = this.sessionSignal();
+    if (current) this.persistSession({ ...current, access, refresh }, localStorage.getItem(STORAGE_KEY) !== null);
+  }
+
+  /** Actualiza el usuario guardado (por ejemplo, al verificar el correo). */
+  replaceUser(user: AuthUser): void {
+    const current = this.sessionSignal();
+    if (current) this.persistSession({ ...current, user }, localStorage.getItem(STORAGE_KEY) !== null);
+  }
+
   clearSession(): void {
     localStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(STORAGE_KEY);

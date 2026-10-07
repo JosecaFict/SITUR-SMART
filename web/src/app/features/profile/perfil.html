@@ -227,20 +227,8 @@
         </div>
       </div>
 
-      <!-- Security / Account Info Card -->
-      <div class="bg-surface rounded-2xl border border-input-border/60 p-6 shadow-sm">
-        <h3 class="text-title font-heading text-base font-bold mb-2">Seguridad de la cuenta</h3>
-        <p class="text-text-secondary text-xs leading-relaxed mb-4">
-          Puedes actualizar tu contraseña en cualquier momento usando la verificación de seguridad por correo.
-        </p>
-        <a
-          routerLink="/recuperar"
-          class="text-xs font-semibold text-accent-dark hover:underline flex items-center gap-1.5"
-        >
-          <svg lucideShieldCheck class="h-4 w-4" [strokeWidth]="2"></svg>
-          Cambiar contraseña
-        </a>
-      </div>
+      <!-- Seguridad: correo, contraseña, sesiones y baja -->
+      <situr-cuenta-seguridad />
 
     </div>
 

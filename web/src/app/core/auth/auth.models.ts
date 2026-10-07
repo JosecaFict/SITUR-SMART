@@ -17,6 +17,8 @@ export interface AuthUser {
   apellidos: string;
   telefono?: string | null;
   estado: string;
+  /** Sin correo verificado el turista no puede reservar. */
+  correo_verificado?: boolean;
   roles: string[];
   permisos: string[];
   tenants: TenantContext[];
