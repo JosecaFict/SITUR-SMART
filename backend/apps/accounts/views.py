@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from apps.rbac.views import tenant_id_from_request
 
+from . import security
 from .customers import (
     block_customer,
     close_sessions,
@@ -350,4 +351,107 @@ class CustomerPasswordResetView(_CustomerActionView):
     @extend_schema(request=None, responses={204: None})
     def post(self, request, pk):
         send_password_reset(actor=request.user, user_id=pk, request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# --- Seguridad y autogestion de la cuenta del turista ---------------------------------
+
+
+class EmailCodeSendView(APIView):
+    """Envia (o reenvia) el codigo para verificar el correo."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=None, responses={204: None})
+    def post(self, request):
+        security.send_verification_code(user=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EmailCodeSerializer(serializers.Serializer):
+    codigo = serializers.CharField(max_length=10, trim_whitespace=True)
+
+
+class EmailConfirmView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=EmailCodeSerializer, responses=UserContextSerializer)
+    def post(self, request):
+        serializer = EmailCodeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = security.confirm_email(user=request.user, code=serializer.validated_data["codigo"], request=request)
+        return Response(UserContextSerializer(user).data)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    actual = serializers.CharField()
+    nueva = serializers.CharField()
+
+
+class ChangePasswordView(APIView):
+    """Cambia la contrasena y cierra las demas sesiones; este dispositivo sigue con tokens nuevos."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=ChangePasswordSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tokens = security.change_password(
+            user=request.user, current=serializer.validated_data["actual"],
+            new=serializer.validated_data["nueva"], request=request,
+        )
+        return Response(tokens)
+
+
+class SessionListView(APIView):
+    """Sesiones abiertas. Con la cabecera X-Refresh-Token marca cual es esta."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request):
+        return Response(
+            security.active_sessions(user=request.user, current_refresh=request.headers.get("X-Refresh-Token"))
+        )
+
+
+class SessionCloseView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=None, responses={204: None})
+    def post(self, request, pk):
+        security.close_session(user=request.user, session_id=pk)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RefreshBodySerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+
+class SessionCloseOthersView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=RefreshBodySerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request):
+        serializer = RefreshBodySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        closed = security.close_other_sessions(user=request.user, current_refresh=serializer.validated_data["refresh"])
+        return Response({"cerradas": closed})
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    password = serializers.CharField()
+
+
+class DeleteAccountView(APIView):
+    """Baja del turista: se anonimiza la cuenta; reservas y pagos quedan para las empresas."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=DeleteAccountSerializer, responses={204: None})
+    def post(self, request):
+        serializer = DeleteAccountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        security.delete_account(user=request.user, password=serializer.validated_data["password"], request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)

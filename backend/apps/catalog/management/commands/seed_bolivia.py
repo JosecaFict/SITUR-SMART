@@ -3,6 +3,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError, connection, transaction
+from django.utils import timezone
 
 from apps.accounts.models import CustomerProfile, User
 from apps.accounts.services import create_or_link_tenant_user
@@ -229,7 +230,7 @@ class Command(BaseCommand):
             user = User.objects.create_user(
                 email=account["email"], password=bolivia.PASSWORD,
                 first_names=account["nombres"], last_names=account["apellidos"],
-                status=User.Status.ACTIVE,
+                status=User.Status.ACTIVE, email_verified_at=timezone.now(),
             )
             UserRole.objects.create(user=user, role=role, tenant=None)
             CustomerProfile.objects.get_or_create(user=user)

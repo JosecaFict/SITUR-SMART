@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    ChangePasswordView,
     CustomerBlockView,
     CustomerCloseSessionsView,
     CustomerDetailView,
@@ -8,6 +9,9 @@ from .views import (
     CustomerPasswordResetView,
     CustomerRegisterView,
     CustomerUnblockView,
+    DeleteAccountView,
+    EmailCodeSendView,
+    EmailConfirmView,
     LoginView,
     LogoutView,
     MeView,
@@ -15,6 +19,9 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetVerifyView,
     RefreshView,
+    SessionCloseOthersView,
+    SessionCloseView,
+    SessionListView,
     UserDetailView,
     UserListCreateView,
 )
@@ -54,4 +61,12 @@ urlpatterns = [
         CustomerPasswordResetView.as_view(),
         name="customer-password-reset",
     ),
+    # La cuenta del propio usuario: correo, contrasena, sesiones y baja.
+    path("auth/correo/enviar-codigo/", EmailCodeSendView.as_view(), name="email-code-send"),
+    path("auth/correo/verificar/", EmailConfirmView.as_view(), name="email-confirm"),
+    path("auth/me/contrasena/", ChangePasswordView.as_view(), name="change-password"),
+    path("auth/me/sesiones/", SessionListView.as_view(), name="session-list"),
+    path("auth/me/sesiones/cerrar-otras/", SessionCloseOthersView.as_view(), name="session-close-others"),
+    path("auth/me/sesiones/<int:pk>/cerrar/", SessionCloseView.as_view(), name="session-close"),
+    path("auth/me/eliminar/", DeleteAccountView.as_view(), name="delete-account"),
 ]

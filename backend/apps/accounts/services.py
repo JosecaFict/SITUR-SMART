@@ -22,6 +22,7 @@ from apps.tenancy.models import UserTenant
 from apps.tenancy.services import ensure_user_quota_available
 from apps.tenancy.subscriptions import require_active_plan
 
+from . import security
 from .brevo import send_password_reset_otp_email
 from .models import CustomerProfile, PasswordResetToken, User, UserSession
 
@@ -61,22 +62,29 @@ def inactive_account_message(user: User) -> str:
     return "La cuenta no se encuentra activa."
 
 
-@transaction.atomic
 def login_user(*, email: str, password: str, request) -> tuple[User, dict[str, str]]:
+    # Sin transaccion alrededor: un intento fallido tiene que quedar contado
+    # aunque la respuesta sea un error.
+    candidate = User.objects.filter(email__iexact=email.strip()).first()
+    if candidate is not None and (locked := security.locked_message(candidate)):
+        raise AuthenticationFailed(locked)
     user = authenticate(request=request, username=email, password=password)
     if user is None:
         # authenticate() descarta las cuentas no activas. Solo si la contrasena
         # es correcta se dice por que no entra: asi no se revela el estado de
         # una cuenta a quien no conoce su clave.
-        candidate = User.objects.filter(email__iexact=email.strip()).first()
         if candidate is not None and not candidate.is_active and candidate.check_password(password):
             raise AuthenticationFailed(inactive_account_message(candidate))
+        if candidate is not None:
+            security.register_failed_login(candidate)
         raise AuthenticationFailed("Credenciales incorrectas.")
     if not user.is_active:
         raise AuthenticationFailed(inactive_account_message(user))
-    user.last_login = timezone.now()
-    user.save(update_fields=["last_login"])
-    return user, token_pair_for_user(user, request)
+    security.reset_failed_logins(user)
+    with transaction.atomic():
+        user.last_login = timezone.now()
+        user.save(update_fields=["last_login"])
+        return user, token_pair_for_user(user, request)
 
 
 @transaction.atomic
@@ -465,6 +473,8 @@ def register_customer(
     user.save(update_fields=["last_login"])
 
     tokens = token_pair_for_user(user, request)
+    # Para reservar tiene que verificar el correo: el codigo sale ya.
+    transaction.on_commit(lambda: security.send_verification_code(user=user))
     return user, tokens
 
 

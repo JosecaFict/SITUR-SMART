@@ -40,6 +40,7 @@ from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 
 from apps.accounts.models import CustomerProfile
+from apps.accounts.security import require_verified_email
 from apps.catalog.models import ROOM_PRODUCT_CODE, Availability, TourismProduct
 from apps.payments import gateway
 from apps.payments.models import Payment
@@ -59,6 +60,8 @@ from .models import (
 BOOKABLE_CODES = frozenset({ROOM_PRODUCT_CODE, "TOUR", "EXPERIENCIA", "ATRACCION", "RESTAURANTE", "PAQUETE"})
 OCCUPYING_STATES = (BookingState.CONFIRMED, BookingState.PARTIAL, BookingState.COMPLETED)
 MAX_NIGHTS = 30
+# Reservas sin pagar a la vez por turista: evita acaparar cupos.
+MAX_PENDING_BOOKINGS = 3
 MAX_DAYS_AHEAD = 365
 VOUCHER_SALT = "situr.voucher"
 
@@ -341,6 +344,14 @@ def create_booking(
 
     if not gateway.is_configured():
         raise gateway.PaymentUnavailable()
+    require_verified_email(user)
+    pending = Booking.objects.filter(
+        order__customer__user=user, status=BookingState.CREATED, expires_at__gt=timezone.now()
+    ).count()
+    if pending >= MAX_PENDING_BOOKINGS:
+        raise ValidationError(
+            f"Tienes {pending} reservas esperando pago. Paga o cancela alguna antes de reservar otra."
+        )
 
     quote = build_quote(product_id=product_id, start=start, end=end, quantity=quantity, guests=guests)
     expires_at = timezone.now() + timedelta(minutes=settings.RESERVA_MINUTOS_PAGO)

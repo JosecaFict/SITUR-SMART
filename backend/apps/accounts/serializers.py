@@ -30,6 +30,7 @@ class UserContextSerializer(serializers.ModelSerializer):
     permisos = serializers.SerializerMethodField()
     tenants = serializers.SerializerMethodField()
     perfil = serializers.SerializerMethodField()
+    correo_verificado = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -40,6 +41,7 @@ class UserContextSerializer(serializers.ModelSerializer):
             "apellidos",
             "telefono",
             "estado",
+            "correo_verificado",
             "roles",
             "permisos",
             "tenants",
@@ -47,6 +49,10 @@ class UserContextSerializer(serializers.ModelSerializer):
         )
 
     estado = serializers.CharField(source="status")
+
+    def get_correo_verificado(self, user) -> bool:
+        # Para reservar hace falta; la app pide el codigo si es False.
+        return user.email_verified_at is not None
 
     @extend_schema_field(serializers.DictField())
     def get_perfil(self, user):

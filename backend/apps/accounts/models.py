@@ -20,6 +20,9 @@ class User(AbstractBaseUser):
     status = models.CharField(db_column="estado", max_length=20, choices=Status.choices)
     email_verified_at = models.DateTimeField(db_column="email_verificado_en", null=True, blank=True)
     last_login = models.DateTimeField(db_column="ultimo_acceso_en", null=True, blank=True)
+    # 5 contrasenas mal seguidas traban la cuenta 15 minutos (accounts.security).
+    failed_logins = models.SmallIntegerField(db_column="intentos_fallidos", default=0)
+    locked_until = models.DateTimeField(db_column="bloqueo_temporal_hasta", null=True, blank=True)
     created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
     updated_at = models.DateTimeField(db_column="actualizado_en", auto_now=True)
 
@@ -109,3 +112,19 @@ class CustomerProfile(models.Model):
         managed = False
         db_table = "perfil_cliente"
 
+
+
+class EmailVerification(models.Model):
+    """Codigo de 6 digitos para confirmar el correo (se guarda su hash)."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(User, db_column="id_usuario", on_delete=models.CASCADE, related_name="email_verifications")
+    code_hash = models.TextField(db_column="codigo_hash")
+    attempts = models.SmallIntegerField(db_column="intentos", default=0)
+    expires_at = models.DateTimeField(db_column="expira_en")
+    used_at = models.DateTimeField(db_column="usado_en", null=True, blank=True)
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = "verificacion_correo"
