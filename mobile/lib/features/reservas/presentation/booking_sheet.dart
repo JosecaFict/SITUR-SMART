@@ -8,6 +8,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/booking_models.dart';
 import '../data/booking_service.dart';
+import '../../perfil/presentation/email_verification_sheet.dart';
 
 /// Abre la hoja para reservar un producto. Al terminar lleva a la reserva.
 Future<void> showBookingSheet(
@@ -193,6 +194,11 @@ class _BookingSheetState extends State<BookingSheet> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _booking = false);
+      // Sin correo verificado no se reserva: se verifica aquí mismo y se reintenta.
+      if (error is ApiException && error.code == 'correo_no_verificado') {
+        if (await showEmailVerificationSheet(context, sendFirst: true) && mounted) await _book();
+        return;
+      }
       messenger.showSnackBar(
         SnackBar(content: Text(error is ApiException ? error.message : 'No se pudo completar la reserva.')),
       );

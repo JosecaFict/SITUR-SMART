@@ -75,11 +75,12 @@ class ApiClient {
     String endpoint,
     String token, {
     int? tenantId,
+    Map<String, String> extraHeaders = const {},
   }) async {
     final response = await _authorized(
       (accessToken) => http.get(
         _uri(endpoint),
-        headers: _headers(token: accessToken, tenantId: tenantId),
+        headers: {..._headers(token: accessToken, tenantId: tenantId), ...extraHeaders},
       ),
       token: token,
     );
@@ -258,7 +259,7 @@ class ApiClient {
 
   dynamic _decode(http.Response response, {bool allowEmpty = false}) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(_errorMessage(response), statusCode: response.statusCode);
+      throw ApiException(_errorMessage(response), statusCode: response.statusCode, code: _errorCode(response));
     }
     if (allowEmpty && response.body.trim().isEmpty) return null;
     try {
@@ -272,6 +273,20 @@ class ApiClient {
     final data = _decode(response);
     if (data is Map<String, dynamic>) return data;
     throw const ApiException('El backend no devolvió un objeto válido.');
+  }
+
+  /// Código estable del error (p. ej. `correo_no_verificado`), si el backend lo manda.
+  String? _errorCode(http.Response response) {
+    try {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      if (data is Map<String, dynamic> && data['error'] is Map<String, dynamic>) {
+        final code = (data['error'] as Map<String, dynamic>)['code'];
+        return code is String ? code : null;
+      }
+    } on FormatException {
+      // Sin código.
+    }
+    return null;
   }
 
   String _errorMessage(http.Response response) {
@@ -292,10 +307,13 @@ class ApiClient {
 }
 
 class ApiException implements Exception {
-  const ApiException(this.message, {this.statusCode});
+  const ApiException(this.message, {this.statusCode, this.code});
 
   final String message;
   final int? statusCode;
+
+  /// Código del error que manda el backend, para reaccionar sin leer el texto.
+  final String? code;
 
   @override
   String toString() => message;

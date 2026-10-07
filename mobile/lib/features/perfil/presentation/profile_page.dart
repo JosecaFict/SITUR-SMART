@@ -8,8 +8,10 @@ import '../../notificaciones/presentation/notification_bell.dart';
 import '../../marketplace/presentation/widgets/marketplace_widgets.dart';
 import '../../usuarios/data/auth_service.dart';
 import '../data/profile_service.dart';
+import 'account_security_section.dart';
 
-/// Mi Perfil del turista: ver y editar sus datos, y cerrar sesión.
+/// Mi Perfil del turista: ver y editar sus datos, su seguridad (correo,
+/// contraseña, sesiones, baja) y cerrar sesión.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -272,11 +274,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         )
                       : const Text('Guardar cambios'),
                 ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/recuperar-password'),
-                  icon: const Icon(Icons.lock_reset),
-                  label: const Text('Cambiar contraseña'),
+                const SizedBox(height: 28),
+                AccountSecuritySection(
+                  emailVerified: _user?['correo_verificado'] != false,
+                  onChanged: _load,
                 ),
               ],
             ),
