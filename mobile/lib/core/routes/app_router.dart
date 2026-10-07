@@ -106,7 +106,11 @@ class AppRouter {
         path: '/reserva/:id',
         name: 'reserva',
         builder: (context, state) =>
-            BookingDetailPage(bookingId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0),
+            BookingDetailPage(
+          bookingId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+          // situr-smart://app/reserva/ID?pago=exito al volver de Stripe.
+          paymentResult: state.uri.queryParameters['pago'],
+        ),
       ),
 
       GoRoute(

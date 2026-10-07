@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
@@ -19,10 +20,15 @@ import 'booking_status_chip.dart';
 /// Mientras espera el pago se consulta sola cada pocos segundos y al volver a
 /// la app desde la página de Stripe: el backend concilia con Stripe en cada
 /// consulta, así que la confirmación aparece sin que el turista haga nada.
+///
+/// Al terminar de pagar, la página de Stripe reabre la app aquí con
+/// [paymentResult] (`exito` o `cancelado`, del enlace
+/// situr-smart://app/reserva/ID?pago=exito) para avisar cómo terminó.
 class BookingDetailPage extends StatefulWidget {
-  const BookingDetailPage({super.key, required this.bookingId, this.service});
+  const BookingDetailPage({super.key, required this.bookingId, this.paymentResult, this.service});
 
   final int bookingId;
+  final String? paymentResult;
   final BookingService? service;
 
   @override
@@ -90,7 +96,27 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
   void _schedulePoll(Booking booking) {
     _poll?.cancel();
     if (booking.pendingPayment) {
-      _poll = Timer(const Duration(seconds: 5), () => _load(silent: true));
+      // Recién pagó: el webhook llega en segundos, se consulta más seguido.
+      final justPaid = widget.paymentResult == 'exito';
+      _poll = Timer(Duration(seconds: justPaid ? 2 : 5), () => _load(silent: true));
+    }
+  }
+
+  Future<void> _openReceipt() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _working = true);
+    try {
+      final url = await _service.receiptUrl(widget.bookingId);
+      // El navegador del celular abre o descarga el PDF; el enlace va firmado.
+      if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
+        messenger.showSnackBar(const SnackBar(content: Text('No se pudo abrir el comprobante.')));
+      }
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(error is ApiException ? error.message : 'No se pudo obtener el comprobante.')),
+      );
+    } finally {
+      if (mounted) setState(() => _working = false);
     }
   }
 
@@ -144,7 +170,17 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_booking?.code ?? 'Reserva')),
+      appBar: AppBar(
+        title: Text(_booking?.code ?? 'Reserva'),
+        // Abierta desde el pago o un aviso no hay pantalla detrás: se vuelve a Viajes.
+        leading: Navigator.of(context).canPop()
+            ? null
+            : IconButton(
+                tooltip: 'Mis viajes',
+                icon: const Icon(Icons.close),
+                onPressed: () => context.go('/viajes'),
+              ),
+      ),
       body: _body(),
     );
   }
@@ -164,6 +200,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          if (_paymentBanner(booking) case final banner?) ...[banner, const SizedBox(height: 16)],
           Row(children: [BookingStatusChip(booking: booking)]),
           const SizedBox(height: 12),
           Text(
@@ -193,7 +230,15 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
           ),
           const SizedBox(height: 20),
           if (booking.pendingPayment) ..._pendingSection(booking),
-          if ((booking.confirmed || booking.finished) && booking.qr != null) _Voucher(booking: booking),
+          if ((booking.confirmed || booking.finished) && booking.qr != null) ...[
+            _Voucher(booking: booking),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _working ? null : _openReceipt,
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('Descargar comprobante'),
+            ),
+          ],
           if (booking.inactive)
             const Text(
               'Esta reserva ya no está activa y su cupo quedó libre. No se cobró nada.',
@@ -210,6 +255,47 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
               onPressed: () => context.push('/producto/${booking.productId}'),
               child: const Text('Ver el producto'),
             ),
+        ],
+      ),
+    );
+  }
+
+  /// Cómo terminó el pago del que se acaba de volver. Null si no se vino de pagar.
+  Widget? _paymentBanner(Booking booking) {
+    final result = widget.paymentResult;
+    if (result == null) return null;
+    final (color, border, icon, text) = switch ((result, booking)) {
+      (_, Booking(confirmed: true) || Booking(finished: true)) => (
+          const Color(0xFFECFDF5),
+          const Color(0xFF6EE7B7),
+          Icons.check_circle,
+          'Pago realizado. Tu reserva fue confirmada. Te enviamos el comprobante por correo.',
+        ),
+      ('exito', Booking(pendingPayment: true)) => (
+          const Color(0xFFEFF6FF),
+          const Color(0xFF93C5FD),
+          Icons.hourglass_top,
+          'Recibimos tu pago. Estamos confirmando tu reserva…',
+        ),
+      _ => (
+          const Color(0xFFFFFBEB),
+          const Color(0xFFFDE68A),
+          Icons.info_outline,
+          'El pago no se completó. No se cobró nada.',
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.accentDark),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
         ],
       ),
     );

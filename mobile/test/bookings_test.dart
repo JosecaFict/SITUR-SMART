@@ -130,4 +130,46 @@ void main() {
     // se desmonta para que el temporizador no quede vivo al terminar.
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('al volver de pagar avisa que la reserva quedó confirmada y ofrece el comprobante', (tester) async {
+    final service = _FakeBookingService([Booking.fromJson(_json())]);
+    await tester.pumpWidget(
+      MaterialApp(home: BookingDetailPage(bookingId: 5, paymentResult: 'exito', service: service)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Pago realizado. Tu reserva fue confirmada'), findsOneWidget);
+    // El botón queda debajo del voucher: la lista lo construye al desplazarse.
+    await tester.scrollUntilVisible(find.text('Descargar comprobante'), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Descargar comprobante'), findsOneWidget);
+  });
+
+  testWidgets('si el webhook todavía no llegó, avisa que está confirmando', (tester) async {
+    final service = _FakeBookingService([
+      Booking.fromJson(_json(estado: 'CREADA', nombre: 'Pendiente de pago', qr: null)),
+    ]);
+    await tester.pumpWidget(
+      MaterialApp(home: BookingDetailPage(bookingId: 5, paymentResult: 'exito', service: service)),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('Estamos confirmando tu reserva'), findsOneWidget);
+    expect(find.text('Descargar comprobante'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('si abandonó el pago, avisa que no se cobró', (tester) async {
+    final service = _FakeBookingService([
+      Booking.fromJson(_json(estado: 'CREADA', nombre: 'Pendiente de pago', qr: null)),
+    ]);
+    await tester.pumpWidget(
+      MaterialApp(home: BookingDetailPage(bookingId: 5, paymentResult: 'cancelado', service: service)),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('El pago no se completó'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
 }

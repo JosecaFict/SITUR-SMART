@@ -38,6 +38,12 @@ class BookingService {
     return data['checkout_url'] as String;
   }
 
+  /// Enlace firmado al comprobante PDF de una reserva pagada.
+  Future<String> receiptUrl(int id) async {
+    final data = await _api.getMap('me/reservas/$id/comprobante/', '');
+    return data['url'] as String;
+  }
+
   Future<Booking> cancel(int id) async =>
       Booking.fromJson(await _api.postAuth('me/reservas/$id/cancelar/', const {}));
 
