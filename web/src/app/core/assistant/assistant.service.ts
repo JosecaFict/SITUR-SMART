@@ -22,8 +22,20 @@ export class AssistantService {
     return this.http.get<AssistantStatus>(`${this.baseUrl}/estado/`);
   }
 
-  chat(mensaje: string, historial: AssistantHistoryItem[]): Observable<AssistantChatResponse> {
-    return this.http.post<AssistantChatResponse>(`${this.baseUrl}/chat/`, { mensaje, historial });
+  /**
+   * Con `tenantId`, el personal de esa empresa puede pedir sus reportes; el
+   * SuperAdmin los pide sin empresa y abarca toda la plataforma.
+   */
+  chat(
+    mensaje: string,
+    historial: AssistantHistoryItem[],
+    tenantId: number | null = null,
+  ): Observable<AssistantChatResponse> {
+    return this.http.post<AssistantChatResponse>(
+      `${this.baseUrl}/chat/`,
+      { mensaje, historial },
+      { headers: tenantId ? { 'X-Tenant-ID': tenantId.toString() } : {} },
+    );
   }
 
   transcribe(audio: Blob, filename: string): Observable<{ texto: string }> {

@@ -40,9 +40,23 @@ class LodgingCardSerializer(serializers.Serializer):
     motivos = serializers.ListField(child=serializers.CharField(), required=False)
 
 
+class GeneratedReportSerializer(serializers.Serializer):
+    """Reporte que el asistente armo para el personal; la web baja el archivo."""
+
+    tipo = serializers.CharField()
+    titulo = serializers.CharField()
+    formato = serializers.ChoiceField(choices=("pdf", "excel"), allow_null=True)
+    desde = serializers.DateField(allow_null=True)
+    hasta = serializers.DateField(allow_null=True)
+    empresa_id = serializers.IntegerField(allow_null=True)
+    empresa = serializers.CharField(allow_null=True)
+    filas = serializers.IntegerField()
+
+
 class ChatResponseSerializer(serializers.Serializer):
     respuesta = serializers.CharField()
     hospedajes = LodgingCardSerializer(many=True)
+    reportes = GeneratedReportSerializer(many=True)
 
 
 class VoiceRequestSerializer(serializers.Serializer):

@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.rbac.views import tenant_id_from_request
+
 from . import llm, services
 from .recommendations import Criteria, recommend
 from .serializers import (
@@ -75,7 +77,12 @@ class AssistantChatView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         try:
-            result = services.reply(message=data["mensaje"], history=data["historial"])
+            result = services.reply(
+                message=data["mensaje"],
+                history=data["historial"],
+                user=request.user,
+                tenant_id=tenant_id_from_request(request),
+            )
         except llm.AssistantUnavailable as exc:
             raise _translate(exc) from exc
         return Response(result)

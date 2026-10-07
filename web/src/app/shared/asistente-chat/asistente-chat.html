@@ -12,7 +12,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="font-heading text-sm font-bold">Situr · Asistente IA</p>
-          <p class="text-xs text-white/70">Recomendaciones de hospedaje</p>
+          <p class="text-xs text-white/70">{{ staff() ? 'Hospedajes y reportes' : 'Recomendaciones de hospedaje' }}</p>
         </div>
         @if (canSpeak) {
           <button type="button" (click)="toggleSpeak()" [attr.aria-pressed]="speak()"
@@ -69,6 +69,26 @@
                   }
                 </div>
               }
+
+              @for (report of message.reportes ?? []; track $index) {
+                <div class="border-input-border w-full rounded-xl border bg-white p-3">
+                  <p class="text-title text-sm font-semibold">Reporte: {{ report.titulo }}</p>
+                  <p class="text-text-secondary text-xs">
+                    {{ report.empresa || 'Toda la plataforma' }} · {{ reportPeriod(report) }} · {{ report.filas }}
+                    {{ report.filas === 1 ? 'fila' : 'filas' }}
+                  </p>
+                  <div class="mt-2 flex gap-2">
+                    <button type="button" (click)="downloadReport(report, 'pdf')" [disabled]="downloading() !== null"
+                      class="border-input-border text-label hover:text-accent-dark flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50">
+                      <svg lucideFileText class="h-3.5 w-3.5"></svg> PDF
+                    </button>
+                    <button type="button" (click)="downloadReport(report, 'excel')" [disabled]="downloading() !== null"
+                      class="border-input-border text-label hover:text-accent-dark flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50">
+                      <svg lucideFileSpreadsheet class="h-3.5 w-3.5"></svg> Excel
+                    </button>
+                  </div>
+                </div>
+              }
             </div>
           }
         }
@@ -82,7 +102,7 @@
 
         @if (messages().length === 1 && !busy()) {
           <div class="flex flex-wrap gap-2 pt-1">
-            @for (suggestion of suggestions; track suggestion) {
+            @for (suggestion of suggestions(); track suggestion) {
               <button type="button" (click)="send(suggestion)"
                 class="border-demo-border bg-demo-bg text-accent-dark hover:bg-accent/20 rounded-full border px-3 py-1.5 text-xs font-medium transition">
                 {{ suggestion }}

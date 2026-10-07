@@ -26,9 +26,26 @@ export interface AssistantLodgingCard {
 export interface AssistantChatResponse {
   respuesta: string;
   hospedajes: AssistantLodgingCard[];
+  /** Solo para el personal y el SuperAdmin; un turista recibe una lista vacía. */
+  reportes?: AssistantReport[];
 }
 
 export interface AssistantStatus {
   chat: boolean;
   voz: boolean;
+}
+
+/**
+ * Reporte que el asistente armó para el personal o el SuperAdmin. La web baja el
+ * archivo con /reportes/exportar/, que vuelve a verificar permisos.
+ */
+export interface AssistantReport {
+  tipo: 'plataforma' | 'catalogo' | 'hospedajes' | 'actividad';
+  titulo: string;
+  formato: 'pdf' | 'excel' | null;
+  desde: string | null;
+  hasta: string | null;
+  empresa_id: number | null;
+  empresa: string | null;
+  filas: number;
 }

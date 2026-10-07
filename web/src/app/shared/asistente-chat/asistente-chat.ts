@@ -7,12 +7,15 @@ import {
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   LucideBot,
+  LucideFileSpreadsheet,
+  LucideFileText,
   LucideLoaderCircle,
   LucideMapPin,
   LucideMic,
@@ -25,15 +28,17 @@ import {
   LucideVolumeX,
   LucideX,
 } from '@lucide/angular';
-import { AssistantLodgingCard } from '../../core/assistant/assistant.models';
+import { AssistantLodgingCard, AssistantReport } from '../../core/assistant/assistant.models';
 import { AssistantService } from '../../core/assistant/assistant.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { apiErrorMessage } from '../../core/http/api-error';
+import { ReportsService } from '../../core/reports/reports.service';
 
 interface ChatMessage {
   rol: 'usuario' | 'asistente';
   contenido: string;
   hospedajes?: AssistantLodgingCard[];
+  reportes?: AssistantReport[];
   error?: boolean;
 }
 
@@ -45,6 +50,16 @@ const SUGGESTIONS = [
   'Hotel en Uyuni para 2 personas',
   '¿Qué ciudades tienen hospedajes?',
   'Algo económico con desayuno',
+];
+
+const STAFF_WELCOME =
+  '¡Hola! Soy Situr. Además de recomendar hospedajes, te preparo reportes: pídemelos ' +
+  'escribiendo o por voz 🎤, por ejemplo "el catálogo de este mes en PDF".';
+
+const STAFF_SUGGESTIONS = [
+  'Reporte del catálogo en PDF',
+  'Actividad de este mes en Excel',
+  '¿Cuántos hospedajes tengo?',
 ];
 
 /** Cuántos mensajes previos viajan al backend; el backend recorta igual a 10. */
@@ -66,7 +81,7 @@ const MAX_RECORDING_MS = 30_000;
 @Component({
   selector: 'situr-asistente-chat',
   imports: [
-    FormsModule, RouterLink, LucideBot, LucideLoaderCircle, LucideMapPin, LucideMic,
+    FormsModule, RouterLink, LucideBot, LucideFileSpreadsheet, LucideFileText, LucideLoaderCircle, LucideMapPin, LucideMic,
     LucideSend, LucideSparkles, LucideSquare, LucideStar, LucideTrash2, LucideVolume2,
     LucideVolumeX, LucideX,
   ],
@@ -75,9 +90,24 @@ const MAX_RECORDING_MS = 30_000;
 export class AsistenteChat implements OnDestroy {
   private readonly assistant = inject(AssistantService);
   private readonly auth = inject(AuthService);
+  private readonly reports = inject(ReportsService);
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
 
-  protected readonly suggestions = SUGGESTIONS;
+  /**
+   * Empresa en nombre de la que habla el personal; null para el SuperAdmin
+   * (reportes de toda la plataforma) y para el turista.
+   */
+  private readonly tenantId = computed(() => {
+    const user = this.auth.session?.()?.user;
+    return user && !user.roles.includes('SUPER_ADMIN') ? (user.tenants[0]?.id ?? null) : null;
+  });
+  /** Quien puede pedir reportes: SuperAdmin o personal de una empresa. */
+  protected readonly staff = computed(() => {
+    const user = this.auth.session?.()?.user;
+    return !!user && (user.roles.includes('SUPER_ADMIN') || user.tenants.length > 0);
+  });
+  protected readonly suggestions = computed(() => (this.staff() ? STAFF_SUGGESTIONS : SUGGESTIONS));
+  protected readonly downloading = signal<string | null>(null);
   protected readonly enabled = signal(false);
   protected readonly voiceEnabled = signal(false);
   protected readonly open = signal(false);
@@ -85,7 +115,7 @@ export class AsistenteChat implements OnDestroy {
   protected readonly recording = signal(false);
   protected readonly transcribing = signal(false);
   protected readonly speak = signal(false);
-  protected readonly messages = signal<ChatMessage[]>([{ rol: 'asistente', contenido: WELCOME }]);
+  protected readonly messages = signal<ChatMessage[]>([{ rol: 'asistente', contenido: this.welcome() }]);
   protected draft = '';
 
   protected readonly visible = computed(() => this.enabled() && this.auth.isAuthenticated());
@@ -109,6 +139,13 @@ export class AsistenteChat implements OnDestroy {
       },
       // Backend sin el endpoint o caído: simplemente no se muestra el chat.
       error: () => this.enabled.set(false),
+    });
+
+    // El chat vive en la raíz y se crea antes del login: al iniciar sesión el
+    // personal tiene que ver su saludo (con reportes) si todavía no conversó.
+    effect(() => {
+      const contenido = this.welcome();
+      if (untracked(this.messages).length === 1) this.messages.set([{ rol: 'asistente', contenido }]);
     });
 
     // Baja al último mensaje cada vez que cambia la conversación.
@@ -139,7 +176,7 @@ export class AsistenteChat implements OnDestroy {
 
   protected clear(): void {
     this.stopSpeaking();
-    this.messages.set([{ rol: 'asistente', contenido: WELCOME }]);
+    this.messages.set([{ rol: 'asistente', contenido: this.welcome() }]);
   }
 
   protected send(text = this.draft): void {
@@ -156,15 +193,20 @@ export class AsistenteChat implements OnDestroy {
     this.messages.update((list) => [...list, { rol: 'usuario', contenido: mensaje }]);
     this.sending.set(true);
 
-    this.assistant.chat(mensaje, historial).subscribe({
+    this.assistant.chat(mensaje, historial, this.tenantId()).subscribe({
       next: (response) => {
         const contenido = this.plain(response.respuesta);
+        const reportes = response.reportes ?? [];
         this.messages.update((list) => [
           ...list,
-          { rol: 'asistente', contenido, hospedajes: response.hospedajes },
+          { rol: 'asistente', contenido, hospedajes: response.hospedajes, reportes },
         ]);
         this.sending.set(false);
         this.say(contenido);
+        // Pidió el archivo ("en PDF", "en Excel"): se baja sin otro clic.
+        for (const report of reportes) {
+          if (report.formato) this.downloadReport(report, report.formato);
+        }
       },
       error: (error: HttpErrorResponse) => {
         this.messages.update((list) => [
@@ -181,6 +223,47 @@ export class AsistenteChat implements OnDestroy {
       event.preventDefault();
       this.send();
     }
+  }
+
+  // --- Reportes ---------------------------------------------------------------
+
+  protected downloadReport(report: AssistantReport, format: 'pdf' | 'excel'): void {
+    const key = `${report.tipo}-${format}`;
+    if (this.downloading()) return;
+    this.downloading.set(key);
+    const filters = {
+      tipo: report.tipo,
+      ...(report.desde ? { desde: report.desde } : {}),
+      ...(report.hasta ? { hasta: report.hasta } : {}),
+    };
+    const extension = format === 'excel' ? 'xlsx' : 'pdf';
+    this.reports.export(report.empresa_id, filters, extension).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `reporte-${report.tipo}.${extension}`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.downloading.set(null);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.downloading.set(null);
+        this.pushError(apiErrorMessage(error, 'No se pudo descargar el reporte.'));
+      },
+    });
+  }
+
+  protected reportPeriod(report: AssistantReport): string {
+    const day = (value: string) => value.split('-').reverse().join('/');
+    if (report.desde && report.hasta) return `${day(report.desde)} al ${day(report.hasta)}`;
+    if (report.desde) return `desde ${day(report.desde)}`;
+    if (report.hasta) return `hasta ${day(report.hasta)}`;
+    return 'todas las fechas';
+  }
+
+  private welcome(): string {
+    return this.staff() ? STAFF_WELCOME : WELCOME;
   }
 
   // --- Voz -------------------------------------------------------------------

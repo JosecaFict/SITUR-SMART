@@ -5,9 +5,11 @@ los ultimos mensajes en cada pedido. Mantiene la app sin tablas propias, que es
 lo que permite retirarla sin dejar rastro si se elige otro enfoque.
 """
 
+import json
+
 from django.utils import timezone
 
-from . import llm, tools
+from . import llm, report_tool, tools
 
 # Rondas maximas de herramientas por mensaje. Cada ronda es una llamada al
 # proveedor y gasta cuota: dos alcanzan para "buscar" y luego "ver detalle".
@@ -25,6 +27,15 @@ Reglas:
 - Todavía no puedes hacer reservas: indica que el viajero puede abrir el hospedaje en el Marketplace para ver detalles.
 Fecha de hoy: {hoy}."""
 
+# Solo para quien puede ver reportes (dueño, personal con permiso o SuperAdmin).
+STAFF_PROMPT = """
+
+También atiendes al personal de SITUR-SMART ({quien}). Para ellos, los reportes de la plataforma también son parte de tu trabajo:
+- Si piden un reporte, usa la herramienta generar_reporte. Elige el tipo que corresponda: empresas y planes = plataforma; productos o catálogo = catalogo; hoteles, habitaciones o capacidad = hospedajes; movimientos, bitácora o actividad = actividad.
+- Convierte fechas relativas ("este mes", "la semana pasada", "en septiembre") a AAAA-MM-DD usando la fecha de hoy. Si no mencionan fechas, no las pongas.
+- Si piden el archivo, el PDF o el Excel, pon el formato; si solo preguntan un dato, usa formato ninguno.
+- Responde con 2 o 3 datos clave del resultado y, si hay archivo, avisa que la descarga ya empezó. Nunca inventes cifras: usa solo lo que devuelve la herramienta."""
+
 
 def _history(messages: list[dict]) -> list[dict]:
     """Traduce el historial del cliente al formato del proveedor.
@@ -40,17 +51,28 @@ def _history(messages: list[dict]) -> list[dict]:
     ]
 
 
-def reply(*, message: str, history: list[dict]) -> dict:
-    """Responde un mensaje y devuelve el texto y los hospedajes mencionados."""
+def reply(*, message: str, history: list[dict], user=None, tenant_id: int | None = None) -> dict:
+    """Responde un mensaje y devuelve el texto, los hospedajes y los reportes generados.
+
+    Si ``user`` puede ver reportes, el modelo tambien recibe la herramienta
+    generar_reporte; un turista conversa igual que siempre.
+    """
+    reports = report_tool.context_for(user, tenant_id) if user is not None else None
+    system = SYSTEM_PROMPT.format(hoy=timezone.localdate().isoformat())
+    definitions = tools.DEFINITIONS
+    if reports is not None:
+        who = "SuperAdmin de toda la plataforma" if reports.global_scope else "personal de una empresa"
+        system += STAFF_PROMPT.format(quien=who)
+        definitions = [*tools.DEFINITIONS, report_tool.DEFINITION]
     conversation = [
-        {"role": "system", "content": SYSTEM_PROMPT.format(hoy=timezone.localdate().isoformat())},
+        {"role": "system", "content": system},
         *_history(history),
         {"role": "user", "content": message},
     ]
     cards: dict[int, dict] = {}
 
     for _ in range(MAX_TOOL_ROUNDS):
-        answer = llm.chat(conversation, tools=tools.DEFINITIONS)
+        answer = llm.chat(conversation, tools=definitions)
         tool_calls = answer.get("tool_calls") or []
         if not tool_calls:
             break
@@ -63,7 +85,7 @@ def reply(*, message: str, history: list[dict]) -> dict:
                 {
                     "role": "tool",
                     "tool_call_id": call.get("id", ""),
-                    "content": tools.run(function.get("name", ""), function.get("arguments"), cards),
+                    "content": _run_tool(function, cards, reports),
                 }
             )
     else:
@@ -74,4 +96,23 @@ def reply(*, message: str, history: list[dict]) -> dict:
     text = (answer.get("content") or "").strip()
     if not text:
         text = "No pude generar una respuesta. ¿Puedes reformular tu pregunta?"
-    return {"respuesta": text, "hospedajes": list(cards.values())}
+    return {
+        "respuesta": text,
+        "hospedajes": list(cards.values()),
+        "reportes": reports.reports if reports is not None else [],
+    }
+
+
+def _run_tool(function: dict, cards: dict, reports) -> str:
+    name = function.get("name", "")
+    if name == report_tool.DEFINITION["function"]["name"]:
+        if reports is None:
+            # El modelo no deberia pedirla sin tenerla; si lo hace, no se ejecuta.
+            return json.dumps({"error": "No tienes acceso a reportes."})
+        try:
+            args = json.loads(function.get("arguments") or "{}")
+        except json.JSONDecodeError:
+            args = {}
+        result = report_tool.run(args if isinstance(args, dict) else {}, reports)
+        return json.dumps(result, ensure_ascii=False, default=str)
+    return tools.run(name, function.get("arguments"), cards)
