@@ -99,3 +99,12 @@ export const tenantMemberGuard: CanActivateFn = () => {
   }
   return router.createUrlTree(['/dashboard']);
 };
+
+/** El turista no tiene dashboard: su inicio dentro del panel es Mis viajes. */
+export const notCustomerGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const user = auth.session()?.user;
+  const isCustomer = !!user && !user.roles.includes('SUPER_ADMIN') && user.tenants.length === 0;
+  return isCustomer ? router.createUrlTree(['/mis-viajes']) : true;
+};

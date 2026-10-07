@@ -10,6 +10,7 @@ import { LatLng } from '../../../core/geo/geo.models';
 import { LodgingEstablishment, Room } from '../../../core/lodging/lodging.models';
 import { LodgingService } from '../../../core/lodging/lodging.service';
 import { MapaUbicacion } from '../../../shared/mapa-ubicacion/mapa-ubicacion';
+import { Favorito } from '../../../shared/favorito/favorito';
 
 /** Tamaño de página del endpoint paginado de habitaciones. */
 const PAGE_SIZE = 12;
@@ -26,7 +27,7 @@ const PAGE_SIZE = 12;
 @Component({
   selector: 'situr-hospedaje-publico',
   imports: [
-    RouterLink, MapaUbicacion, LucideArrowLeft, LucideBedDouble, LucideBuilding2,
+    RouterLink, MapaUbicacion, Favorito, LucideArrowLeft, LucideBedDouble, LucideBuilding2,
     LucideCircleAlert, LucideClock, LucideExternalLink, LucideImage, LucideMapPin,
     LucideRefreshCw, LucideStar, LucideUsers,
   ],

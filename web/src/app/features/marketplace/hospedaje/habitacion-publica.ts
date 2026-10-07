@@ -7,6 +7,7 @@ import {
 } from '@lucide/angular';
 import { Room } from '../../../core/lodging/lodging.models';
 import { LodgingService } from '../../../core/lodging/lodging.service';
+import { Reservar } from '../../../shared/reservar/reservar';
 
 /**
  * Detalle público de un tipo de habitación.
@@ -20,7 +21,7 @@ import { LodgingService } from '../../../core/lodging/lodging.service';
 @Component({
   selector: 'situr-habitacion-publica',
   imports: [
-    RouterLink, LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCircleAlert,
+    RouterLink, Reservar, LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCircleAlert,
     LucideImage, LucideMapPin, LucideUsers,
   ],
   templateUrl: './habitacion-publica.html',

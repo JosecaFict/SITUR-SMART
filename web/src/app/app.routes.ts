@@ -5,6 +5,7 @@ import {
   companyRegistryGuard,
   companyPermissionGuard,
   guestGuard,
+  notCustomerGuard,
   permissionGuard,
   superAdminGuard,
   tenantMemberGuard,
@@ -33,6 +34,11 @@ export const routes: Routes = [
     path: 'marketplace/hospedajes/:hospedajeId/habitaciones/:habitacionId',
     loadComponent: () =>
       import('./features/marketplace/hospedaje/habitacion-publica').then((m) => m.HabitacionPublica),
+  },
+  {
+    path: 'marketplace/productos/:id',
+    loadComponent: () =>
+      import('./features/marketplace/producto/producto-publico').then((m) => m.ProductoPublico),
   },
   {
     path: 'marketplace/hospedajes/:id',
@@ -67,7 +73,33 @@ export const routes: Routes = [
     children: [
       {
         path: 'dashboard',
+        canActivate: [notCustomerGuard],
         loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.Dashboard),
+      },
+      // Área del viajero.
+      {
+        path: 'mis-viajes',
+        loadComponent: () => import('./features/viajero/mis-viajes').then((m) => m.MisViajes),
+      },
+      {
+        path: 'mis-viajes/:id',
+        loadComponent: () => import('./features/viajero/viaje-detalle').then((m) => m.ViajeDetalle),
+      },
+      {
+        path: 'itinerarios',
+        loadComponent: () => import('./features/viajero/itinerarios').then((m) => m.Itinerarios),
+      },
+      {
+        path: 'itinerarios/:id',
+        loadComponent: () => import('./features/viajero/itinerario-detalle').then((m) => m.ItinerarioDetalle),
+      },
+      {
+        path: 'favoritos',
+        loadComponent: () => import('./features/viajero/favoritos').then((m) => m.Favoritos),
+      },
+      {
+        path: 'notificaciones',
+        loadComponent: () => import('./features/viajero/notificaciones').then((m) => m.Notificaciones),
       },
       {
         path: 'perfil',

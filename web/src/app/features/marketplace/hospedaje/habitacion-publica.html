@@ -123,6 +123,11 @@
               <svg lucideArrowLeft class="h-4 w-4"></svg>Volver al hospedaje
             </a>
           </div>
+
+          <div class="mt-5">
+            <situr-reservar [productId]="habitacion.producto_id" [isRoom]="true"
+              [maxQuantity]="habitacion.cantidad_habitaciones" [capacityPerUnit]="habitacion.capacidad_maxima" />
+          </div>
         </div>
       </section>
     }

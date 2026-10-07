@@ -57,7 +57,10 @@
 
         <div class="min-w-0">
           <p class="text-accent-dark text-xs font-bold tracking-wide uppercase">{{ hotel.tipo_hospedaje }}</p>
-          <h1 class="font-heading text-title mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl">{{ hotel.nombre }}</h1>
+          <div class="mt-1 flex flex-wrap items-start justify-between gap-3">
+            <h1 class="font-heading text-title text-3xl font-extrabold tracking-tight sm:text-4xl">{{ hotel.nombre }}</h1>
+            <situr-favorito [productId]="hotel.producto_id" />
+          </div>
 
           @if (hotel.categoria_estrellas) {
             <p class="mt-2 flex items-center gap-0.5 text-amber-500" [attr.aria-label]="hotel.categoria_estrellas + ' estrellas'">

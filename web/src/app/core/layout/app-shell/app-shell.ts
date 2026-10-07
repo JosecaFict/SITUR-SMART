@@ -1,14 +1,18 @@
-import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
   LucideBedDouble,
+  LucideBell,
   LucideBuilding2,
   LucideCalendarCheck,
   LucideCompass,
   LucideCreditCard,
   LucideDatabaseBackup,
   LucideLayoutDashboard,
+  LucideHeart,
   LucideLogOut,
+  LucideLuggage,
+  LucideMap,
   LucideMenu,
   LucideMapPinned,
   LucidePackageOpen,
@@ -21,11 +25,12 @@ import {
 } from '@lucide/angular';
 import { AuthService } from '../../auth/auth.service';
 import { MyPlanService } from '../../subscription/my-plan.service';
+import { TravelerService } from '../../traveler/traveler.service';
 
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings';
+  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings' | 'trips' | 'itinerary' | 'favorites' | 'notifications';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
@@ -44,13 +49,17 @@ interface NavItem {
     RouterLink,
     RouterLinkActive,
     LucideBedDouble,
+    LucideBell,
     LucideBuilding2,
     LucideCalendarCheck,
   LucideCompass,
   LucideCreditCard,
     LucideDatabaseBackup,
     LucideLayoutDashboard,
+    LucideHeart,
     LucideLogOut,
+    LucideLuggage,
+    LucideMap,
     LucideMenu,
     LucideMapPinned,
     LucidePackageOpen,
@@ -64,11 +73,16 @@ interface NavItem {
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.css',
 })
-export class AppShell {
+export class AppShell implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   private readonly myPlan = inject(MyPlanService);
+  private readonly traveler = inject(TravelerService);
+
+  /** Avisos sin leer del turista (contador del menú). */
+  protected readonly unread = this.traveler.unread;
+  private unreadTimer: ReturnType<typeof setInterval> | null = null;
 
   protected readonly session = this.auth.session;
   protected readonly menuOpen = signal(false);
@@ -77,6 +91,7 @@ export class AppShell {
   protected readonly planAlert = signal<{ message: string; restricted: boolean } | null>(null);
 
   constructor() {
+    this.watchUnread();
     const user = this.session()?.user;
     const tenantId = user && !user.roles.includes('SUPER_ADMIN') ? user.tenants[0]?.id : undefined;
     if (tenantId === undefined) return;
@@ -98,8 +113,13 @@ export class AppShell {
   }
 
   private readonly allNavItems: NavItem[] = [
-    { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { label: 'Dashboard', path: '/dashboard', icon: 'dashboard', hideForCustomer: true },
     { label: 'Explorar', path: '/', icon: 'explore' },
+    // Área del viajero.
+    { label: 'Mis viajes', path: '/mis-viajes', icon: 'trips', customerOnly: true },
+    { label: 'Itinerarios', path: '/itinerarios', icon: 'itinerary', customerOnly: true },
+    { label: 'Favoritos', path: '/favoritos', icon: 'favorites', customerOnly: true },
+    { label: 'Notificaciones', path: '/notificaciones', icon: 'notifications', customerOnly: true },
     { label: 'Mi Perfil', path: '/perfil', icon: 'profile' },
     {
       label: 'Empresas',
@@ -213,6 +233,20 @@ export class AppShell {
       return true;
     });
   });
+
+  /** El turista ve cuántos avisos tiene sin leer; se pone al día cada minuto. */
+  private watchUnread(): void {
+    const user = this.session()?.user;
+    const isCustomer = !!user && !user.roles.includes('SUPER_ADMIN') && user.tenants.length === 0;
+    if (!isCustomer) return;
+    const refresh = () => this.traveler.refreshUnread().subscribe({ error: () => undefined });
+    refresh();
+    this.unreadTimer = setInterval(refresh, 60_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.unreadTimer) clearInterval(this.unreadTimer);
+  }
 
   @HostListener('document:keydown.escape')
   protected closeMenu(): void {

@@ -108,8 +108,23 @@
             @case ('plan') {
               <svg lucideCreditCard class="h-5 w-5" [strokeWidth]="2"></svg>
             }
+            @case ('trips') {
+              <svg lucideLuggage class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
+            @case ('itinerary') {
+              <svg lucideMap class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
+            @case ('favorites') {
+              <svg lucideHeart class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
+            @case ('notifications') {
+              <svg lucideBell class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
           }
           {{ item.label }}
+          @if (item.icon === 'notifications' && unread() > 0) {
+            <span class="bg-accent ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold text-white" [attr.aria-label]="unread() + ' sin leer'">{{ unread() }}</span>
+          }
         </a>
       }
     </nav>

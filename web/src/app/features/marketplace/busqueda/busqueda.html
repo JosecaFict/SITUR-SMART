@@ -103,6 +103,7 @@
                 @if (card.capacidad) {
                   <p class="text-xs text-text-secondary">Capacidad: {{ card.capacidad }} persona(s)</p>
                 }
+                <a [routerLink]="['/marketplace/productos', card.id]" class="text-accent-dark inline-flex min-h-10 items-center text-sm font-semibold hover:underline">Ver y reservar &rarr;</a>
               </div>
             }
 

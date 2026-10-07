@@ -61,6 +61,11 @@ export class ProductsService {
     return this.http.get<Currency[]>(`${environment.apiUrl}/catalogos/monedas/`);
   }
 
+  /** Ficha pública de un producto publicado (sin sesión). */
+  getPublic(productId: number): Observable<TourismProduct> {
+    return this.http.get<TourismProduct>(`${environment.apiUrl}/marketplace/productos/${productId}/`);
+  }
+
   listMarketplace(filters: MarketplaceFilters = {}): Observable<MarketplacePage> {
     let params = new HttpParams();
     for (const [key, value] of Object.entries(filters)) {
