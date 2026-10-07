@@ -34,6 +34,9 @@ export interface LodgingEstablishment {
    */
   capacidad_total: number | null;
   estado: ProductStatus;
+  publicar_en?: string | null;
+  retirar_en?: string | null;
+  publicado_automaticamente_en?: string | null;
   imagen_url: string | null;
   direccion: string | null;
   /**

@@ -36,6 +36,23 @@ export class ProductsService {
     });
   }
 
+  /** Programa la publicación y/o el retiro; null quita esa fecha. */
+  schedule(
+    tenantId: number,
+    productId: number,
+    fechas: { publicar_en: string | null; retirar_en: string | null },
+  ): Observable<TourismProduct> {
+    return this.http.put<TourismProduct>(`${environment.apiUrl}/productos/${productId}/programacion/`, fechas, {
+      headers: this.tenantHeaders(tenantId),
+    });
+  }
+
+  clearSchedule(tenantId: number, productId: number): Observable<TourismProduct> {
+    return this.http.delete<TourismProduct>(`${environment.apiUrl}/productos/${productId}/programacion/`, {
+      headers: this.tenantHeaders(tenantId),
+    });
+  }
+
   listTypes(): Observable<ProductType[]> {
     return this.http.get<ProductType[]>(`${environment.apiUrl}/catalogos/tipos-producto/`);
   }

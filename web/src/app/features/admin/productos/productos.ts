@@ -1,9 +1,10 @@
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import {
-  LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
+  LucideBuilding2, LucideCheck, LucideCircleAlert, LucideClock, LucideEye, LucideEyeOff,
   LucideImage, LucideLink, LucideMapPin, LucidePackageOpen, LucidePencil,
   LucidePlus, LucideRefreshCw, LucideSearch, LucideTrash2, LucideUpload,
   LucideUsers, LucideX,
@@ -16,6 +17,7 @@ import { CompaniesService } from '../../../core/companies/companies.service';
 import { MediaService } from '../../../core/media/media.service';
 import { Currency, ProductStatus, ProductType, TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
+import { ProgramarPublicacion } from '../shared/programar-publicacion';
 
 interface CompanyChoice { id: number; name: string; }
 type StatusFilter = 'TODOS' | ProductStatus;
@@ -30,7 +32,7 @@ const LODGING_TYPE_CODES = ['HOTEL', 'HABITACION'];
 @Component({
   selector: 'situr-productos',
   imports: [
-    ReactiveFormsModule, LucideBuilding2, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
+    DatePipe, ReactiveFormsModule, ProgramarPublicacion, LucideBuilding2, LucideClock, LucideCheck, LucideCircleAlert, LucideEye, LucideEyeOff,
     LucideImage, LucideLink, LucideMapPin, LucidePackageOpen, LucidePencil, LucidePlus,
     LucideRefreshCw, LucideSearch, LucideTrash2, LucideUpload, LucideUsers, LucideX,
   ],
@@ -55,6 +57,8 @@ export class Productos implements OnInit {
   protected readonly saving = signal(false);
   protected readonly showForm = signal(false);
   protected readonly editingProduct = signal<TourismProduct | null>(null);
+  /** Producto con el panel de publicación programada abierto. */
+  protected readonly schedulingId = signal<number | null>(null);
   protected readonly searchTerm = signal('');
   protected readonly statusFilter = signal<StatusFilter>('TODOS');
   protected readonly errorMessage = signal<string | null>(null);
@@ -262,6 +266,21 @@ export class Productos implements OnInit {
       },
       error: (error: HttpErrorResponse) => { this.saving.set(false); this.formError.set(this.apiMessage(error, 'No fue posible guardar el producto.')); },
     });
+  }
+
+  protected toggleScheduling(product: TourismProduct): void {
+    this.schedulingId.set(this.schedulingId() === product.id ? null : product.id);
+  }
+
+  /** La programación se guardó: se reemplaza la tarjeta con lo que devolvió el backend. */
+  protected scheduled(product: TourismProduct): void {
+    this.products.update((list) => list.map((item) => (item.id === product.id ? { ...item, ...product } : item)));
+    this.schedulingId.set(null);
+    this.successMessage.set(
+      product.publicar_en || product.retirar_en
+        ? `Programación de "${product.nombre}" guardada.`
+        : `Se quitó la programación de "${product.nombre}".`,
+    );
   }
 
   protected togglePublication(product: TourismProduct): void {

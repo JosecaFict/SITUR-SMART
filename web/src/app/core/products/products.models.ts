@@ -36,6 +36,11 @@ export interface TourismProduct {
   hospedaje_id: number | null;
   /** Nombre del hotel. Solo en habitaciones. */
   establecimiento: string | null;
+  /** Publicación programada: el sistema lo publica o retira solo a esa hora. */
+  publicar_en?: string | null;
+  retirar_en?: string | null;
+  /** Cuándo lo publicó el sistema solo (publicación programada). */
+  publicado_automaticamente_en?: string | null;
   creado_en: string;
   actualizado_en: string;
 }

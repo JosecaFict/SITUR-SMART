@@ -80,12 +80,32 @@
             <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700">Inactivo</span>
           }
           @if (canManage()) {
+            <button type="button" (click)="scheduleOpen.set(!scheduleOpen())" class="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2 text-xs font-semibold text-sky-800 transition hover:bg-sky-100/80">
+              <svg lucideCalendarClock class="h-3.5 w-3.5"></svg>Programar
+            </button>
             <button type="button" (click)="deactivateLodging()" class="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100/80">
               <svg lucideTrash2 class="h-3.5 w-3.5"></svg>Desactivar
             </button>
           }
         </div>
       </div>
+      @if (hotel.publicar_en || hotel.retirar_en || (hotel.estado === 'PUBLICADO' && hotel.publicado_automaticamente_en)) {
+        <div class="flex flex-wrap gap-1.5">
+          @if (hotel.publicar_en) {
+            <span class="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800">Se publica el {{ hotel.publicar_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+          }
+          @if (hotel.retirar_en) {
+            <span class="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-bold text-orange-800">Se retira el {{ hotel.retirar_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+          }
+          @if (hotel.estado === 'PUBLICADO' && hotel.publicado_automaticamente_en) {
+            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">Publicado automáticamente el {{ hotel.publicado_automaticamente_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+          }
+        </div>
+      }
+      @if (scheduleOpen() && canManage() && companyId(); as tenantId) {
+        <situr-programar-publicacion [tenantId]="tenantId" [productId]="hotel.producto_id" [estado]="hotel.estado"
+          [publicarEn]="hotel.publicar_en" [retirarEn]="hotel.retirar_en" (saved)="scheduled($event)" />
+      }
 
       <!-- Pestañas: cada una tiene su propia URL -->
       <div class="border-input-border flex gap-1 overflow-x-auto rounded-2xl border bg-white p-1.5 shadow-sm">

@@ -1,9 +1,10 @@
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
-  LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCheck, LucideCircleAlert,
+  LucideArrowLeft, LucideCalendarClock, LucideBedDouble, LucideBuilding2, LucideCheck, LucideCircleAlert,
   LucideClock, LucideCrosshair, LucideEye, LucideEyeOff, LucideImage, LucideMapPin,
   LucidePencil, LucidePlus, LucideRefreshCw, LucideSearch, LucideTrash2, LucideUpload,
   LucideUsers, LucideX,
@@ -20,9 +21,10 @@ import {
 } from '../../../core/lodging/lodging.models';
 import { LodgingService } from '../../../core/lodging/lodging.service';
 import { MediaService } from '../../../core/media/media.service';
-import { Currency, ProductStatus } from '../../../core/products/products.models';
+import { Currency, ProductStatus, TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
 import { MapaUbicacion } from '../../../shared/mapa-ubicacion/mapa-ubicacion';
+import { ProgramarPublicacion } from '../shared/programar-publicacion';
 
 type Tab = 'general' | 'hospedaje' | 'habitaciones';
 
@@ -84,7 +86,7 @@ const SERVICE_OPTIONS = [
 @Component({
   selector: 'situr-hospedaje-detalle',
   imports: [
-    ReactiveFormsModule, MapaUbicacion, LucideArrowLeft, LucideBedDouble, LucideBuilding2,
+    DatePipe, ReactiveFormsModule, MapaUbicacion, ProgramarPublicacion, LucideArrowLeft, LucideCalendarClock, LucideBedDouble, LucideBuilding2,
     LucideCheck, LucideCircleAlert, LucideClock, LucideCrosshair, LucideEye, LucideEyeOff,
     LucideImage, LucideMapPin, LucidePencil, LucidePlus, LucideRefreshCw, LucideSearch,
     LucideTrash2, LucideUpload, LucideUsers, LucideX,
@@ -104,7 +106,9 @@ export class HospedajeDetalle implements OnInit {
 
   protected readonly serviceOptions = SERVICE_OPTIONS;
 
-  private readonly companyId = signal<number | null>(null);
+  protected readonly companyId = signal<number | null>(null);
+  /** Panel de publicación programada abierto. */
+  protected readonly scheduleOpen = signal(false);
   protected readonly lodgingTypes = signal<LodgingType[]>([]);
   protected readonly currencies = signal<Currency[]>([]);
   protected readonly cities = signal<City[]>([]);
@@ -633,6 +637,15 @@ export class HospedajeDetalle implements OnInit {
         this.lodgingFormError.set(apiErrorMessage(error, 'No fue posible guardar el hospedaje.'));
       },
     });
+  }
+
+  /** La programación del hotel se guardó (por su producto). */
+  protected scheduled(product: TourismProduct): void {
+    const current = this.lodging();
+    if (current) {
+      this.lodging.set({ ...current, publicar_en: product.publicar_en, retirar_en: product.retirar_en });
+    }
+    this.scheduleOpen.set(false);
   }
 
   protected deactivateLodging(): void {

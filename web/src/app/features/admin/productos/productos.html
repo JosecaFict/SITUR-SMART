@@ -175,6 +175,19 @@
       <article class="group overflow-hidden rounded-2xl border border-input-border bg-white transition hover:border-gray-300 hover:shadow-md"><div class="relative h-44 overflow-hidden bg-gray-100">@if (product.imagen_url) { <img [src]="product.imagen_url" (error)="imageError($event)" [alt]="product.nombre" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> } @else { <div class="flex h-full items-center justify-center text-text-secondary"><svg lucideImage class="h-10 w-10"></svg></div> }<span class="absolute top-3 left-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-accent-dark shadow-sm">{{ product.tipo }}</span>@if (product.estado === 'PUBLICADO') { <span class="absolute top-3 right-3 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 shadow-sm">Publicado</span> } @else if (product.estado === 'BORRADOR') { <span class="absolute top-3 right-3 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-sm">Borrador</span> } @else { <span class="absolute top-3 right-3 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700 shadow-sm">Inactivo</span> }</div>
       <div class="p-4">
         <h2 class="text-base font-bold leading-snug text-title">{{ product.nombre }}</h2>
+        @if (product.publicar_en || product.retirar_en || (product.estado === 'PUBLICADO' && product.publicado_automaticamente_en)) {
+          <div class="mt-1.5 flex flex-wrap gap-1.5">
+            @if (product.publicar_en) {
+              <span class="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-800">Programado · {{ product.publicar_en | date: 'dd/MM HH:mm' }}</span>
+            }
+            @if (product.retirar_en) {
+              <span class="rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-bold text-orange-800">Se retira · {{ product.retirar_en | date: 'dd/MM HH:mm' }}</span>
+            }
+            @if (product.estado === 'PUBLICADO' && product.publicado_automaticamente_en) {
+              <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800">Publicado automáticamente</span>
+            }
+          </div>
+        }
         <!-- En una habitación el hotel va primero: es lo que la identifica. -->
         @if (product.establecimiento) {
           <p class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-accent-dark"><svg lucideBuilding2 class="h-3.5 w-3.5"></svg>{{ product.establecimiento }}</p>
@@ -216,8 +229,12 @@
               @if (isOrphanLodging(product)) {
                 <span class="rounded-lg px-2 py-1 text-xs text-text-secondary">No administrable</span>
               } @else if (isLodging(product)) {
+                @if (product.tipo_codigo === 'HOTEL') {
+                  <button type="button" (click)="toggleScheduling(product)" class="rounded-lg p-2 text-text-secondary hover:bg-sky-50 hover:text-sky-800" aria-label="Programar publicación"><svg lucideClock class="h-4 w-4"></svg></button>
+                }
                 <button type="button" (click)="manageLodging(product)" class="border-input-border hover:bg-demo-bg rounded-lg border px-3 py-1.5 text-xs font-semibold text-accent-dark transition">Administrar hospedaje</button>
               } @else {
+                <button type="button" (click)="toggleScheduling(product)" class="rounded-lg p-2 text-text-secondary hover:bg-sky-50 hover:text-sky-800" aria-label="Programar publicación"><svg lucideClock class="h-4 w-4"></svg></button>
                 <button type="button" (click)="startEdit(product)" class="rounded-lg p-2 text-text-secondary hover:bg-input-bg hover:text-title" aria-label="Editar producto"><svg lucidePencil class="h-4 w-4"></svg></button>
                 <button type="button" (click)="togglePublication(product)" class="rounded-lg p-2 text-text-secondary hover:bg-demo-bg hover:text-accent-dark" [attr.aria-label]="product.estado === 'PUBLICADO' ? 'Retirar publicación' : 'Publicar producto'">
                   @if (product.estado === 'PUBLICADO') { <svg lucideEyeOff class="h-4 w-4"></svg> } @else { <svg lucideEye class="h-4 w-4"></svg> }
@@ -226,6 +243,12 @@
             </div>
           }
         </div>
+        @if (schedulingId() === product.id && selectedCompanyId(); as companyId) {
+          <div class="mt-4">
+            <situr-programar-publicacion [tenantId]="companyId" [productId]="product.id" [estado]="product.estado"
+              [publicarEn]="product.publicar_en" [retirarEn]="product.retirar_en" (saved)="scheduled($event)" />
+          </div>
+        }
       </div>
     </article> }</div> }
   </div>
