@@ -70,6 +70,8 @@ export interface CustomerDetail extends CustomerAccount {
   /** Las últimas 20 reservas. */
   reservas: CustomerBooking[];
   historial: { fecha: string; accion: string; por: string; motivo: string | null }[];
+  /** Avisos de empresas sobre este cliente; la plataforma decide qué hacer. */
+  reportes: { fecha: string; empresa: string; reserva: string | null; por: string | null; motivo: string }[];
 }
 
 export interface CustomerFilters {

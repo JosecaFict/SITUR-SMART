@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import {
   LucideBedDouble,
   LucideBuilding2,
+  LucideCalendarCheck,
   LucideCompass,
   LucideCreditCard,
   LucideDatabaseBackup,
@@ -24,7 +25,7 @@ import { MyPlanService } from '../../subscription/my-plan.service';
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan';
+  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
@@ -44,7 +45,8 @@ interface NavItem {
     RouterLinkActive,
     LucideBedDouble,
     LucideBuilding2,
-    LucideCompass,
+    LucideCalendarCheck,
+  LucideCompass,
   LucideCreditCard,
     LucideDatabaseBackup,
     LucideLayoutDashboard,
@@ -106,6 +108,13 @@ export class AppShell {
       anyPermission: ['TENANTS_LEER', 'TENANTS_GESTIONAR'],
       anyRole: ['TENANT_ADMIN'],
       hideForCustomer: true,
+    },
+    {
+      label: 'Reservas',
+      path: '/reservas',
+      icon: 'bookings',
+      hideForCustomer: true,
+      permission: 'RESERVAS_LEER',
     },
     {
       label: 'Clientes',

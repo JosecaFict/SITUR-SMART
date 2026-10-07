@@ -15,7 +15,7 @@ const PAGE: CustomerPage = {
 const DETAIL: CustomerDetail = {
   ...ROW,
   actividad: { reservas: 2, pagadas: 1, pendientes: 1, canceladas: 0, total_pagado: ROW.total_pagado },
-  sesiones_abiertas: 1, dispositivos_push: 1, reservas: [], historial: [],
+  sesiones_abiertas: 1, dispositivos_push: 1, reservas: [], historial: [], reportes: [],
 };
 
 describe('Clientes', () => {

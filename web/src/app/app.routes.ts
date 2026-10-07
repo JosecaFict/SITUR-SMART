@@ -97,6 +97,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/empresa/mi-plan/mi-plan').then((m) => m.MiPlan),
       },
       {
+        path: 'reservas',
+        canActivate: [anyPermissionGuard(['RESERVAS_LEER'])],
+        loadComponent: () => import('./features/admin/reservas/reservas').then((m) => m.Reservas),
+      },
+      {
         path: 'clientes',
         canActivate: [permissionGuard('CLIENTES_GESTIONAR')],
         loadComponent: () => import('./features/admin/clientes/clientes').then((m) => m.Clientes),

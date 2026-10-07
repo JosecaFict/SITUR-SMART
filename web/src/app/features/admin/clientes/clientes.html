@@ -160,6 +160,19 @@
           </ul>
         }
 
+        @if (customer.reportes.length) {
+          <h3 class="mt-6 text-sm font-bold text-amber-800">Reportes de empresas ({{ customer.reportes.length }})</h3>
+          <ul class="mt-2 space-y-2 text-xs">
+            @for (report of customer.reportes; track $index) {
+              <li class="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900">
+                <span class="font-semibold">{{ report.empresa }}</span> · {{ report.fecha | date: 'dd/MM/yyyy' }}
+                @if (report.reserva) { · {{ report.reserva }} }
+                <span class="block">“{{ report.motivo }}”</span>
+              </li>
+            }
+          </ul>
+        }
+
         @if (customer.historial.length) {
           <h3 class="text-title mt-6 text-sm font-bold">Historial de la cuenta</h3>
           <ul class="mt-2 space-y-2 text-xs">
