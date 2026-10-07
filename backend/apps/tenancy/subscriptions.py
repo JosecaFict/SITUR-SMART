@@ -96,7 +96,7 @@ def require_active_plan(actor, tenant_id: int) -> None:
 # --- Consulta de "Mi plan" -------------------------------------------------------
 
 
-def _owner_ids(tenant_id: int) -> list[int]:
+def owner_ids(tenant_id: int) -> list[int]:
     return list(
         UserRole.objects.filter(
             tenant_id=tenant_id, role__code="TENANT_ADMIN", role__scope=Role.Scope.TENANT
@@ -109,7 +109,7 @@ def _require_owner(actor, tenant_id: int) -> None:
     if is_superadmin(actor):
         return
     require_tenant_membership(actor, tenant_id)
-    if actor.id not in _owner_ids(tenant_id):
+    if actor.id not in owner_ids(tenant_id):
         raise PermissionDenied("Solo el propietario de la empresa puede gestionar el plan.")
 
 
@@ -171,7 +171,7 @@ def plan_status(*, actor, tenant_id: int) -> dict:
                 "limite": plan.max_products,
             },
         ]
-    is_owner = is_superadmin(actor) or actor.id in _owner_ids(tenant_id)
+    is_owner = is_superadmin(actor) or actor.id in owner_ids(tenant_id)
     return {
         "empresa": {"id": tenant.id, "nombre": tenant.trade_name, "estado": tenant.status},
         "estado": state,
@@ -439,7 +439,7 @@ def notify_owners(subscription: Subscription, kind: str, *, days_left: int | Non
         'color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Ver Mi plan</a></p></div>'
     )
     sent = 0
-    for user in User.objects.filter(id__in=_owner_ids(subscription.tenant_id), status=User.Status.ACTIVE):
+    for user in User.objects.filter(id__in=owner_ids(subscription.tenant_id), status=User.Status.ACTIVE):
         if send_email(to_email=user.email, to_name=user.get_full_name(), subject=subject, html=html):
             sent += 1
     return sent

@@ -1,6 +1,6 @@
 from django.db.models import F, Q
 from drf_spectacular.utils import extend_schema, inline_serializer
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -13,6 +13,7 @@ from apps.rbac.views import tenant_id_from_request
 from apps.tenancy.models import City
 from apps.tenancy.subscriptions import restricted_tenant_ids
 
+from . import scheduling
 from .geocoding import GeocodingUnavailable, reverse_geocode, search_places
 from .models import Currency, LodgingType, ProductType, TourismProduct
 from .serializers import (
@@ -583,3 +584,39 @@ def _city_center(city_id: int | None) -> tuple | None:
     if latitude is None or longitude is None:
         return None
     return latitude, longitude
+
+
+class ScheduleSerializer(serializers.Serializer):
+    publicar_en = serializers.DateTimeField(required=False, allow_null=True)
+    retirar_en = serializers.DateTimeField(required=False, allow_null=True)
+
+
+class ProductScheduleView(APIView):
+    """Programa cuando se publica y/o se retira un producto o un hospedaje.
+
+    PUT con fechas (o null para quitarlas); DELETE quita la programacion. El
+    cron lo hace a su hora (catalog/scheduling.py).
+    """
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=ScheduleSerializer, responses=ProductSerializer)
+    def put(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = ScheduleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        product = scheduling.set_schedule(
+            actor=request.user, tenant_id=tenant_id, product_id=pk,
+            publish_at=serializer.validated_data.get("publicar_en"),
+            unpublish_at=serializer.validated_data.get("retirar_en"),
+            request=request,
+        )
+        return Response(ProductSerializer(product).data)
+
+    @extend_schema(responses=ProductSerializer)
+    def delete(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        product = scheduling.set_schedule(
+            actor=request.user, tenant_id=tenant_id, product_id=pk, publish_at=None, unpublish_at=None, request=request
+        )
+        return Response(ProductSerializer(product).data)

@@ -84,6 +84,11 @@ class TourismProduct(models.Model):
     max_capacity = models.PositiveIntegerField(db_column="capacidad_maxima")
     status = models.CharField(db_column="estado", max_length=20, choices=Status.choices)
     image_url = models.CharField(db_column="imagen_url", max_length=500, null=True, blank=True)
+    # Publicacion programada (catalog/scheduling.py): el cron publica o retira
+    # a su hora y deja marcado cuando lo publico solo.
+    publish_at = models.DateTimeField(db_column="publicar_en", null=True, blank=True)
+    unpublish_at = models.DateTimeField(db_column="retirar_en", null=True, blank=True)
+    auto_published_at = models.DateTimeField(db_column="publicado_automaticamente_en", null=True, blank=True)
     created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
     updated_at = models.DateTimeField(db_column="actualizado_en", auto_now=True)
 

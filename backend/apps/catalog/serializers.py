@@ -110,6 +110,10 @@ class ProductSerializer(serializers.ModelSerializer):
     precio_desde = serializers.SerializerMethodField()
     hospedaje_id = serializers.SerializerMethodField()
     establecimiento = serializers.SerializerMethodField()
+    # Publicacion programada (catalog/scheduling.py).
+    publicar_en = serializers.DateTimeField(source="publish_at", allow_null=True, read_only=True)
+    retirar_en = serializers.DateTimeField(source="unpublish_at", allow_null=True, read_only=True)
+    publicado_automaticamente_en = serializers.DateTimeField(source="auto_published_at", allow_null=True, read_only=True)
 
     class Meta:
         model = TourismProduct
@@ -118,6 +122,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "pais_id", "pais", "moneda_codigo", "moneda_simbolo", "codigo", "nombre",
             "descripcion", "localidad", "precio_base", "precio_desde", "capacidad_maxima",
             "estado", "imagen_url", "hospedaje_id", "establecimiento",
+            "publicar_en", "retirar_en", "publicado_automaticamente_en",
             "creado_en", "actualizado_en",
         )
 
@@ -286,6 +291,11 @@ class LodgingSerializer(serializers.ModelSerializer):
     moneda_codigo = serializers.CharField(source="product.currency.iso_code")
     moneda_simbolo = serializers.CharField(source="product.currency.symbol")
     estado = serializers.CharField(source="product.status")
+    publicar_en = serializers.DateTimeField(source="product.publish_at", allow_null=True, read_only=True)
+    retirar_en = serializers.DateTimeField(source="product.unpublish_at", allow_null=True, read_only=True)
+    publicado_automaticamente_en = serializers.DateTimeField(
+        source="product.auto_published_at", allow_null=True, read_only=True
+    )
     imagen_url = serializers.CharField(source="product.image_url", allow_null=True)
     direccion = serializers.CharField(source="address", allow_null=True)
     # Nulas las dos o ninguna. Este serializer lo comparten las vistas
@@ -320,7 +330,8 @@ class LodgingSerializer(serializers.ModelSerializer):
             "id", "producto_id", "empresa_id", "empresa", "tipo_hospedaje_codigo",
             "tipo_hospedaje", "nombre", "descripcion", "ciudad_id", "ciudad", "pais_id",
             "pais", "localidad", "moneda_codigo", "moneda_simbolo", "capacidad_total",
-            "estado", "imagen_url", "direccion", "latitud", "longitud",
+            "estado", "publicar_en", "retirar_en", "publicado_automaticamente_en",
+            "imagen_url", "direccion", "latitud", "longitud",
             "categoria_estrellas", "hora_check_in", "hora_check_out", "servicios",
             "precio_desde", "total_habitaciones", "creado_en", "actualizado_en",
         )

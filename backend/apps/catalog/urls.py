@@ -11,6 +11,7 @@ from .views import (
     GeocodingReverseView,
     GeocodingSearchView,
     LodgingTypeListView,
+    ProductScheduleView,
     ProductTypeListView,
     PublicLodgingDetailView,
     PublicLodgingListView,
@@ -38,6 +39,8 @@ urlpatterns = [
     path("marketplace/habitaciones/<int:pk>/", PublicRoomDetailView.as_view(), name="public-room-detail"),
     path("productos/", CompanyProductListCreateView.as_view(), name="company-product-list-create"),
     path("productos/<int:pk>/", CompanyProductDetailView.as_view(), name="company-product-detail"),
+    # Publicacion programada de un producto o de un hospedaje (por su producto).
+    path("productos/<int:pk>/programacion/", ProductScheduleView.as_view(), name="company-product-schedule"),
     path("hospedajes/", CompanyLodgingListCreateView.as_view(), name="company-lodging-list-create"),
     path("hospedajes/<int:pk>/", CompanyLodgingDetailView.as_view(), name="company-lodging-detail"),
     path(
