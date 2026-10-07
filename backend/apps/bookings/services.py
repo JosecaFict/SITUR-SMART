@@ -43,6 +43,7 @@ from apps.accounts.models import CustomerProfile
 from apps.catalog.models import ROOM_PRODUCT_CODE, Availability, TourismProduct
 from apps.payments import gateway
 from apps.payments.models import Payment
+from apps.tenancy.subscriptions import restricted_tenant_ids
 
 from . import events
 from .models import (
@@ -124,6 +125,8 @@ def _bookable_product(product_id: int) -> TourismProduct:
             tenant__status="ACTIVO",
             product_type__code__in=BOOKABLE_CODES,
         )
+        # Plan vencido: la empresa no vende hasta renovar.
+        .exclude(tenant_id__in=restricted_tenant_ids())
         .first()
     )
     if product is None:

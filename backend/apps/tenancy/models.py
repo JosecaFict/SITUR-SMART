@@ -260,6 +260,10 @@ class Subscription(models.Model):
         blank=True,
     )
 
+    # Ultimo aviso de vencimiento enviado (7 o 1 dias antes): el cron corre cada
+    # pocos minutos y no debe repetirlo. Se limpia al empezar un periodo.
+    last_notice_days = models.SmallIntegerField(db_column="ultimo_aviso_dias", null=True, blank=True)
+
     class Meta:
         managed = False
         db_table = "suscripcion"
@@ -267,3 +271,46 @@ class Subscription(models.Model):
 
     def __str__(self) -> str:
         return f"{self.tenant} -> {self.plan}"
+
+
+class SubscriptionPayment(models.Model):
+    """Pago con Stripe de una renovacion o un cambio de plan de la empresa.
+
+    ``reference`` es la sesion de Checkout: el webhook la usa para encontrar el
+    pago y el UNIQUE impide aplicarlo dos veces.
+    """
+
+    class State(models.TextChoices):
+        PENDING = "PENDIENTE", "Pendiente"
+        APPROVED = "APROBADO", "Aprobado"
+        VOIDED = "ANULADO", "Anulado"
+
+    id = models.BigAutoField(primary_key=True)
+    tenant = models.ForeignKey(
+        Tenant, db_column="id_tenant", on_delete=models.DO_NOTHING, related_name="subscription_payments"
+    )
+    plan = models.ForeignKey(Plan, db_column="id_plan", on_delete=models.DO_NOTHING, related_name="+")
+    subscription = models.ForeignKey(
+        Subscription,
+        db_column="id_suscripcion",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="payments",
+    )
+    payer = models.ForeignKey(
+        "accounts.User", db_column="id_usuario_pagador", on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    currency = models.ForeignKey(
+        "catalog.Currency", db_column="id_moneda", on_delete=models.DO_NOTHING, related_name="+"
+    )
+    amount = models.DecimalField(db_column="monto", max_digits=12, decimal_places=2)
+    status = models.CharField(db_column="estado", max_length=20, default=State.PENDING)
+    provider = models.CharField(db_column="proveedor", max_length=60, default="STRIPE")
+    reference = models.CharField(db_column="referencia", max_length=150, null=True)
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+    processed_at = models.DateTimeField(db_column="procesado_en", null=True)
+
+    class Meta:
+        managed = False
+        db_table = "pago_suscripcion"
+        ordering = ("-created_at", "-id")

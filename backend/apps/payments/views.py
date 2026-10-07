@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bookings import services as bookings
+from apps.tenancy import subscriptions
 
 from . import gateway
 
@@ -34,11 +35,20 @@ class StripeWebhookView(APIView):
             return Response({"recibido": False}, status=400)
 
         session = event["data"]["object"]
+        # La misma cuenta de Stripe cobra reservas y planes de empresa; la
+        # metadata de la sesion dice cual es.
+        is_plan = (session.get("metadata") or {}).get("tipo") == "SUSCRIPCION"
         if event["type"] in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
             if session.get("payment_status") in ("paid", "no_payment_required"):
-                bookings.confirm_paid_session(session["id"])
+                if is_plan:
+                    subscriptions.confirm_payment(session["id"])
+                else:
+                    bookings.confirm_paid_session(session["id"])
         elif event["type"] in ("checkout.session.expired", "checkout.session.async_payment_failed"):
-            bookings.expire_session(session["id"])
+            if is_plan:
+                subscriptions.void_payment(session["id"])
+            else:
+                bookings.expire_session(session["id"])
         return Response({"recibido": True})
 
 

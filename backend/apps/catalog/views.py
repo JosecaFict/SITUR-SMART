@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from apps.rbac.services import require_permission, require_tenant_access
 from apps.rbac.views import tenant_id_from_request
 from apps.tenancy.models import City
+from apps.tenancy.subscriptions import restricted_tenant_ids
 
 from .geocoding import GeocodingUnavailable, reverse_geocode, search_places
 from .models import Currency, LodgingType, ProductType, TourismProduct
@@ -96,6 +97,7 @@ class PublicProductListView(APIView):
                     "room__establishment__product", "lodging",
                 )
             ).filter(status=TourismProduct.Status.PUBLISHED, tenant__status="ACTIVO")
+            .exclude(tenant_id__in=restricted_tenant_ids())
         )
         if value := filters.get("pais"):
             products = products.filter(city__country_id=value)
@@ -151,6 +153,7 @@ class PublicProductDetailView(APIView):
                 )
             )
             .filter(id=pk, status=TourismProduct.Status.PUBLISHED, tenant__status="ACTIVO")
+            .exclude(tenant_id__in=restricted_tenant_ids())
             .first()
         )
         if product is None:

@@ -49,7 +49,7 @@ def empresa(status=Tenant.Status.PENDING, pk=COMPANY_ID) -> Tenant:
 def sin_consultas_de_serializer():
     """Neutraliza las consultas que ``CompanySerializer`` hace por su cuenta.
 
-    ``ciudad`` y ``propietario`` son ``SerializerMethodField`` que consultan la
+    ``ciudad``, ``propietario`` y ``plan`` son ``SerializerMethodField`` que consultan la
     base al serializar, y aqui no hay base. Lo que se prueba es la vista, no la
     resolucion del propietario.
     """
@@ -60,6 +60,12 @@ def sin_consultas_de_serializer():
     propietario.return_value.filter.return_value.order_by.return_value.first.return_value = None
     ciudad = pila.enter_context(patch("apps.tenancy.serializers.City.objects.select_related"))
     ciudad.return_value.filter.return_value.first.return_value = None
+    pila.enter_context(
+        patch(
+            "apps.tenancy.subscriptions.summary",
+            return_value={"nombre": None, "vence": None, "estado": "SIN_PLAN"},
+        )
+    )
     return pila
 
 

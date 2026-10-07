@@ -9,6 +9,7 @@ from apps.audit.services import record_audit
 from apps.rbac.services import require_permission, require_tenant_access
 from apps.tenancy.models import City
 from apps.tenancy.services import ensure_product_quota_available
+from apps.tenancy.subscriptions import require_active_plan, restricted_tenant_ids
 
 from .models import (
     AVAILABLE_LODGING_TYPE_CODES,
@@ -89,6 +90,7 @@ def _relations(data: dict) -> dict:
 def create_product(*, actor, tenant_id: int, request=None, **data) -> TourismProduct:
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "PRODUCTOS_GESTIONAR", tenant_id)
+    require_active_plan(actor, tenant_id)
     ensure_product_quota_available(tenant_id)
     requested_code = data.pop("codigo", None)
     values = _relations(data)
@@ -106,6 +108,7 @@ def create_product(*, actor, tenant_id: int, request=None, **data) -> TourismPro
 def update_product(*, actor, tenant_id: int, product_id: int, request=None, **data) -> TourismProduct:
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "PRODUCTOS_GESTIONAR", tenant_id)
+    require_active_plan(actor, tenant_id)
     product = (
         TourismProduct.objects.select_related("product_type")
         .filter(tenant_id=tenant_id, id=product_id)
@@ -531,6 +534,7 @@ def get_company_lodging(*, actor, tenant_id: int, lodging_id: int) -> LodgingEst
 def create_lodging(*, actor, tenant_id: int, request=None, **data) -> LodgingEstablishment:
     require_tenant_access(actor, tenant_id)
     require_permission(actor, "PRODUCTOS_GESTIONAR", tenant_id)
+    require_active_plan(actor, tenant_id)
     ensure_product_quota_available(tenant_id)
 
     type_code = data.pop("tipo_hospedaje_codigo", LodgingType.Code.HOTEL)
@@ -583,6 +587,7 @@ def create_lodging(*, actor, tenant_id: int, request=None, **data) -> LodgingEst
 def update_lodging(*, actor, tenant_id: int, lodging_id: int, request=None, **data) -> LodgingEstablishment:
     lodging = get_company_lodging(actor=actor, tenant_id=tenant_id, lodging_id=lodging_id)
     require_permission(actor, "PRODUCTOS_GESTIONAR", tenant_id)
+    require_active_plan(actor, tenant_id)
 
     if type_code := data.pop("tipo_hospedaje_codigo", None):
         lodging.lodging_type = _lodging_type(type_code)
@@ -668,6 +673,7 @@ def get_company_room(*, actor, tenant_id: int, room_id: int) -> Room:
 def create_room(*, actor, tenant_id: int, lodging_id: int, request=None, **data) -> Room:
     lodging = get_company_lodging(actor=actor, tenant_id=tenant_id, lodging_id=lodging_id)
     require_permission(actor, "PRODUCTOS_GESTIONAR", tenant_id)
+    require_active_plan(actor, tenant_id)
     ensure_product_quota_available(tenant_id)
 
     specifics = _split_specifics(data, _ROOM_FIELDS)
@@ -713,6 +719,7 @@ def create_room(*, actor, tenant_id: int, lodging_id: int, request=None, **data)
 def update_room(*, actor, tenant_id: int, room_id: int, request=None, **data) -> Room:
     room = get_company_room(actor=actor, tenant_id=tenant_id, room_id=room_id)
     require_permission(actor, "PRODUCTOS_GESTIONAR", tenant_id)
+    require_active_plan(actor, tenant_id)
 
     specifics = _split_specifics(data, _ROOM_FIELDS)
     # Se comparan los valores ya guardados con los que llegan en el PATCH: una
@@ -787,6 +794,8 @@ def public_lodgings():
             product__tenant__status="ACTIVO",
         )
         .filter(_publishable_room_exists(establishment=OuterRef("pk")))
+        # Plan vencido: la empresa no vende hasta renovar.
+        .exclude(tenant_id__in=restricted_tenant_ids())
     )
 
 
@@ -802,7 +811,7 @@ def public_rooms():
         product__status=TourismProduct.Status.PUBLISHED,
         product__tenant__status="ACTIVO",
         establishment__product__status=TourismProduct.Status.PUBLISHED,
-    )
+    ).exclude(tenant_id__in=restricted_tenant_ids())
 
 
 def get_public_room(room_id: int) -> Room:

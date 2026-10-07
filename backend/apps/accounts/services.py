@@ -20,10 +20,10 @@ from apps.rbac.models import Role, UserRole
 from apps.rbac.services import is_superadmin, require_permission, require_tenant_access
 from apps.tenancy.models import UserTenant
 from apps.tenancy.services import ensure_user_quota_available
+from apps.tenancy.subscriptions import require_active_plan
 
 from .brevo import send_password_reset_otp_email
 from .models import CustomerProfile, PasswordResetToken, User, UserSession
-
 
 
 def token_hash(token: str) -> str:
@@ -180,6 +180,7 @@ def create_or_link_tenant_user(
         user=user, tenant_id=tenant_id, status=UserTenant.Status.ACTIVE
     ).exists()
     if not already_active_member:
+        require_active_plan(actor, tenant_id)
         ensure_user_quota_available(tenant_id)
 
     membership, _ = UserTenant.objects.get_or_create(

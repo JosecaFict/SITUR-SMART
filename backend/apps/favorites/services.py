@@ -2,6 +2,7 @@ from rest_framework.exceptions import NotFound
 
 from apps.catalog.models import TourismProduct
 from apps.catalog.services import marketplace_visible_products, with_lodging_from_price
+from apps.tenancy.subscriptions import restricted_tenant_ids
 
 from .models import Favorite
 
@@ -19,7 +20,9 @@ def public_products():
                 "room__establishment__product", "lodging",
             )
         )
-    ).filter(status=TourismProduct.Status.PUBLISHED, tenant__status="ACTIVO")
+    ).filter(status=TourismProduct.Status.PUBLISHED, tenant__status="ACTIVO").exclude(
+        tenant_id__in=restricted_tenant_ids()
+    )
 
 
 def list_favorites(*, user) -> list[TourismProduct]:

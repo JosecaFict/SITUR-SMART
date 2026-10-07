@@ -1,10 +1,14 @@
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import SimpleRateThrottle
 from rest_framework.views import APIView
 
+from apps.rbac.views import tenant_id_from_request
+
+from . import subscriptions
 from .models import City, Country
 from .serializers import (
     AdminCitySerializer,
@@ -327,3 +331,58 @@ class CompanySubscriptionView(APIView):
             **serializer.validated_data,
         )
         return Response(SubscriptionSerializer(subscription).data)
+
+
+class MyPlanSerializer(serializers.Serializer):
+    renovacion_automatica = serializers.BooleanField()
+
+
+class MyPlanPaySerializer(serializers.Serializer):
+    plan_codigo = serializers.CharField(required=False, allow_blank=True, max_length=50)
+
+
+class MyPlanView(APIView):
+    """"Mi plan" de la empresa del encabezado X-Tenant-ID: vigencia, uso y pagos.
+
+    Lo ve cualquier miembro, aun con la empresa restringida (justamente para
+    enterarse). Cambiar la renovacion automatica es del propietario.
+    """
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request):
+        tenant_id = tenant_id_from_request(request, required=True)
+        return Response(subscriptions.plan_status(actor=request.user, tenant_id=tenant_id))
+
+    @extend_schema(request=MyPlanSerializer, responses=OpenApiTypes.OBJECT)
+    def patch(self, request):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = MyPlanSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        subscriptions.set_auto_renew(
+            actor=request.user,
+            tenant_id=tenant_id,
+            value=serializer.validated_data["renovacion_automatica"],
+            request=request,
+        )
+        return Response(subscriptions.plan_status(actor=request.user, tenant_id=tenant_id))
+
+
+class MyPlanPayView(APIView):
+    """Abre el pago con Stripe de un periodo del plan actual o de otro plan."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=MyPlanPaySerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = MyPlanPaySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        url = subscriptions.start_checkout(
+            actor=request.user,
+            tenant_id=tenant_id,
+            plan_code=serializer.validated_data.get("plan_codigo") or None,
+            request=request,
+        )
+        return Response({"checkout_url": url}, status=status.HTTP_201_CREATED)

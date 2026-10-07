@@ -17,6 +17,7 @@ from decimal import Decimal
 from typing import ClassVar
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count, Exists, F, Min, OuterRef, Q, Sum
 from django.test import SimpleTestCase
@@ -77,6 +78,16 @@ def q_lookups(condition) -> list[str]:
             keys.append(child[0])
     return keys
 
+
+
+@pytest.fixture(autouse=True)
+def _plan_vigente(monkeypatch):
+    """Estas pruebas simulan la base: la empresa se da por con plan vigente.
+
+    La restriccion por plan vencido se prueba contra PostgreSQL en
+    tests/integracion/test_suscripciones.py.
+    """
+    monkeypatch.setattr("apps.catalog.services.require_active_plan", lambda actor, tenant_id: None)
 
 class LodgingWriteSerializerTests(SimpleTestCase):
     def test_create_requires_core_fields(self):

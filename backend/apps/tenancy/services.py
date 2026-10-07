@@ -1,7 +1,7 @@
-from datetime import date
 
 from django.db import transaction
 from django.db.models import Count, Q
+from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
@@ -23,6 +23,7 @@ from .models import (
     Tenant,
     UserTenant,
 )
+from .subscriptions import period_end
 
 DEFAULT_PLAN_CODE = "BASICO"
 
@@ -667,12 +668,15 @@ def _open_subscription(*, tenant: Tenant, plan: Plan, auto_renew: bool = False) 
     tablas distintas y nada las vuelve a derivar.
     """
     Subscription.objects.filter(tenant=tenant, status=Subscription.Status.ACTIVE).update(
-        status=Subscription.Status.CANCELLED, end_date=date.today()
+        status=Subscription.Status.CANCELLED, end_date=timezone.localdate()
     )
+    start = timezone.localdate()
     return Subscription.objects.create(
         tenant=tenant,
         plan=plan,
-        start_date=date.today(),
+        start_date=start,
+        # Cada periodo vence: el cron (subscriptions.process_due) avisa, renueva o vence.
+        end_date=period_end(start, plan.periodicity),
         status=Subscription.Status.ACTIVE,
         auto_renew=auto_renew,
         contracted_price=plan.price,

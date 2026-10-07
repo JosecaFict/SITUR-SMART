@@ -15,6 +15,8 @@ from .views import (
     CompanyStatusView,
     CompanySubscriptionView,
     CountryListView,
+    MyPlanPayView,
+    MyPlanView,
     PlanListView,
 )
 
@@ -36,4 +38,7 @@ urlpatterns = [
     path("empresas/<int:pk>/estado/", CompanyStatusView.as_view(), name="company-status"),
     path("empresas/<int:pk>/propietario/", CompanyOwnerView.as_view(), name="company-owner"),
     path("empresas/<int:pk>/suscripcion/", CompanySubscriptionView.as_view(), name="company-subscription"),
+    # "Mi plan" de la empresa del encabezado X-Tenant-ID.
+    path("empresa/mi-plan/", MyPlanView.as_view(), name="my-plan"),
+    path("empresa/mi-plan/pagar/", MyPlanPayView.as_view(), name="my-plan-pay"),
 ]

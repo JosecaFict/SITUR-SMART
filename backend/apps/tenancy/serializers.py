@@ -136,6 +136,7 @@ class CompanySerializer(serializers.ModelSerializer):
     telefono = serializers.CharField(source="phone", allow_null=True)
     estado = serializers.CharField(source="status")
     propietario = serializers.SerializerMethodField()
+    plan = serializers.SerializerMethodField()
     creado_en = serializers.DateTimeField(source="created_at")
     actualizado_en = serializers.DateTimeField(source="updated_at")
 
@@ -153,9 +154,17 @@ class CompanySerializer(serializers.ModelSerializer):
             "telefono",
             "estado",
             "propietario",
+            "plan",
             "creado_en",
             "actualizado_en",
         )
+
+    @extend_schema_field(serializers.DictField())
+    def get_plan(self, company) -> dict:
+        """Plan vigente, cuando vence y si esta por vencer o vencido."""
+        from .subscriptions import summary
+
+        return summary(company.id)
 
     @extend_schema_field(CitySerializer(allow_null=True))
     def get_ciudad(self, company):
