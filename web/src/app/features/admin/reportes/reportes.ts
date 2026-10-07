@@ -2,9 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import {
+  LucideBedDouble,
+  LucideBuilding2,
   LucideChartNoAxesCombined,
   LucideCircleAlert,
   LucideDownload,
+  LucidePackageOpen,
 } from '@lucide/angular';
 import { AuthService } from '../../../core/auth/auth.service';
 import { CompaniesService } from '../../../core/companies/companies.service';
@@ -23,7 +26,15 @@ const REPORTS: { value: ReportType; label: string; description: string }[] = [
 
 @Component({
   selector: 'situr-reportes',
-  imports: [ReactiveFormsModule, LucideChartNoAxesCombined, LucideCircleAlert, LucideDownload],
+  imports: [
+    ReactiveFormsModule,
+    LucideBedDouble,
+    LucideBuilding2,
+    LucideChartNoAxesCombined,
+    LucideCircleAlert,
+    LucideDownload,
+    LucidePackageOpen,
+  ],
   templateUrl: './reportes.html',
   styleUrl: './reportes.css',
 })
@@ -33,8 +44,17 @@ export class Reportes implements OnInit {
   private readonly reportsService = inject(ReportsService);
   private readonly fb = inject(FormBuilder);
 
-  protected readonly reportChoices = REPORTS;
   protected readonly isSuperAdmin = computed(() => this.auth.session()?.user.roles.includes('SUPER_ADMIN') ?? false);
+  protected readonly activeCompany = computed(() => this.auth.session()?.user.tenants[0] ?? null);
+  protected readonly reportChoices = computed(() =>
+    this.isSuperAdmin()
+      ? REPORTS
+      : REPORTS.map((report) =>
+          report.value === 'plataforma'
+            ? { ...report, label: 'Mi empresa y plan', description: 'Estado de tu empresa y plan contratado.' }
+            : report,
+        ),
+  );
   protected readonly companies = signal<CompanyChoice[]>([]);
   protected readonly selectedCompanyId = signal<number | null>(null);
   protected readonly report = signal<ReportResponse | null>(null);
@@ -124,7 +144,28 @@ export class Reportes implements OnInit {
   }
 
   protected reportLabel(type: ReportType): string {
-    return REPORTS.find((report) => report.value === type)?.label ?? 'Reporte';
+    return this.reportChoices().find((report) => report.value === type)?.label ?? 'Reporte';
+  }
+
+  protected isStatusColumn(key: string): boolean {
+    return key === 'estado' || key === 'accion';
+  }
+
+  protected statusClass(value: string): string {
+    const normalized = value.trim().toUpperCase();
+    if (['PUBLICADO', 'ACTIVO', 'CREAR'].includes(normalized)) {
+      return 'report-status report-status--positive';
+    }
+    if (['BORRADOR', 'PENDIENTE', 'ACTUALIZAR'].includes(normalized)) {
+      return 'report-status report-status--warning';
+    }
+    if (['INACTIVO', 'SUSPENDIDO', 'ELIMINAR'].includes(normalized)) {
+      return 'report-status report-status--negative';
+    }
+    if (normalized === 'EXPORTAR') {
+      return 'report-status report-status--info';
+    }
+    return 'report-status report-status--neutral';
   }
 
   private filters(): ReportFilters {

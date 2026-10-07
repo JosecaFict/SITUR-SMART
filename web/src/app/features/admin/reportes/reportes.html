@@ -1,42 +1,61 @@
-<section class="mx-auto max-w-7xl space-y-6">
-  <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-    <div>
-      <h1 class="font-heading text-title text-3xl font-bold tracking-tight">Reportes</h1>
-      <p class="text-text-secondary mt-1 max-w-2xl text-sm sm:text-base">
-        Información operativa registrada en SITUR-SMART, sin estimar reservas ni pagos inexistentes.
+<section class="reports-page">
+  <header class="reports-header">
+    <div class="reports-heading">
+      <h1>Reportes</h1>
+      <p>
+        @if (isSuperAdmin()) {
+          Información operativa registrada en SITUR-SMART, sin estimar reservas ni pagos inexistentes.
+        } @else {
+          Consulta la operación, el catálogo y la actividad registrada de tu empresa.
+        }
       </p>
     </div>
     @if (isSuperAdmin()) {
-      <label class="flex flex-col gap-1 text-xs font-semibold text-label">
-        Alcance
-        <select (change)="changeCompany($event)" class="border-input-border min-w-60 rounded-xl border bg-white px-3 py-2.5 text-sm font-medium text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+      <label class="scope-control">
+        <span>Alcance</span>
+        <select (change)="changeCompany($event)">
           <option value="">Toda la plataforma</option>
           @for (company of companies(); track company.id) {
             <option [value]="company.id">{{ company.name }}</option>
           }
         </select>
       </label>
+    } @else if (activeCompany(); as company) {
+      <div class="company-context" aria-label="Empresa activa">
+        <svg lucideBuilding2 aria-hidden="true"></svg>
+        <div>
+          <span>Empresa</span>
+          <strong>{{ company.name }}</strong>
+        </div>
+      </div>
     }
   </header>
 
-  <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Tipos de reporte">
-    @for (choice of reportChoices; track choice.value) {
-      <button type="button" (click)="changeType(choice.value)" [class.bg-accent]="form.controls.tipo.value === choice.value" [class.text-white]="form.controls.tipo.value === choice.value" class="border-input-border shrink-0 rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold text-label transition hover:border-accent">
+  <nav class="report-tabs" aria-label="Tipos de reporte">
+    @for (choice of reportChoices(); track choice.value) {
+      <button
+        type="button"
+        (click)="changeType(choice.value)"
+        class="report-tab"
+        [class.report-tab--active]="form.controls.tipo.value === choice.value"
+        [attr.aria-pressed]="form.controls.tipo.value === choice.value"
+        [attr.title]="choice.description"
+      >
         {{ choice.label }}
       </button>
     }
   </nav>
 
-  <form [formGroup]="form" (ngSubmit)="load()" class="border-input-border grid gap-3 rounded-2xl border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
-    <label class="flex flex-col gap-1 text-xs font-semibold text-label">Desde
-      <input type="date" formControlName="desde" class="border-input-border rounded-xl border px-3 py-2.5 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+  <form [formGroup]="form" (ngSubmit)="load()" class="report-filters">
+    <label>Desde
+      <input type="date" formControlName="desde" />
     </label>
-    <label class="flex flex-col gap-1 text-xs font-semibold text-label">Hasta
-      <input type="date" formControlName="hasta" class="border-input-border rounded-xl border px-3 py-2.5 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+    <label>Hasta
+      <input type="date" formControlName="hasta" />
     </label>
-    <label class="flex flex-col gap-1 text-xs font-semibold text-label">
+    <label>
       {{ form.controls.tipo.value === 'actividad' ? 'Acción' : 'Estado' }}
-      <select formControlName="estado" class="border-input-border rounded-xl border bg-white px-3 py-2.5 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+      <select formControlName="estado">
         <option value="">Todos</option>
         @if (form.controls.tipo.value === 'actividad') {
           <option value="CREAR">Creación</option><option value="ACTUALIZAR">Actualización</option><option value="ELIMINAR">Eliminación</option><option value="EXPORTAR">Exportación</option>
@@ -47,55 +66,114 @@
         }
       </select>
     </label>
-    <div class="flex items-end gap-2">
-      <button type="submit" [disabled]="loading()" class="bg-accent hover:bg-accent-dark rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Aplicar</button>
-      <button type="button" (click)="clear()" class="border-input-border rounded-xl border px-4 py-2.5 text-sm font-semibold text-label hover:bg-input-bg">Limpiar</button>
+    <div class="filter-actions">
+      <button type="submit" [disabled]="loading()" class="button button--primary">Aplicar</button>
+      <button type="button" (click)="clear()" class="button button--secondary">Limpiar</button>
     </div>
   </form>
 
   @if (errorMessage(); as message) {
-    <div class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ message }}</span></div>
+    <div class="report-alert"><svg lucideCircleAlert></svg><span>{{ message }}</span></div>
   }
 
   @if (loading()) {
-    <div class="space-y-3 rounded-2xl bg-white p-5"><div class="h-20 animate-pulse rounded-xl bg-gray-200"></div><div class="h-56 animate-pulse rounded-xl bg-gray-100"></div></div>
+    <div class="report-loading" aria-label="Cargando reporte">
+      <div></div><div></div>
+    </div>
   } @else if (report(); as result) {
-    <div class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm">
-      <div class="border-input-border flex flex-col gap-4 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div class="flex items-center gap-2"><svg lucideChartNoAxesCombined class="h-5 w-5 text-accent-dark"></svg><h2 class="font-heading text-lg font-bold text-title">{{ reportLabel(result.tipo) }}</h2></div>
-          <p class="mt-1 text-sm text-text-secondary">{{ result.empresa?.nombre ?? 'Toda la plataforma' }}</p>
+    <article class="report-card">
+      <header class="report-card__header">
+        <div class="report-card__title">
+          <span class="report-icon">
+            @switch (result.tipo) {
+              @case ('plataforma') { <svg lucideBuilding2 aria-hidden="true"></svg> }
+              @case ('catalogo') { <svg lucidePackageOpen aria-hidden="true"></svg> }
+              @case ('hospedajes') { <svg lucideBedDouble aria-hidden="true"></svg> }
+              @default { <svg lucideChartNoAxesCombined aria-hidden="true"></svg> }
+            }
+          </span>
+          <div>
+            <h2>{{ reportLabel(result.tipo) }}</h2>
+            <p>{{ result.empresa?.nombre ?? 'Toda la plataforma' }}</p>
+          </div>
         </div>
-        <div class="flex flex-wrap gap-2" aria-label="Formatos de descarga">
-          <button type="button" (click)="exportFile('pdf')" [disabled]="exporting() || result.filas.length === 0" class="bg-accent hover:bg-accent-dark flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+        <div class="export-actions" aria-label="Formatos de descarga">
+          <button type="button" (click)="exportFile('pdf')" [disabled]="exporting() || result.filas.length === 0" class="button button--primary">
             <svg lucideDownload class="h-4 w-4"></svg>{{ exporting() === 'pdf' ? 'Preparando…' : 'PDF' }}
           </button>
-          <button type="button" (click)="exportFile('xlsx')" [disabled]="exporting() || result.filas.length === 0" class="border-input-border flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-label hover:bg-input-bg disabled:opacity-50">
+          <button type="button" (click)="exportFile('xlsx')" [disabled]="exporting() || result.filas.length === 0" class="button button--secondary">
             <svg lucideDownload class="h-4 w-4"></svg>{{ exporting() === 'xlsx' ? 'Preparando…' : 'Excel' }}
           </button>
-          <button type="button" (click)="exportFile('csv')" [disabled]="exporting() || result.filas.length === 0" class="border-input-border flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-label hover:bg-input-bg disabled:opacity-50">
+          <button type="button" (click)="exportFile('csv')" [disabled]="exporting() || result.filas.length === 0" class="button button--secondary">
             <svg lucideDownload class="h-4 w-4"></svg>{{ exporting() === 'csv' ? 'Preparando…' : 'CSV' }}
           </button>
         </div>
-      </div>
+      </header>
 
-      <dl class="border-input-border grid border-b sm:grid-cols-2 lg:grid-cols-4">
+      <dl class="report-metrics">
         @for (metric of result.indicadores; track metric.clave) {
-          <div class="border-input-border px-5 py-4 not-last:border-r"><dt class="text-xs font-semibold text-text-secondary">{{ metric.etiqueta }}</dt><dd class="mt-1 text-2xl font-bold text-title">{{ metric.valor }}</dd>@if (metric.detalle) {<span class="text-xs text-text-secondary">{{ metric.detalle }}</span>}</div>
+          <div class="report-metric">
+            <span class="report-metric__icon" aria-hidden="true">
+              @switch (result.tipo) {
+                @case ('plataforma') { <svg lucideBuilding2></svg> }
+                @case ('catalogo') { <svg lucidePackageOpen></svg> }
+                @case ('hospedajes') { <svg lucideBedDouble></svg> }
+                @default { <svg lucideChartNoAxesCombined></svg> }
+              }
+            </span>
+            <div>
+              <dt>{{ metric.etiqueta }}</dt>
+              <dd>{{ metric.valor }}</dd>
+              @if (metric.detalle) { <span>{{ metric.detalle }}</span> }
+            </div>
+          </div>
         }
       </dl>
 
       @if (result.filas.length === 0) {
-        <div class="p-12 text-center"><svg lucideChartNoAxesCombined class="mx-auto h-9 w-9 text-text-secondary"></svg><p class="mt-3 font-semibold text-title">No hay datos para estos filtros</p><p class="mt-1 text-sm text-text-secondary">Prueba otro rango de fechas o estado.</p></div>
+        <div class="report-empty"><svg lucideChartNoAxesCombined></svg><p>No hay datos para estos filtros</p><span>Prueba otro rango de fechas o estado.</span></div>
       } @else {
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="border-input-border border-b bg-input-bg text-label"><tr>@for (column of result.columnas; track column[0]) {<th class="whitespace-nowrap px-5 py-3 font-semibold">{{ column[1] }}</th>}</tr></thead>
-            <tbody class="divide-input-border divide-y">@for (row of result.filas; track $index) {<tr class="hover:bg-input-bg/60">@for (column of result.columnas; track column[0]) {<td class="whitespace-nowrap px-5 py-3 text-label">{{ cell(row, column[0]) }}</td>}</tr>}</tbody>
+        <div class="report-table-wrap" tabindex="0" aria-label="Datos del reporte; desliza horizontalmente para ver todas las columnas">
+          <table class="report-table">
+            <thead><tr>@for (column of result.columnas; track column[0]) {<th>{{ column[1] }}</th>}</tr></thead>
+            <tbody>
+              @for (row of result.filas; track $index) {
+                <tr>
+                  @for (column of result.columnas; track column[0]) {
+                    <td>
+                      @if (isStatusColumn(column[0])) {
+                        <span [class]="statusClass(cell(row, column[0]))">{{ cell(row, column[0]) }}</span>
+                      } @else {
+                        {{ cell(row, column[0]) }}
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
           </table>
         </div>
+
+        <div class="report-mobile-list">
+          @for (row of result.filas; track $index) {
+            <dl class="report-mobile-row">
+              @for (column of result.columnas; track column[0]) {
+                <div>
+                  <dt>{{ column[1] }}</dt>
+                  <dd>
+                    @if (isStatusColumn(column[0])) {
+                      <span [class]="statusClass(cell(row, column[0]))">{{ cell(row, column[0]) }}</span>
+                    } @else {
+                      {{ cell(row, column[0]) }}
+                    }
+                  </dd>
+                </div>
+              }
+            </dl>
+          }
+        </div>
       }
-      <footer class="border-input-border flex flex-col gap-2 border-t px-5 py-3 text-xs text-text-secondary sm:flex-row sm:items-center sm:justify-between"><span>{{ result.filas.length }} registros</span><span>{{ result.nota }}</span></footer>
-    </div>
+      <footer class="report-card__footer"><strong>{{ result.filas.length }} registros</strong><span>{{ result.nota }}</span></footer>
+    </article>
   }
 </section>
