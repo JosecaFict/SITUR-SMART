@@ -53,6 +53,9 @@ def api_exception_handler(exc, context):
     response.data = {
         "error": {
             "status": response.status_code,
+            # Codigo estable para que los clientes reaccionen sin leer el texto
+            # (p. ej. correo_no_verificado abre la verificacion del correo).
+            "code": getattr(exc, "default_code", None),
             "message": message,
             "details": detail,
         }
