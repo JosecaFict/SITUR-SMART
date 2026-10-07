@@ -97,6 +97,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/empresa/mi-plan/mi-plan').then((m) => m.MiPlan),
       },
       {
+        path: 'clientes',
+        canActivate: [permissionGuard('CLIENTES_GESTIONAR')],
+        loadComponent: () => import('./features/admin/clientes/clientes').then((m) => m.Clientes),
+      },
+      {
         path: 'copias-seguridad',
         canActivate: [superAdminGuard],
         loadComponent: () =>

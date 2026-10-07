@@ -108,6 +108,13 @@ export class AppShell {
       hideForCustomer: true,
     },
     {
+      label: 'Clientes',
+      path: '/clientes',
+      icon: 'users',
+      hideForCustomer: true,
+      permission: 'CLIENTES_GESTIONAR',
+    },
+    {
       label: 'Países y ciudades',
       path: '/ubicaciones',
       icon: 'locations',
