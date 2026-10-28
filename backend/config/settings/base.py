@@ -135,7 +135,7 @@ CORS_ALLOWED_ORIGINS = env_list(
     "http://localhost:4200,http://localhost:8080,https://situr-smart-web.vercel.app",
 )
 CORS_ALLOW_CREDENTIALS = False
-CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id")
+CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id", "idempotency-key")
 CORS_EXPOSE_HEADERS = ("Content-Disposition", "X-Backup-SHA256")
 
 REST_FRAMEWORK = {
