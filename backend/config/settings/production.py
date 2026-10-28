@@ -5,7 +5,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = True
-
+SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]
 # La API publica se consume desde Angular. Limitarla a JSON evita que DRF
 # intente renderizar su interfaz HTML en produccion.
 REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [  # noqa: F405
