@@ -1,4 +1,4 @@
-export type ReportType = 'plataforma' | 'catalogo' | 'hospedajes' | 'actividad';
+export type ReportType = 'plataforma' | 'catalogo' | 'hospedajes' | 'actividad' | 'pagos';
 
 export interface ReportMetric {
   clave: string;

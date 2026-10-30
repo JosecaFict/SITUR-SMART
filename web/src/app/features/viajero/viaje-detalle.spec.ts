@@ -6,6 +6,7 @@ import { TravelerService } from '../../core/traveler/traveler.service';
 import { ViajeDetalle } from './viaje-detalle';
 
 const BOOKING: TravelerBooking = {
+  datos_facturacion: null,
   id: 5, codigo: 'RES-1A2B3C4D', orden: 'ORD-1', estado: 'CONFIRMADA', estado_nombre: 'Confirmada',
   empresa: 'Hotel Cortez',
   producto: {

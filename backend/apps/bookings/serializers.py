@@ -22,6 +22,8 @@ class BookingRequestSerializer(serializers.Serializer):
     huespedes = serializers.IntegerField(min_value=1, max_value=500, required=False, allow_null=True)
     politica_cancelacion_id = serializers.IntegerField(min_value=1, required=False)
     acepta_politica_cancelacion = serializers.BooleanField(required=False)
+    razon_social_facturacion = serializers.CharField(max_length=180, required=False, allow_blank=True)
+    nit_facturacion = serializers.CharField(max_length=40, required=False, allow_blank=True)
 
 
 class QuoteSerializer(serializers.Serializer):
@@ -129,13 +131,14 @@ class BookingSerializer(serializers.ModelSerializer):
     qr = serializers.SerializerMethodField()
     politica_cancelacion = serializers.JSONField(source="cancellation_policy_snapshot", allow_null=True)
     politica_aceptada_en = serializers.DateTimeField(source="policy_accepted_at", allow_null=True)
+    datos_facturacion = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
         fields = (
             "id", "codigo", "orden", "estado", "estado_nombre", "empresa", "producto",
             "fechas", "importe", "huespedes", "moneda_codigo", "moneda_simbolo",
-            "pago", "politica_cancelacion", "politica_aceptada_en",
+            "pago", "politica_cancelacion", "politica_aceptada_en", "datos_facturacion",
             "vence_en", "qr", "creado_en",
         )
 
@@ -221,11 +224,17 @@ class BookingSerializer(serializers.ModelSerializer):
             "estado": payment.status,
             "metodo": payment.method,
             "proveedor": payment.provider,
+            "referencia": payment.reference,
             "monto": str(payment.amount),
             "procesado_en": serializers.DateTimeField().to_representation(payment.processed_at)
             if payment.processed_at
             else None,
         }
+
+    def get_datos_facturacion(self, booking) -> dict | None:
+        if not booking.billing_name and not booking.billing_tax_id:
+            return None
+        return {"razon_social": booking.billing_name, "nit": booking.billing_tax_id}
 
     def get_qr(self, booking) -> str | None:
         """Solo una reserva pagada tiene voucher que mostrar."""

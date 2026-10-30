@@ -75,6 +75,8 @@ class Booking(models.Model):
     policy_accepted_at = models.DateTimeField(
         db_column="politica_aceptada_en", null=True
     )
+    billing_name = models.CharField(db_column="razon_social_facturacion", max_length=180, null=True)
+    billing_tax_id = models.CharField(db_column="nit_facturacion", max_length=40, null=True)
     # La empresa valida el voucher al llegar el cliente; despues no se reusa.
     checked_in_at = models.DateTimeField(db_column="llegada_en", null=True)
     checked_in_by = models.ForeignKey(

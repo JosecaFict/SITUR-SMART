@@ -23,6 +23,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     Image,
+    KeepTogether,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -175,11 +176,22 @@ def build_receipt_pdf(booking: Booking) -> bytes:
         ("Ofrecido por", data["empresa"]),
         ("Orden", data["orden"]),
         ("Precio unitario", f"{data['moneda_simbolo']} {amount['precio_unitario']}"),
+        ("Precio original", f"{data['moneda_simbolo']} {amount['precio_original']}"),
     ]
+    if booking.billing_name or booking.billing_tax_id:
+        rows += [
+            ("Razón social", booking.billing_name or customer.get_full_name()),
+            ("NIT / documento", booking.billing_tax_id or "Sin registrar"),
+        ]
+    if amount.get("descuento") and amount["descuento"] != "0.00":
+        rows.append(("Descuento", f"- {data['moneda_simbolo']} {amount['descuento']}"))
     if payment:
         processed = payment.get("procesado_en")
         paid_on = timezone.localtime(datetime.fromisoformat(processed)).strftime("%d/%m/%Y %H:%M") if processed else ""
-        rows.append(("Pago", f"Tarjeta vía {payment.get('proveedor', '').title()} · {paid_on}".strip(" ·")))
+        method = payment.get("metodo", "").replace("_", " ").title()
+        rows.append(("Pago", f"{method} vía {payment.get('proveedor', '').title()} · {paid_on}".strip(" ·")))
+        if payment.get("referencia"):
+            rows.append(("Referencia", payment["referencia"]))
     rows.append(("Total pagado", f"<b>{data['moneda_simbolo']} {amount['total']}</b>"))
 
     details = Table(
@@ -190,15 +202,34 @@ def build_receipt_pdf(booking: Booking) -> bytes:
         ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#DDE4EA")),
         ("LINEABOVE", (0, -1), (-1, -1), 1, BRAND),
         ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.5 * mm),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5 * mm),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.7 * mm),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.7 * mm),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
     ]))
-    story += [details, Spacer(1, 10 * mm)]
+    story += [details, Spacer(1, 6 * mm)]
+    policy = data.get("politica_cancelacion") or {}
+    accepted = data.get("politica_aceptada_en")
+    if policy:
+        accepted_text = ""
+        if accepted:
+            accepted_text = timezone.localtime(datetime.fromisoformat(accepted)).strftime("%d/%m/%Y %H:%M")
+        rules = policy.get("rules") or policy.get("reglas") or []
+        rule_lines = []
+        for rule in rules:
+            minimum = rule.get("minimum_days", rule.get("dias_antes_min", 0))
+            maximum = rule.get("maximum_days", rule.get("dias_antes_max"))
+            percentage = rule.get("penalty_percentage", rule.get("porcentaje_penalizacion", "0"))
+            span = f"{minimum}+ días" if maximum is None else f"{minimum} a {maximum} días"
+            rule_lines.append(f"{span}: penalización {percentage} %")
+        policy_text = "<br/>".join(rule_lines) or "Consulta las condiciones aceptadas en tu reserva."
+        story += [KeepTogether([
+            Paragraph("Política de cancelación aceptada", ParagraphStyle("pt", parent=value, fontName="Helvetica-Bold", textColor=INK)),
+            Paragraph(f"<b>{policy.get('name', policy.get('nombre', 'Política vigente'))}</b> · Aceptada el {accepted_text}<br/>{policy_text}", muted),
+            Spacer(1, 6 * mm),
+        ])]
     story.append(Paragraph(
         "Este comprobante confirma tu reserva en SITUR-SMART. Muestra el código o el QR al llegar. "
-        "También lo encuentras en la app, en Mis viajes. Para cambios o cancelaciones de una reserva pagada, "
-        "comunícate con la empresa que ofrece el servicio.",
+        "También lo encuentras en Mis viajes. Para cambios o cancelaciones, comunícate con la empresa.",
         muted,
     ))
     document.build(story)

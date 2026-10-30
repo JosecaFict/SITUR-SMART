@@ -450,6 +450,8 @@ def create_booking(
     cancel_url: str,
     policy_id: int | None,
     policy_accepted: bool,
+    billing_name: str | None = None,
+    billing_tax_id: str | None = None,
     idempotency_key: str | None = None,
 ) -> CreatedBooking:
     """Aparta el cupo, registra la reserva y abre el pago en Stripe.
@@ -509,6 +511,8 @@ def create_booking(
             final_amount=quote.total,
             cancellation_policy_snapshot=policy_snapshot,
             policy_accepted_at=timezone.now(),
+            billing_name=billing_name,
+            billing_tax_id=billing_tax_id,
         )
         BookingDetail.objects.bulk_create(
             [

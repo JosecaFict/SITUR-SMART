@@ -22,6 +22,7 @@ const REPORTS: { value: ReportType; label: string; description: string }[] = [
   { value: 'catalogo', label: 'Catálogo', description: 'Productos registrados y publicados.' },
   { value: 'hospedajes', label: 'Hospedajes', description: 'Oferta declarada de habitaciones y capacidades.' },
   { value: 'actividad', label: 'Actividad', description: 'Movimientos registrados en la bitácora.' },
+  { value: 'pagos', label: 'Pagos y reembolsos', description: 'Cobros, devoluciones y neto por reserva.' },
 ];
 
 @Component({
@@ -153,7 +154,7 @@ export class Reportes implements OnInit {
 
   protected statusClass(value: string): string {
     const normalized = value.trim().toUpperCase();
-    if (['PUBLICADO', 'ACTIVO', 'CREAR'].includes(normalized)) {
+    if (['PUBLICADO', 'ACTIVO', 'CREAR', 'APROBADO', 'COMPLETADO'].includes(normalized)) {
       return 'report-status report-status--positive';
     }
     if (['BORRADOR', 'PENDIENTE', 'ACTUALIZAR'].includes(normalized)) {

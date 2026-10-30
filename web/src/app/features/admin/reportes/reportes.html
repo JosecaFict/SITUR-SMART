@@ -61,6 +61,8 @@
           <option value="CREAR">Creación</option><option value="ACTUALIZAR">Actualización</option><option value="ELIMINAR">Eliminación</option><option value="EXPORTAR">Exportación</option>
         } @else if (form.controls.tipo.value === 'plataforma') {
           <option value="ACTIVO">Activa</option><option value="SUSPENDIDO">Suspendida</option><option value="INACTIVO">Inactiva</option><option value="PENDIENTE">Pendiente</option>
+        } @else if (form.controls.tipo.value === 'pagos') {
+          <option value="APROBADO">Aprobado</option><option value="PENDIENTE">Pendiente</option><option value="ANULADO">Anulado</option><option value="RECHAZADO">Rechazado</option>
         } @else {
           <option value="PUBLICADO">Publicado</option><option value="BORRADOR">Borrador</option><option value="INACTIVO">Inactivo</option>
         }

@@ -43,6 +43,8 @@ def _request_args(request, *, include_policy: bool = False) -> dict:
         result.update(
             policy_id=data.get("politica_cancelacion_id"),
             policy_accepted=data.get("acepta_politica_cancelacion", False),
+            billing_name=data.get("razon_social_facturacion", "").strip() or None,
+            billing_tax_id=data.get("nit_facturacion", "").strip() or None,
         )
     return result
 

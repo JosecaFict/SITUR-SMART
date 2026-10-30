@@ -76,6 +76,13 @@ function isoDay(date: Date): string {
               </label>
             </div>
           }
+          <details class="border-input-border mt-3 rounded-xl border p-3 text-sm">
+            <summary class="cursor-pointer font-semibold text-title">Datos para el comprobante (opcional)</summary>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+              <input class="field-control" maxlength="180" placeholder="Nombre o razón social" [value]="billingName()" (input)="billingName.set($any($event.target).value)" />
+              <input class="field-control" maxlength="40" placeholder="NIT o documento" [value]="billingTaxId()" (input)="billingTaxId.set($any($event.target).value)" />
+            </div>
+          </details>
         }
         @if (error(); as text) { <p class="mt-3 text-sm font-semibold text-red-700">{{ text }}</p> }
         @if (needsVerification()) {
@@ -112,6 +119,8 @@ export class Reservar {
   protected readonly error = signal<string | null>(null);
   protected readonly needsVerification = signal(false);
   protected readonly policyAccepted = signal(false);
+  protected readonly billingName = signal('');
+  protected readonly billingTaxId = signal('');
   private idempotencyKey = newIdempotencyKey();
 
   protected readonly quantities = computed(() => Array.from({ length: Math.max(1, Math.min(this.maxQuantity(), 20)) }, (_, i) => i + 1));
@@ -184,6 +193,8 @@ export class Reservar {
       ...request,
       politica_cancelacion_id: policy.id,
       acepta_politica_cancelacion: true,
+      razon_social_facturacion: this.billingName().trim(),
+      nit_facturacion: this.billingTaxId().trim(),
     }, this.idempotencyKey).subscribe({
       next: (booking) => {
         if (booking.checkout_url) {

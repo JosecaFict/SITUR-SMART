@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from datetime import date
 
+from django.db.models import Q, Sum
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.audit.models import AuditLog
 from apps.catalog.models import Room, TourismProduct
+from apps.payments.models import Payment, Refund
 from apps.rbac.services import is_superadmin, require_permission, require_tenant_access
 from apps.tenancy.models import City, Subscription, Tenant
 
-REPORT_TYPES = {"plataforma", "catalogo", "hospedajes", "actividad"}
+REPORT_TYPES = {"plataforma", "catalogo", "hospedajes", "actividad", "pagos"}
 
 
 def report_scope(*, user, tenant_id: int | None) -> tuple[bool, int | None]:
@@ -199,11 +201,69 @@ def activity_report(*, tenant_id, filters):
     }
 
 
+def payments_report(*, tenant_id, filters):
+    payments = Payment.objects.select_related(
+        "booking__tenant", "booking__order__customer__user", "currency"
+    ).prefetch_related("refunds")
+    if tenant_id is not None:
+        payments = payments.filter(booking__tenant_id=tenant_id)
+    payments = _date_filter(payments, filters)
+    if filters["estado"]:
+        payments = payments.filter(status=filters["estado"])
+    rows = []
+    for payment in payments.order_by("-created_at", "-id")[:2000]:
+        completed_refund = sum(
+            (refund.amount for refund in payment.refunds.all() if refund.status == Refund.State.COMPLETED),
+            start=0,
+        )
+        customer = payment.booking.order.customer.user
+        rows.append({
+            "fecha": (payment.processed_at or payment.created_at).isoformat(),
+            "empresa": payment.booking.tenant.trade_name,
+            "reserva": payment.booking.code,
+            "cliente": customer.get_full_name(),
+            "metodo": payment.method,
+            "estado": payment.status,
+            "moneda": payment.currency.iso_code,
+            "cobrado": f"{payment.amount:.2f}" if payment.status == Payment.State.APPROVED else "0.00",
+            "reembolsado": f"{completed_refund:.2f}",
+            "neto": f"{(payment.amount if payment.status == Payment.State.APPROVED else 0) - completed_refund:.2f}",
+        })
+    totals = payments.values("currency__iso_code").annotate(
+        charged=Sum("amount", filter=Q(status=Payment.State.APPROVED)),
+    )
+    refunded = {
+        item["payment__currency__iso_code"]: item["total"]
+        for item in Refund.objects.filter(payment__in=payments, status=Refund.State.COMPLETED)
+        .values("payment__currency__iso_code").annotate(total=Sum("amount"))
+    }
+    charged_text = " · ".join(
+        f"{item['currency__iso_code']} {item['charged'] or 0:.2f}" for item in totals
+    ) or "0.00"
+    refunded_text = " · ".join(f"{currency} {amount:.2f}" for currency, amount in refunded.items()) or "0.00"
+    return {
+        "indicadores": [
+            _metric("movimientos", "Movimientos", len(rows)),
+            _metric("cobrado", "Cobrado", charged_text),
+            _metric("reembolsado", "Reembolsado", refunded_text),
+        ],
+        "columnas": [
+            ["fecha", "Fecha"], ["empresa", "Empresa"], ["reserva", "Reserva"],
+            ["cliente", "Cliente"], ["metodo", "Método"], ["estado", "Estado"],
+            ["moneda", "Moneda"], ["cobrado", "Cobrado"],
+            ["reembolsado", "Reembolsado"], ["neto", "Neto"],
+        ],
+        "filas": rows,
+        "nota": "Los importes corresponden a movimientos registrados; los reembolsos solo suman estados completados.",
+    }
+
+
 BUILDERS = {
     "plataforma": platform_report,
     "catalogo": catalog_report,
     "hospedajes": lodging_report,
     "actividad": activity_report,
+    "pagos": payments_report,
 }
 
 

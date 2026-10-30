@@ -19,6 +19,8 @@ class BookingRequest {
     this.guests,
     this.cancellationPolicyId,
     this.acceptsCancellationPolicy = false,
+    this.billingName,
+    this.billingTaxId,
   });
 
   final int productId;
@@ -32,6 +34,8 @@ class BookingRequest {
   final int? guests;
   final int? cancellationPolicyId;
   final bool acceptsCancellationPolicy;
+  final String? billingName;
+  final String? billingTaxId;
 
   BookingRequest acceptingPolicy(int policyId) => BookingRequest(
         productId: productId,
@@ -41,6 +45,16 @@ class BookingRequest {
         guests: guests,
         cancellationPolicyId: policyId,
         acceptsCancellationPolicy: true,
+        billingName: billingName,
+        billingTaxId: billingTaxId,
+      );
+
+  BookingRequest withBilling(String name, String taxId) => BookingRequest(
+        productId: productId, start: start, end: end, quantity: quantity, guests: guests,
+        cancellationPolicyId: cancellationPolicyId,
+        acceptsCancellationPolicy: acceptsCancellationPolicy,
+        billingName: name.trim().isEmpty ? null : name.trim(),
+        billingTaxId: taxId.trim().isEmpty ? null : taxId.trim(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -51,6 +65,8 @@ class BookingRequest {
         if (guests != null) 'huespedes': guests,
         if (cancellationPolicyId != null) 'politica_cancelacion_id': cancellationPolicyId,
         if (cancellationPolicyId != null) 'acepta_politica_cancelacion': acceptsCancellationPolicy,
+        if (billingName != null) 'razon_social_facturacion': billingName,
+        if (billingTaxId != null) 'nit_facturacion': billingTaxId,
       };
 }
 

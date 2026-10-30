@@ -43,7 +43,12 @@ class ReportFilterTests(SimpleTestCase):
 
     def test_rejects_unknown_report(self):
         with self.assertRaises(ValidationError):
-            parse_filters({"tipo": "pagos"})
+            parse_filters({"tipo": "desconocido"})
+
+    def test_accepts_financial_report(self):
+        filters = parse_filters({"tipo": "pagos", "estado": "APROBADO"})
+        self.assertEqual(filters["tipo"], "pagos")
+        self.assertEqual(filters["estado"], "APROBADO")
 
 
 class ReportExporterTests(SimpleTestCase):

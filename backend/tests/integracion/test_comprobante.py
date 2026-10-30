@@ -7,8 +7,16 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.bookings import events
+from apps.bookings.models import Booking
 
-from .datos import TURISTA, _pedido_habitacion, _session_id, _webhook, cliente, habitacion_publicada
+from .datos import (
+    TURISTA,
+    _pedido_habitacion,
+    _session_id,
+    _webhook,
+    cliente,
+    habitacion_publicada,
+)
 
 pytestmark = pytest.mark.django_db(transaction=False)
 
@@ -79,3 +87,19 @@ def test_desde_la_web_stripe_vuelve_a_mis_viajes(stripe, settings):
     [sesion] = stripe.created
     assert sesion["success_url"] == f"https://web.test/mis-viajes/{creada['id']}?pago=exito"
     assert sesion["cancel_url"] == f"https://web.test/mis-viajes/{creada['id']}?pago=cancelado"
+
+
+def test_congela_datos_fiscales_en_la_reserva(stripe):
+    room = habitacion_publicada()
+    request = {
+        **_pedido_habitacion(room),
+        "razon_social_facturacion": "Ana Turismo SRL",
+        "nit_facturacion": "1234567012",
+    }
+    creada = cliente().post("/api/v1/me/reservas/", request, format="json").json()
+    booking = Booking.objects.get(id=creada["id"])
+    assert booking.billing_name == "Ana Turismo SRL"
+    assert booking.billing_tax_id == "1234567012"
+    assert creada["datos_facturacion"] == {
+        "razon_social": "Ana Turismo SRL", "nit": "1234567012"
+    }

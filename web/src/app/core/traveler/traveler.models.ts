@@ -31,7 +31,8 @@ export interface TravelerBooking {
   huespedes: number | null;
   moneda_codigo: string;
   moneda_simbolo: string;
-  pago: { estado: string; proveedor: string; monto: string; procesado_en: string | null } | null;
+  pago: { estado: string; metodo: string; proveedor: string; referencia: string | null; monto: string; procesado_en: string | null } | null;
+  datos_facturacion: { razon_social: string | null; nit: string | null } | null;
   vence_en: string | null;
   qr: string | null;
   creado_en: string;
@@ -46,6 +47,8 @@ export interface BookingRequest {
   huespedes?: number;
   politica_cancelacion_id?: number;
   acepta_politica_cancelacion?: boolean;
+  razon_social_facturacion?: string;
+  nit_facturacion?: string;
 }
 
 export interface CancellationPolicyRule {

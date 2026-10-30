@@ -82,12 +82,16 @@ class _BookingSheetState extends State<BookingSheet> {
   bool _quoting = false;
   bool _booking = false;
   bool _policyAccepted = false;
+  final _billingName = TextEditingController();
+  final _billingTaxId = TextEditingController();
   Timer? _debounce;
   int _quoteRequest = 0;
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _billingName.dispose();
+    _billingTaxId.dispose();
     super.dispose();
   }
 
@@ -187,7 +191,7 @@ class _BookingSheetState extends State<BookingSheet> {
     setState(() => _booking = true);
     try {
       final booking = await _service.create(
-        _request.acceptingPolicy(policy.id),
+        _request.acceptingPolicy(policy.id).withBilling(_billingName.text, _billingTaxId.text),
         idempotencyKey: _idempotencyKey,
       );
       navigator.pop();
@@ -277,6 +281,15 @@ class _BookingSheetState extends State<BookingSheet> {
                           : (value) => setState(() => _policyAccepted = value ?? false),
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: const Text('Datos para el comprobante (opcional)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    children: [
+                      TextField(controller: _billingName, maxLength: 180, decoration: const InputDecoration(labelText: 'Nombre o razón social')),
+                      TextField(controller: _billingTaxId, maxLength: 40, decoration: const InputDecoration(labelText: 'NIT o documento')),
+                    ],
+                  ),
                 ],
               ),
             const SizedBox(height: 16),
