@@ -155,6 +155,45 @@ class BookingStatusHistory(models.Model):
         db_table = "historial_estado_reserva"
 
 
+class Cancellation(models.Model):
+    """Resultado economico congelado al cancelar una reserva.
+
+    La tabla ya forma parte del esquema inicial. Los importes guardados son el
+    registro historico: no deben recalcularse si la empresa edita su politica.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    booking = models.OneToOneField(
+        Booking,
+        db_column="id_reserva",
+        on_delete=models.DO_NOTHING,
+        related_name="cancellation",
+    )
+    penalty_rule = models.ForeignKey(
+        "catalog.PenaltyRule",
+        db_column="id_regla_penalizacion",
+        on_delete=models.DO_NOTHING,
+        null=True,
+        related_name="+",
+    )
+    reason = models.TextField(db_column="motivo", null=True)
+    advance_days = models.PositiveIntegerField(db_column="dias_anticipacion")
+    applied_percentage = models.DecimalField(
+        db_column="porcentaje_aplicado", max_digits=5, decimal_places=2, default=0
+    )
+    penalty_amount = models.DecimalField(
+        db_column="monto_penalizacion", max_digits=12, decimal_places=2, default=0
+    )
+    refund_amount = models.DecimalField(
+        db_column="monto_reembolso", max_digits=12, decimal_places=2, default=0
+    )
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = "cancelacion"
+
+
 class CustomerReport(models.Model):
     """Una empresa avisa a la plataforma de un problema con un cliente.
 

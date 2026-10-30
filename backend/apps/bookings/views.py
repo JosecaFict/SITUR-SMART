@@ -12,7 +12,12 @@ from rest_framework.views import APIView
 
 from . import receipt, services
 from .models import Booking
-from .serializers import BookingRequestSerializer, BookingSerializer, QuoteSerializer
+from .serializers import (
+    BookingRequestSerializer,
+    BookingSerializer,
+    CancellationQuoteSerializer,
+    QuoteSerializer,
+)
 
 
 class CheckoutUrlSerializer(serializers.Serializer):
@@ -119,6 +124,17 @@ class BookingCancelView(APIView):
         services.cancel_booking(user=request.user, booking_id=pk)
         booking = services.get_customer_booking(user=request.user, booking_id=pk)
         return Response(BookingSerializer(booking).data)
+
+
+class BookingCancellationQuoteView(APIView):
+    """Simula las condiciones economicas sin cancelar ni reembolsar."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=CancellationQuoteSerializer)
+    def get(self, request, pk):
+        quote = services.quote_paid_cancellation(user=request.user, booking_id=pk)
+        return Response(CancellationQuoteSerializer(quote).data)
 
 
 class BookingReceiptLinkView(APIView):

@@ -54,6 +54,57 @@ class ProductType(models.Model):
         return self.name
 
 
+class CancellationPolicy(models.Model):
+    """Condiciones de cancelacion definidas por una empresa.
+
+    La tabla existe desde el esquema inicial. Se mapea ahora porque CU43 debe
+    calcular sus condiciones en el backend; Angular y Flutter solo muestran el
+    resultado y nunca reinterpretan los porcentajes.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    tenant = models.ForeignKey(
+        "tenancy.Tenant",
+        db_column="id_tenant",
+        on_delete=models.DO_NOTHING,
+        related_name="cancellation_policies",
+    )
+    name = models.CharField(db_column="nombre", max_length=120)
+    refundable = models.BooleanField(db_column="reembolsable", default=True)
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = "politica_cancelacion"
+        ordering = ("name", "id")
+        unique_together = (("tenant", "name"),)
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class PenaltyRule(models.Model):
+    """Penalizacion aplicable segun los dias de anticipacion."""
+
+    id = models.BigAutoField(primary_key=True)
+    policy = models.ForeignKey(
+        CancellationPolicy,
+        db_column="id_politica",
+        on_delete=models.DO_NOTHING,
+        related_name="rules",
+    )
+    minimum_days = models.PositiveIntegerField(db_column="dias_antes_min")
+    maximum_days = models.PositiveIntegerField(db_column="dias_antes_max", null=True)
+    penalty_percentage = models.DecimalField(
+        db_column="porcentaje_penalizacion", max_digits=5, decimal_places=2
+    )
+
+    class Meta:
+        managed = False
+        db_table = "regla_penalizacion"
+        ordering = ("minimum_days", "maximum_days", "id")
+
+
 class TourismProduct(models.Model):
     class Status(models.TextChoices):
         DRAFT = "BORRADOR", "Borrador"
@@ -73,8 +124,13 @@ class TourismProduct(models.Model):
     currency = models.ForeignKey(
         Currency, db_column="id_moneda", on_delete=models.DO_NOTHING, related_name="products"
     )
-    cancellation_policy_id = models.BigIntegerField(
-        db_column="id_politica_cancelacion", null=True, blank=True
+    cancellation_policy = models.ForeignKey(
+        CancellationPolicy,
+        db_column="id_politica_cancelacion",
+        on_delete=models.DO_NOTHING,
+        related_name="products",
+        null=True,
+        blank=True,
     )
     code = models.CharField(db_column="codigo", max_length=60)
     name = models.CharField(db_column="nombre", max_length=180)

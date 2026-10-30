@@ -8,6 +8,7 @@ from .company_views import (
     VoucherLookupView,
 )
 from .views import (
+    BookingCancellationQuoteView,
     BookingCancelView,
     BookingDetailView,
     BookingListCreateView,
@@ -23,6 +24,11 @@ urlpatterns = [
     path("me/reservas/<int:pk>/", BookingDetailView.as_view(), name="booking-detail"),
     path("me/reservas/<int:pk>/pagar/", BookingPayView.as_view(), name="booking-pay"),
     path("me/reservas/<int:pk>/cancelar/", BookingCancelView.as_view(), name="booking-cancel"),
+    path(
+        "me/reservas/<int:pk>/cancelacion/cotizacion/",
+        BookingCancellationQuoteView.as_view(),
+        name="booking-cancellation-quote",
+    ),
     path("me/reservas/<int:pk>/comprobante/", BookingReceiptLinkView.as_view(), name="booking-receipt"),
     # Publico pero firmado: lo abre el navegador del celular o el enlace del correo.
     path("comprobantes/<str:token>/", receipt_pdf, name="booking-receipt-public"),

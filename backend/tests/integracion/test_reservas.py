@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 
 from apps.bookings.models import Booking, InventoryLock, Order
 from apps.bookings.services import read_voucher
-from apps.catalog.models import TourismProduct
+from apps.catalog.models import CancellationPolicy, PenaltyRule, TourismProduct
 from apps.payments.models import Payment
 
 from .datos import (
@@ -280,6 +280,66 @@ def test_una_reserva_pagada_no_se_cancela_desde_la_app(stripe):
 
     assert respuesta.status_code == 400
     assert Booking.objects.get(id=creada["id"]).status == "CONFIRMADA"
+
+
+def test_cotizar_cancelacion_pagada_aplica_la_regla_en_el_backend(stripe):
+    room = habitacion_publicada()
+    policy = CancellationPolicy.objects.create(
+        tenant_id=room.tenant_id, name="Flexible de prueba", refundable=True
+    )
+    rule = PenaltyRule.objects.create(
+        policy=policy, minimum_days=0, maximum_days=14, penalty_percentage=Decimal("25.00")
+    )
+    room.product.cancellation_policy = policy
+    room.product.save(update_fields=["cancellation_policy"])
+    creada = cliente().post(
+        "/api/v1/me/reservas/", _pedido_habitacion(room, dias=10), format="json"
+    ).json()
+    _webhook("checkout.session.completed", _session_id(creada["id"]))
+
+    respuesta = cliente().get(
+        f"/api/v1/me/reservas/{creada['id']}/cancelacion/cotizacion/"
+    )
+
+    assert respuesta.status_code == 200, respuesta.json()
+    data = respuesta.json()
+    assert data["politica_id"] == policy.id
+    assert data["regla_id"] == rule.id
+    assert data["dias_anticipacion"] == 10
+    assert Decimal(data["porcentaje_penalizacion"]) == Decimal("25.00")
+    assert Decimal(data["monto_penalizacion"]) == Decimal(data["monto_pagado"]) * Decimal("0.25")
+    assert Decimal(data["monto_reembolso"]) == Decimal(data["monto_pagado"]) * Decimal("0.75")
+
+
+def test_una_politica_no_reembolsable_cotiza_penalizacion_total(stripe):
+    room = habitacion_publicada()
+    policy = CancellationPolicy.objects.create(
+        tenant_id=room.tenant_id, name="No reembolsable de prueba", refundable=False
+    )
+    room.product.cancellation_policy = policy
+    room.product.save(update_fields=["cancellation_policy"])
+    creada = cliente().post("/api/v1/me/reservas/", _pedido_habitacion(room), format="json").json()
+    _webhook("checkout.session.completed", _session_id(creada["id"]))
+
+    data = cliente().get(
+        f"/api/v1/me/reservas/{creada['id']}/cancelacion/cotizacion/"
+    ).json()
+
+    assert data["regla_id"] is None
+    assert Decimal(data["porcentaje_penalizacion"]) == Decimal("100.00")
+    assert Decimal(data["monto_reembolso"]) == Decimal("0.00")
+
+
+def test_no_cotiza_reembolso_de_una_reserva_que_sigue_pendiente(stripe):
+    room = habitacion_publicada()
+    creada = cliente().post("/api/v1/me/reservas/", _pedido_habitacion(room), format="json").json()
+
+    respuesta = cliente().get(
+        f"/api/v1/me/reservas/{creada['id']}/cancelacion/cotizacion/"
+    )
+
+    assert respuesta.status_code == 400
+    assert "reserva pagada" in respuesta.json()["error"]["message"]
 
 
 def test_mis_viajes_lista_solo_las_reservas_propias(stripe):

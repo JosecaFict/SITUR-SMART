@@ -55,6 +55,26 @@ class QuoteSerializer(serializers.Serializer):
         }
 
 
+class CancellationQuoteSerializer(serializers.Serializer):
+    """Cotizacion de solo lectura previa a cancelar una reserva pagada."""
+
+    reserva_id = serializers.IntegerField(source="booking_id")
+    politica_id = serializers.IntegerField(source="policy_id")
+    politica = serializers.CharField(source="policy_name")
+    regla_id = serializers.IntegerField(source="rule_id", allow_null=True)
+    dias_anticipacion = serializers.IntegerField(source="advance_days")
+    monto_pagado = serializers.DecimalField(source="paid_amount", max_digits=12, decimal_places=2)
+    porcentaje_penalizacion = serializers.DecimalField(
+        source="penalty_percentage", max_digits=5, decimal_places=2
+    )
+    monto_penalizacion = serializers.DecimalField(
+        source="penalty_amount", max_digits=12, decimal_places=2
+    )
+    monto_reembolso = serializers.DecimalField(
+        source="refund_amount", max_digits=12, decimal_places=2
+    )
+
+
 class BookingSerializer(serializers.ModelSerializer):
     """Una reserva tal como la ve el turista en Mis viajes y en su voucher."""
 

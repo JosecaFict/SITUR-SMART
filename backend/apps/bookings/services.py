@@ -28,20 +28,25 @@ import secrets
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core import signing
 from django.db import connection, transaction
-from django.db.models import Max, Prefetch, Sum
+from django.db.models import Max, Prefetch, Q, Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 
 from apps.accounts.models import CustomerProfile
 from apps.accounts.security import require_verified_email
-from apps.catalog.models import ROOM_PRODUCT_CODE, Availability, TourismProduct
+from apps.catalog.models import (
+    ROOM_PRODUCT_CODE,
+    Availability,
+    PenaltyRule,
+    TourismProduct,
+)
 from apps.payments import gateway
 from apps.payments.models import Payment
 from apps.tenancy.subscriptions import restricted_tenant_ids
@@ -316,6 +321,94 @@ def _description(quote: Quote) -> str:
 class CreatedBooking:
     booking: Booking
     checkout_url: str | None
+
+
+@dataclass(frozen=True)
+class CancellationQuote:
+    """Resultado autoritativo que web y movil deben limitarse a mostrar."""
+
+    booking_id: int
+    policy_id: int
+    policy_name: str
+    rule_id: int | None
+    advance_days: int
+    paid_amount: Decimal
+    penalty_percentage: Decimal
+    penalty_amount: Decimal
+    refund_amount: Decimal
+
+
+def cancellation_amounts(
+    *, paid_amount: Decimal, penalty_percentage: Decimal
+) -> tuple[Decimal, Decimal]:
+    """Devuelve penalizacion y reembolso redondeados a centavos."""
+    cents = Decimal("0.01")
+    penalty_amount = (paid_amount * penalty_percentage / Decimal("100")).quantize(
+        cents, rounding=ROUND_HALF_UP
+    )
+    refund_amount = (paid_amount - penalty_amount).quantize(cents, rounding=ROUND_HALF_UP)
+    return penalty_amount, refund_amount
+
+
+def quote_paid_cancellation(*, user, booking_id: int) -> CancellationQuote:
+    """Calcula la cancelacion sin cambiar estado ni contactar a Stripe.
+
+    Es deliberadamente una operacion de solo lectura: el turista puede revisar
+    el resultado antes de confirmar. Los importes se calculan aqui una sola vez
+    para que Angular y Flutter nunca discrepen.
+    """
+    booking = sync(get_customer_booking(user=user, booking_id=booking_id))
+    if booking.status not in OCCUPYING_STATES:
+        raise ValidationError("Solo se puede cotizar la cancelación de una reserva pagada.")
+    if booking.status == BookingState.COMPLETED or booking.checked_in_at is not None:
+        raise ValidationError("El servicio ya fue utilizado y no admite cancelación.")
+
+    details = list(booking.details.all())
+    if not details:
+        raise ValidationError("La reserva no tiene un servicio asociado.")
+    product = details[0].slot.product
+    policy = product.cancellation_policy
+    if policy is None:
+        raise ValidationError("La empresa todavía no configuró una política de cancelación.")
+
+    service_day = timezone.localtime(details[0].slot.start).date()
+    advance_days = max((service_day - timezone.localdate()).days, 0)
+    paid_amount = (
+        booking.payments.filter(status=Payment.State.APPROVED).aggregate(total=Sum("amount"))["total"]
+        or Decimal("0.00")
+    )
+    if paid_amount <= 0:
+        raise ValidationError("La reserva no tiene un pago aprobado para reembolsar.")
+
+    rule = None
+    penalty_percentage = Decimal("100.00")
+    if policy.refundable:
+        rule = (
+            PenaltyRule.objects.filter(policy=policy, minimum_days__lte=advance_days)
+            .filter(Q(maximum_days__isnull=True) | Q(maximum_days__gte=advance_days))
+            .order_by("-minimum_days", "id")
+            .first()
+        )
+        if rule is None:
+            raise ValidationError(
+                "La política de cancelación no tiene una regla para esta anticipación."
+            )
+        penalty_percentage = rule.penalty_percentage
+
+    penalty_amount, refund_amount = cancellation_amounts(
+        paid_amount=paid_amount, penalty_percentage=penalty_percentage
+    )
+    return CancellationQuote(
+        booking_id=booking.id,
+        policy_id=policy.id,
+        policy_name=policy.name,
+        rule_id=rule.id if rule else None,
+        advance_days=advance_days,
+        paid_amount=paid_amount,
+        penalty_percentage=penalty_percentage,
+        penalty_amount=penalty_amount,
+        refund_amount=refund_amount,
+    )
 
 
 def create_booking(
