@@ -81,6 +81,7 @@ class _BookingSheetState extends State<BookingSheet> {
   String? _quoteError;
   bool _quoting = false;
   bool _booking = false;
+  bool _policyAccepted = false;
   Timer? _debounce;
   int _quoteRequest = 0;
 
@@ -107,6 +108,7 @@ class _BookingSheetState extends State<BookingSheet> {
     setState(() {
       _quoting = true;
       _quoteError = null;
+      _policyAccepted = false;
     });
     _debounce = Timer(const Duration(milliseconds: 350), _fetchQuote);
   }
@@ -177,12 +179,17 @@ class _BookingSheetState extends State<BookingSheet> {
   }
 
   Future<void> _book() async {
+    final policy = _quote?.cancellationPolicy;
+    if (policy == null || !_policyAccepted) return;
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     setState(() => _booking = true);
     try {
-      final booking = await _service.create(_request, idempotencyKey: _idempotencyKey);
+      final booking = await _service.create(
+        _request.acceptingPolicy(policy.id),
+        idempotencyKey: _idempotencyKey,
+      );
       navigator.pop();
       router.push('/reserva/${booking.id}');
       final url = booking.checkoutUrl;
@@ -257,10 +264,31 @@ class _BookingSheetState extends State<BookingSheet> {
             else if (_quoteError != null)
               Text(_quoteError!, style: const TextStyle(color: AppTheme.errorColor))
             else if (quote != null)
-              _QuoteBox(quote: quote, isRoom: widget.isRoom, quantity: _quantity),
+              Column(
+                children: [
+                  _QuoteBox(quote: quote, isRoom: widget.isRoom, quantity: _quantity),
+                  if (quote.cancellationPolicy != null) ...[
+                    const SizedBox(height: 12),
+                    _CancellationPolicyBox(
+                      policy: quote.cancellationPolicy!,
+                      accepted: _policyAccepted,
+                      onChanged: _booking
+                          ? null
+                          : (value) => setState(() => _policyAccepted = value ?? false),
+                    ),
+                  ],
+                ],
+              ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: (quote != null && quote.available && !_quoting && !_booking) ? _book : null,
+              onPressed: (quote != null &&
+                      quote.available &&
+                      quote.cancellationPolicy != null &&
+                      _policyAccepted &&
+                      !_quoting &&
+                      !_booking)
+                  ? _book
+                  : null,
               child: _booking
                   ? const SizedBox(
                       height: 22,
@@ -280,6 +308,63 @@ class _BookingSheetState extends State<BookingSheet> {
       ),
     );
   }
+}
+
+class _CancellationPolicyBox extends StatelessWidget {
+  const _CancellationPolicyBox({
+    required this.policy,
+    required this.accepted,
+    required this.onChanged,
+  });
+
+  final CancellationPolicySummary policy;
+  final bool accepted;
+  final ValueChanged<bool?>? onChanged;
+
+  String _rule(CancellationPolicyRule rule) {
+    final range = rule.maximumDays == null
+        ? '${rule.minimumDays} días o más'
+        : rule.minimumDays == rule.maximumDays
+            ? rule.minimumDays == 0
+                ? 'El mismo día'
+                : '${rule.minimumDays} día'
+            : 'Entre ${rule.minimumDays} y ${rule.maximumDays} días';
+    final refund = (100 - (double.tryParse(rule.penaltyPercentage) ?? 100)).clamp(0, 100);
+    return '$range: devolución del ${refund.toStringAsFixed(refund % 1 == 0 ? 0 : 2)} %';
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppTheme.demoBorder),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Política de cancelación', style: TextStyle(fontWeight: FontWeight.w700)),
+            Text(policy.name, style: const TextStyle(fontSize: 12, color: AppTheme.labelColor)),
+            const SizedBox(height: 8),
+            ...policy.rules.map(
+              (rule) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text('• ${_rule(rule)}', style: const TextStyle(fontSize: 12)),
+              ),
+            ),
+            CheckboxListTile(
+              value: accepted,
+              onChanged: onChanged,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: const Text(
+                'Leí y acepto esta política de cancelación.',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _QuoteBox extends StatelessWidget {

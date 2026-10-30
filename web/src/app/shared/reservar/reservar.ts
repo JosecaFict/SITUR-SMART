@@ -60,6 +60,22 @@ function isoDay(date: Date): string {
             <p class="text-accent-dark text-xl font-bold">{{ current.moneda_simbolo }} {{ current.total }}</p>
             @if (!current.disponible) { <p class="text-xs font-semibold text-red-700">No hay cupo para esa fecha y cantidad.</p> }
           </div>
+          @if (current.politica_cancelacion; as policy) {
+            <div class="border-input-border mt-3 rounded-xl border p-3 text-sm">
+              <p class="font-semibold text-title">Política de cancelación</p>
+              <p class="text-text-secondary mt-1 text-xs">{{ policy.nombre }}</p>
+              <ul class="text-text-secondary mt-2 list-disc space-y-1 pl-5 text-xs">
+                @for (rule of policy.reglas; track rule.dias_antes_min) {
+                  <li>{{ policyRule(rule.dias_antes_min, rule.dias_antes_max, rule.porcentaje_penalizacion) }}</li>
+                }
+              </ul>
+              <label class="mt-3 flex cursor-pointer items-start gap-2 text-xs font-medium text-label">
+                <input type="checkbox" class="mt-0.5 size-4" [checked]="policyAccepted()"
+                  (change)="policyAccepted.set($any($event.target).checked)" />
+                <span>Leí y acepto esta política de cancelación.</span>
+              </label>
+            </div>
+          }
         }
         @if (error(); as text) { <p class="mt-3 text-sm font-semibold text-red-700">{{ text }}</p> }
         @if (needsVerification()) {
@@ -95,6 +111,7 @@ export class Reservar {
   protected readonly booking = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly needsVerification = signal(false);
+  protected readonly policyAccepted = signal(false);
   private idempotencyKey = newIdempotencyKey();
 
   protected readonly quantities = computed(() => Array.from({ length: Math.max(1, Math.min(this.maxQuantity(), 20)) }, (_, i) => i + 1));
@@ -102,7 +119,19 @@ export class Reservar {
     const max = Math.max(this.quantity(), this.quantity() * this.capacityPerUnit());
     return Array.from({ length: max - this.quantity() + 1 }, (_, i) => this.quantity() + i);
   });
-  protected readonly canBook = computed(() => !!this.quote()?.disponible && !this.quoting());
+  protected readonly canBook = computed(() =>
+    !!this.quote()?.disponible && !!this.quote()?.politica_cancelacion && this.policyAccepted() && !this.quoting()
+  );
+
+  protected policyRule(minimum: number, maximum: number | null, percentage: string): string {
+    const range = maximum === null
+      ? `${minimum} días o más`
+      : minimum === maximum
+        ? minimum === 0 ? 'El mismo día' : `${minimum} día`
+        : `Entre ${minimum} y ${maximum} días`;
+    const refund = Math.max(0, 100 - Number(percentage));
+    return `${range}: devolución del ${refund} %`;
+  }
 
   protected goLogin(): void {
     this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
@@ -127,6 +156,7 @@ export class Reservar {
   protected requote(): void {
     const request = this.request();
     this.quote.set(null);
+    this.policyAccepted.set(false);
     this.error.set(null);
     // Cambió el pedido: es otra reserva para el control de duplicados.
     this.idempotencyKey = newIdempotencyKey();
@@ -146,10 +176,15 @@ export class Reservar {
 
   protected book(): void {
     const request = this.request();
-    if (!request || this.booking()) return;
+    const policy = this.quote()?.politica_cancelacion;
+    if (!request || !policy || !this.policyAccepted() || this.booking()) return;
     this.booking.set(true);
     this.error.set(null);
-    this.traveler.book(request, this.idempotencyKey).subscribe({
+    this.traveler.book({
+      ...request,
+      politica_cancelacion_id: policy.id,
+      acepta_politica_cancelacion: true,
+    }, this.idempotencyKey).subscribe({
       next: (booking) => {
         if (booking.checkout_url) {
           window.location.assign(booking.checkout_url);

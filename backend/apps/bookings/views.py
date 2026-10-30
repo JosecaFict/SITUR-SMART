@@ -24,17 +24,23 @@ class CheckoutUrlSerializer(serializers.Serializer):
     checkout_url = serializers.URLField()
 
 
-def _request_args(request) -> dict:
+def _request_args(request, *, include_policy: bool = False) -> dict:
     serializer = BookingRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
-    return {
+    result = {
         "product_id": data["producto_id"],
         "start": data["fecha_inicio"],
         "end": data.get("fecha_fin"),
         "quantity": data["cantidad"],
         "guests": data.get("huespedes"),
     }
+    if include_policy:
+        result.update(
+            policy_id=data.get("politica_cancelacion_id"),
+            policy_accepted=data.get("acepta_politica_cancelacion", False),
+        )
+    return result
 
 
 def _return_url(request, result: str) -> str:
@@ -88,7 +94,7 @@ class BookingListCreateView(APIView):
             success_url=_return_url(request, "exito"),
             cancel_url=_return_url(request, "cancelado"),
             idempotency_key=request.headers.get("Idempotency-Key"),
-            **_request_args(request),
+            **_request_args(request, include_policy=True),
         )
         booking = services.get_customer_booking(user=request.user, booking_id=created.booking.id)
         data = BookingSerializer(booking).data

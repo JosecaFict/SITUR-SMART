@@ -4,6 +4,13 @@ from django.db import models
 
 HOTEL_PRODUCT_CODE = "HOTEL"
 ROOM_PRODUCT_CODE = "HABITACION"
+DEFAULT_CANCELLATION_POLICY_NAME = "Política estándar SITUR-SMART"
+DEFAULT_CANCELLATION_RULES = (
+    (0, 0, "100.00"),
+    (1, 2, "50.00"),
+    (3, 6, "25.00"),
+    (7, None, "0.00"),
+)
 
 # Precision que puede guardar NUMERIC(9,6): seis decimales, ~11 cm. Un GPS
 # devuelve hasta trece y lo que sobra es ruido del sensor, asi que se redondea
@@ -82,6 +89,23 @@ class CancellationPolicy(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    @classmethod
+    def ensure_default(cls, tenant_id: int):
+        """Politica base idempotente para productos nuevos de una empresa."""
+        policy, _ = cls.objects.get_or_create(
+            tenant_id=tenant_id,
+            name=DEFAULT_CANCELLATION_POLICY_NAME,
+            defaults={"refundable": True},
+        )
+        for minimum, maximum, percentage in DEFAULT_CANCELLATION_RULES:
+            PenaltyRule.objects.get_or_create(
+                policy=policy,
+                minimum_days=minimum,
+                maximum_days=maximum,
+                defaults={"penalty_percentage": percentage},
+            )
+        return policy
+
 
 class PenaltyRule(models.Model):
     """Penalizacion aplicable segun los dias de anticipacion."""
@@ -156,6 +180,14 @@ class TourismProduct(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs):
+        # Todo producto nuevo nace con condiciones de cancelacion. Hacerlo en
+        # el modelo cubre catalogo generico, hospedajes, habitaciones, seeds y
+        # futuros comandos sin repetir la regla en cada servicio.
+        if self._state.adding and self.cancellation_policy_id is None and self.tenant_id:
+            self.cancellation_policy = CancellationPolicy.ensure_default(self.tenant_id)
+        return super().save(*args, **kwargs)
 
 
 class LodgingType(models.Model):

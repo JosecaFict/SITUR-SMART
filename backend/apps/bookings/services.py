@@ -34,7 +34,7 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.core import signing
 from django.db import connection, transaction
-from django.db.models import Max, Prefetch, Q, Sum
+from django.db.models import Max, Prefetch, Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound, ValidationError
@@ -44,7 +44,7 @@ from apps.accounts.security import require_verified_email
 from apps.catalog.models import (
     ROOM_PRODUCT_CODE,
     Availability,
-    PenaltyRule,
+    CancellationPolicy,
     TourismProduct,
 )
 from apps.payments import gateway
@@ -125,7 +125,8 @@ class Quote:
 def _bookable_product(product_id: int) -> TourismProduct:
     product = (
         TourismProduct.objects.select_related(
-            "tenant", "product_type", "currency", "city", "room__establishment__product"
+            "tenant", "product_type", "currency", "city", "cancellation_policy",
+            "room__establishment__product",
         )
         .filter(
             id=product_id,
@@ -350,6 +351,32 @@ def cancellation_amounts(
     return penalty_amount, refund_amount
 
 
+def cancellation_policy_snapshot(product: TourismProduct, *, source: str = "BOOKING") -> dict:
+    """Copia inmutable de las condiciones que regiran una reserva."""
+    policy = product.cancellation_policy
+    if policy is None:
+        policy = CancellationPolicy.ensure_default(product.tenant_id)
+        TourismProduct.objects.filter(id=product.id, cancellation_policy__isnull=True).update(
+            cancellation_policy=policy
+        )
+    rules = list(policy.rules.order_by("minimum_days", "maximum_days", "id"))
+    return {
+        "policy_id": policy.id,
+        "name": policy.name,
+        "refundable": policy.refundable,
+        "source": source,
+        "rules": [
+            {
+                "rule_id": rule.id,
+                "minimum_days": rule.minimum_days,
+                "maximum_days": rule.maximum_days,
+                "penalty_percentage": str(rule.penalty_percentage),
+            }
+            for rule in rules
+        ],
+    }
+
+
 def quote_paid_cancellation(*, user, booking_id: int) -> CancellationQuote:
     """Calcula la cancelacion sin cambiar estado ni contactar a Stripe.
 
@@ -366,10 +393,9 @@ def quote_paid_cancellation(*, user, booking_id: int) -> CancellationQuote:
     details = list(booking.details.all())
     if not details:
         raise ValidationError("La reserva no tiene un servicio asociado.")
-    product = details[0].slot.product
-    policy = product.cancellation_policy
-    if policy is None:
-        raise ValidationError("La empresa todavía no configuró una política de cancelación.")
+    snapshot = booking.cancellation_policy_snapshot
+    if not snapshot:
+        raise ValidationError("La reserva no tiene condiciones de cancelación registradas.")
 
     service_day = timezone.localtime(details[0].slot.start).date()
     advance_days = max((service_day - timezone.localdate()).days, 0)
@@ -382,27 +408,28 @@ def quote_paid_cancellation(*, user, booking_id: int) -> CancellationQuote:
 
     rule = None
     penalty_percentage = Decimal("100.00")
-    if policy.refundable:
-        rule = (
-            PenaltyRule.objects.filter(policy=policy, minimum_days__lte=advance_days)
-            .filter(Q(maximum_days__isnull=True) | Q(maximum_days__gte=advance_days))
-            .order_by("-minimum_days", "id")
-            .first()
-        )
+    if snapshot.get("refundable", False):
+        matching = [
+            item
+            for item in snapshot.get("rules", [])
+            if int(item["minimum_days"]) <= advance_days
+            and (item.get("maximum_days") is None or advance_days <= int(item["maximum_days"]))
+        ]
+        rule = max(matching, key=lambda item: int(item["minimum_days"]), default=None)
         if rule is None:
             raise ValidationError(
                 "La política de cancelación no tiene una regla para esta anticipación."
             )
-        penalty_percentage = rule.penalty_percentage
+        penalty_percentage = Decimal(str(rule["penalty_percentage"]))
 
     penalty_amount, refund_amount = cancellation_amounts(
         paid_amount=paid_amount, penalty_percentage=penalty_percentage
     )
     return CancellationQuote(
         booking_id=booking.id,
-        policy_id=policy.id,
-        policy_name=policy.name,
-        rule_id=rule.id if rule else None,
+        policy_id=int(snapshot["policy_id"]),
+        policy_name=str(snapshot["name"]),
+        rule_id=int(rule["rule_id"]) if rule and rule.get("rule_id") is not None else None,
         advance_days=advance_days,
         paid_amount=paid_amount,
         penalty_percentage=penalty_percentage,
@@ -421,6 +448,8 @@ def create_booking(
     guests: int | None,
     success_url: str,
     cancel_url: str,
+    policy_id: int | None,
+    policy_accepted: bool,
     idempotency_key: str | None = None,
 ) -> CreatedBooking:
     """Aparta el cupo, registra la reserva y abre el pago en Stripe.
@@ -447,6 +476,19 @@ def create_booking(
         )
 
     quote = build_quote(product_id=product_id, start=start, end=end, quantity=quantity, guests=guests)
+    if not policy_accepted:
+        raise ValidationError(
+            {"acepta_politica_cancelacion": "Debes aceptar la política antes de pagar."}
+        )
+    if policy_id is None or policy_id != quote.product.cancellation_policy_id:
+        raise ValidationError(
+            {
+                "politica_cancelacion_id": (
+                    "La política cambió desde la cotización. Vuelve a revisar las condiciones."
+                )
+            }
+        )
+    policy_snapshot = cancellation_policy_snapshot(quote.product)
     expires_at = timezone.now() + timedelta(minutes=settings.RESERVA_MINUTOS_PAGO)
 
     with transaction.atomic():
@@ -462,6 +504,11 @@ def create_booking(
             code=_code("RES"),
             expires_at=expires_at,
             guests=quote.guests,
+            original_amount=quote.total,
+            discount_amount=Decimal("0.00"),
+            final_amount=quote.total,
+            cancellation_policy_snapshot=policy_snapshot,
+            policy_accepted_at=timezone.now(),
         )
         BookingDetail.objects.bulk_create(
             [

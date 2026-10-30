@@ -16,6 +16,7 @@ from .datos import (
     _pedido_habitacion,
     _session_id,
     _webhook,
+    aceptar_politica,
     cliente,
     habitacion_publicada,
     tour_publicado,
@@ -122,9 +123,13 @@ def test_ver_y_cerrar_sesiones():
 def test_eliminar_la_cuenta_la_anonimiza_y_respeta_lo_pagado(stripe):
     pagada = cliente().post("/api/v1/me/reservas/", _pedido_habitacion(habitacion_publicada()), format="json").json()
     _webhook("checkout.session.completed", _session_id(pagada["id"]))
+    tour = tour_publicado()
     pendiente = cliente().post(
         "/api/v1/me/reservas/",
-        {"producto_id": tour_publicado().id, "fecha_inicio": (timezone.localdate() + timedelta(days=3)).isoformat(), "cantidad": 1},
+        aceptar_politica(
+            tour,
+            {"producto_id": tour.id, "fecha_inicio": (timezone.localdate() + timedelta(days=3)).isoformat(), "cantidad": 1},
+        ),
         format="json",
     ).json()
     turista_id = User.objects.get(email=TURISTA).id
@@ -147,10 +152,17 @@ def test_el_personal_no_se_da_de_baja_desde_aqui():
 
 
 def test_no_mas_de_tres_reservas_esperando_pago(stripe):
+    tour = tour_publicado()
     for dias in (3, 4, 5):
-        pedido = {"producto_id": tour_publicado().id, "fecha_inicio": (timezone.localdate() + timedelta(days=dias)).isoformat(), "cantidad": 1}
+        pedido = aceptar_politica(
+            tour,
+            {"producto_id": tour.id, "fecha_inicio": (timezone.localdate() + timedelta(days=dias)).isoformat(), "cantidad": 1},
+        )
         assert cliente().post("/api/v1/me/reservas/", pedido, format="json").status_code == 201
-    cuarta = {"producto_id": tour_publicado().id, "fecha_inicio": (timezone.localdate() + timedelta(days=6)).isoformat(), "cantidad": 1}
+    cuarta = aceptar_politica(
+        tour,
+        {"producto_id": tour.id, "fecha_inicio": (timezone.localdate() + timedelta(days=6)).isoformat(), "cantidad": 1},
+    )
     respuesta = cliente().post("/api/v1/me/reservas/", cuarta, format="json")
     assert respuesta.status_code == 400
     assert "esperando pago" in respuesta.json()["error"]["message"]

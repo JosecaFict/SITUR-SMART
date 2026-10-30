@@ -17,6 +17,8 @@ class BookingRequest {
     required this.quantity,
     this.end,
     this.guests,
+    this.cancellationPolicyId,
+    this.acceptsCancellationPolicy = false,
   });
 
   final int productId;
@@ -28,6 +30,18 @@ class BookingRequest {
   /// Habitaciones en un hospedaje; personas en lo demás.
   final int quantity;
   final int? guests;
+  final int? cancellationPolicyId;
+  final bool acceptsCancellationPolicy;
+
+  BookingRequest acceptingPolicy(int policyId) => BookingRequest(
+        productId: productId,
+        start: start,
+        end: end,
+        quantity: quantity,
+        guests: guests,
+        cancellationPolicyId: policyId,
+        acceptsCancellationPolicy: true,
+      );
 
   Map<String, dynamic> toJson() => {
         'producto_id': productId,
@@ -35,7 +49,51 @@ class BookingRequest {
         if (end != null) 'fecha_fin': _date(end!),
         'cantidad': quantity,
         if (guests != null) 'huespedes': guests,
+        if (cancellationPolicyId != null) 'politica_cancelacion_id': cancellationPolicyId,
+        if (cancellationPolicyId != null) 'acepta_politica_cancelacion': acceptsCancellationPolicy,
       };
+}
+
+class CancellationPolicyRule {
+  const CancellationPolicyRule({
+    required this.minimumDays,
+    required this.maximumDays,
+    required this.penaltyPercentage,
+  });
+
+  final int minimumDays;
+  final int? maximumDays;
+  final String penaltyPercentage;
+
+  factory CancellationPolicyRule.fromJson(Map<String, dynamic> json) => CancellationPolicyRule(
+        minimumDays: _int(json['dias_antes_min']) ?? 0,
+        maximumDays: _int(json['dias_antes_max']),
+        penaltyPercentage: json['porcentaje_penalizacion']?.toString() ?? '0.00',
+      );
+}
+
+class CancellationPolicySummary {
+  const CancellationPolicySummary({
+    required this.id,
+    required this.name,
+    required this.refundable,
+    required this.rules,
+  });
+
+  final int id;
+  final String name;
+  final bool refundable;
+  final List<CancellationPolicyRule> rules;
+
+  factory CancellationPolicySummary.fromJson(Map<String, dynamic> json) => CancellationPolicySummary(
+        id: _int(json['id']) ?? 0,
+        name: json['nombre']?.toString() ?? '',
+        refundable: json['reembolsable'] == true,
+        rules: (json['reglas'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(CancellationPolicyRule.fromJson)
+            .toList(),
+      );
 }
 
 class BookingQuote {
@@ -45,6 +103,7 @@ class BookingQuote {
     required this.currencySymbol,
     required this.available,
     required this.remaining,
+    required this.cancellationPolicy,
     this.nights,
   });
 
@@ -54,6 +113,7 @@ class BookingQuote {
   final bool available;
   final int remaining;
   final int? nights;
+  final CancellationPolicySummary? cancellationPolicy;
 
   factory BookingQuote.fromJson(Map<String, dynamic> json) => BookingQuote(
         total: json['total']?.toString() ?? '0.00',
@@ -62,6 +122,11 @@ class BookingQuote {
         available: json['disponible'] == true,
         remaining: _int(json['disponibles']) ?? 0,
         nights: _int(json['noches']),
+        cancellationPolicy: json['politica_cancelacion'] is Map<String, dynamic>
+            ? CancellationPolicySummary.fromJson(
+                json['politica_cancelacion'] as Map<String, dynamic>,
+              )
+            : null,
       );
 }
 

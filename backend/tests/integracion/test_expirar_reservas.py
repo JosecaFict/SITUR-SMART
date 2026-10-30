@@ -16,6 +16,7 @@ from .datos import (
     _session_id,
     _vencer,
     _webhook,
+    aceptar_politica,
     cliente,
     habitacion_publicada,
     tour_publicado,
@@ -68,7 +69,11 @@ def test_si_stripe_alcanzo_a_cobrar_la_confirma_en_vez_de_vencerla(stripe, fireb
 
 
 def test_completa_las_reservas_cuyo_servicio_ya_paso(stripe, firebase, django_capture_on_commit_callbacks):
-    pedido = {"producto_id": tour_publicado().id, "fecha_inicio": (_hoy() + timedelta(days=2)).isoformat(), "cantidad": 1}
+    tour = tour_publicado()
+    pedido = aceptar_politica(
+        tour,
+        {"producto_id": tour.id, "fecha_inicio": (_hoy() + timedelta(days=2)).isoformat(), "cantidad": 1},
+    )
     pasada = cliente().post("/api/v1/me/reservas/", pedido, format="json").json()
     _webhook("checkout.session.completed", _session_id(pasada["id"]))
     otro_dia = {**pedido, "fecha_inicio": (_hoy() + timedelta(days=3)).isoformat()}

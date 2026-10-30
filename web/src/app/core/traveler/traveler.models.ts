@@ -20,7 +20,14 @@ export interface TravelerBooking {
     establecimiento: string | null;
   } | null;
   fechas: { inicio: string; fin: string; noches: number | null } | null;
-  importe: { cantidad: number; unidad: string; precio_unitario: string | null; total: string };
+  importe: {
+    cantidad: number;
+    unidad: string;
+    precio_unitario: string | null;
+    precio_original: string;
+    descuento: string;
+    total: string;
+  };
   huespedes: number | null;
   moneda_codigo: string;
   moneda_simbolo: string;
@@ -37,6 +44,21 @@ export interface BookingRequest {
   fecha_fin?: string;
   cantidad: number;
   huespedes?: number;
+  politica_cancelacion_id?: number;
+  acepta_politica_cancelacion?: boolean;
+}
+
+export interface CancellationPolicyRule {
+  dias_antes_min: number;
+  dias_antes_max: number | null;
+  porcentaje_penalizacion: string;
+}
+
+export interface CancellationPolicySummary {
+  id: number;
+  nombre: string;
+  reembolsable: boolean;
+  reglas: CancellationPolicyRule[];
 }
 
 export interface BookingQuote {
@@ -46,6 +68,7 @@ export interface BookingQuote {
   disponible: boolean;
   disponibles: number;
   noches?: number | null;
+  politica_cancelacion: CancellationPolicySummary | null;
 }
 
 export interface Itinerary {

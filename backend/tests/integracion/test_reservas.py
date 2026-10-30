@@ -24,6 +24,7 @@ from .datos import (
     _session_id,
     _vencer,
     _webhook,
+    aceptar_politica,
     cliente,
     habitacion_publicada,
     tour_publicado,
@@ -47,6 +48,8 @@ def test_cotizar_una_habitacion_calcula_noches_total_y_cupo(stripe):
     assert data["disponibles"] == room.quantity
     assert data["disponible"] is True
     assert data["fecha_fin"] == pedido["fecha_fin"]
+    assert data["politica_cancelacion"]["id"] == room.product.cancellation_policy_id
+    assert len(data["politica_cancelacion"]["reglas"]) == 4
 
 
 def test_cotizar_no_aparta_nada(stripe):
@@ -94,9 +97,14 @@ def test_reservar_aparta_el_cupo_y_abre_el_pago(stripe):
     assert data["vence_en"] is not None
 
     booking = Booking.objects.get(id=data["id"])
-    assert booking.details.count() == 2
-    assert InventoryLock.objects.filter(booking=booking, status="ACTIVO").count() == 2
     payment = Payment.objects.get(booking=booking)
+    assert booking.details.count() == 2
+    assert booking.policy_accepted_at is not None
+    assert booking.cancellation_policy_snapshot["policy_id"] == room.product.cancellation_policy_id
+    assert booking.original_amount == payment.amount
+    assert booking.discount_amount == 0
+    assert booking.final_amount == payment.amount
+    assert InventoryLock.objects.filter(booking=booking, status="ACTIVO").count() == 2
     assert payment.status == "PENDIENTE"
     assert payment.amount == room.product.base_price * 2
     # El subtotal lo calcula PostgreSQL con la columna generada.
@@ -106,6 +114,30 @@ def test_reservar_aparta_el_cupo_y_abre_el_pago(stripe):
     assert enviado["amount"] == payment.amount
     assert enviado["currency"] == "BOB"
     assert booking.code in enviado["success_url"]
+
+
+def test_no_reserva_sin_aceptar_la_politica_vigente(stripe):
+    room = habitacion_publicada()
+    pedido = _pedido_habitacion(room)
+    pedido.pop("politica_cancelacion_id")
+    pedido.pop("acepta_politica_cancelacion")
+
+    respuesta = cliente().post("/api/v1/me/reservas/", pedido, format="json")
+
+    assert respuesta.status_code == 400
+    assert "acepta_politica_cancelacion" in respuesta.json()["error"]["details"]
+    assert not Booking.objects.exists()
+
+
+def test_rechaza_una_politica_distinta_de_la_cotizada(stripe):
+    room = habitacion_publicada()
+    pedido = {**_pedido_habitacion(room), "politica_cancelacion_id": 999999}
+
+    respuesta = cliente().post("/api/v1/me/reservas/", pedido, format="json")
+
+    assert respuesta.status_code == 400
+    assert "politica_cancelacion_id" in respuesta.json()["error"]["details"]
+    assert not Booking.objects.exists()
 
 
 def test_no_se_vende_mas_de_lo_que_hay(stripe):
@@ -141,7 +173,10 @@ def test_un_bloqueo_vencido_devuelve_el_cupo(stripe):
 
 def test_un_tour_se_reserva_por_personas_en_un_dia(stripe):
     tour = tour_publicado()
-    pedido = {"producto_id": tour.id, "fecha_inicio": (_hoy() + timedelta(days=3)).isoformat(), "cantidad": 2}
+    pedido = aceptar_politica(
+        tour,
+        {"producto_id": tour.id, "fecha_inicio": (_hoy() + timedelta(days=3)).isoformat(), "cantidad": 2},
+    )
     data = cliente().post("/api/v1/me/reservas/", pedido, format="json").json()
 
     assert data["fechas"] == {"inicio": pedido["fecha_inicio"], "fin": pedido["fecha_inicio"], "noches": None}
@@ -355,7 +390,10 @@ def test_mis_viajes_lista_solo_las_reservas_propias(stripe):
 
 def test_una_reserva_cuyo_servicio_ya_paso_queda_completada(stripe):
     tour = tour_publicado()
-    pedido = {"producto_id": tour.id, "fecha_inicio": (_hoy() + timedelta(days=2)).isoformat(), "cantidad": 1}
+    pedido = aceptar_politica(
+        tour,
+        {"producto_id": tour.id, "fecha_inicio": (_hoy() + timedelta(days=2)).isoformat(), "cantidad": 1},
+    )
     creada = cliente().post("/api/v1/me/reservas/", pedido, format="json").json()
     _webhook("checkout.session.completed", _session_id(creada["id"]))
 

@@ -60,6 +60,21 @@ class Booking(models.Model):
     status = models.CharField(db_column="estado", max_length=25, default=BookingState.CREATED)
     expires_at = models.DateTimeField(db_column="fecha_expiracion", null=True)
     guests = models.PositiveIntegerField(db_column="huespedes", null=True)
+    original_amount = models.DecimalField(
+        db_column="monto_original", max_digits=12, decimal_places=2, null=True
+    )
+    discount_amount = models.DecimalField(
+        db_column="monto_descuento", max_digits=12, decimal_places=2, null=True
+    )
+    final_amount = models.DecimalField(
+        db_column="monto_final", max_digits=12, decimal_places=2, null=True
+    )
+    cancellation_policy_snapshot = models.JSONField(
+        db_column="politica_cancelacion_snapshot", null=True
+    )
+    policy_accepted_at = models.DateTimeField(
+        db_column="politica_aceptada_en", null=True
+    )
     # La empresa valida el voucher al llegar el cliente; despues no se reusa.
     checked_in_at = models.DateTimeField(db_column="llegada_en", null=True)
     checked_in_by = models.ForeignKey(

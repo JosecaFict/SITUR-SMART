@@ -20,6 +20,8 @@ class BookingRequestSerializer(serializers.Serializer):
     # Habitaciones en un hospedaje; personas en lo demas.
     cantidad = serializers.IntegerField(min_value=1, max_value=500)
     huespedes = serializers.IntegerField(min_value=1, max_value=500, required=False, allow_null=True)
+    politica_cancelacion_id = serializers.IntegerField(min_value=1, required=False)
+    acepta_politica_cancelacion = serializers.BooleanField(required=False)
 
 
 class QuoteSerializer(serializers.Serializer):
@@ -35,10 +37,12 @@ class QuoteSerializer(serializers.Serializer):
     moneda_simbolo = serializers.CharField()
     disponibles = serializers.IntegerField()
     disponible = serializers.BooleanField()
+    politica_cancelacion = serializers.DictField(allow_null=True)
 
     @staticmethod
     def from_quote(quote, remaining: int) -> dict:
         product = quote.product
+        policy = product.cancellation_policy
         return {
             "producto_id": product.id,
             "fecha_inicio": quote.start,
@@ -52,6 +56,21 @@ class QuoteSerializer(serializers.Serializer):
             "moneda_simbolo": product.currency.symbol,
             "disponibles": remaining,
             "disponible": remaining >= quote.quantity,
+            "politica_cancelacion": {
+                "id": policy.id,
+                "nombre": policy.name,
+                "reembolsable": policy.refundable,
+                "reglas": [
+                    {
+                        "dias_antes_min": rule.minimum_days,
+                        "dias_antes_max": rule.maximum_days,
+                        "porcentaje_penalizacion": str(rule.penalty_percentage),
+                    }
+                    for rule in policy.rules.order_by("minimum_days", "maximum_days", "id")
+                ],
+            }
+            if policy
+            else None,
         }
 
 
@@ -93,13 +112,16 @@ class BookingSerializer(serializers.ModelSerializer):
     importe = serializers.SerializerMethodField()
     pago = serializers.SerializerMethodField()
     qr = serializers.SerializerMethodField()
+    politica_cancelacion = serializers.JSONField(source="cancellation_policy_snapshot", allow_null=True)
+    politica_aceptada_en = serializers.DateTimeField(source="policy_accepted_at", allow_null=True)
 
     class Meta:
         model = Booking
         fields = (
             "id", "codigo", "orden", "estado", "estado_nombre", "empresa", "producto",
             "fechas", "importe", "huespedes", "moneda_codigo", "moneda_simbolo",
-            "pago", "vence_en", "qr", "creado_en",
+            "pago", "politica_cancelacion", "politica_aceptada_en",
+            "vence_en", "qr", "creado_en",
         )
 
     @staticmethod
@@ -159,13 +181,18 @@ class BookingSerializer(serializers.ModelSerializer):
             return {"cantidad": 0, "unidad": "", "precio_unitario": None, "total": "0.00"}
         is_room = details[0].slot.product.product_type.code == ROOM_PRODUCT_CODE
         quantity = details[0].quantity
-        total = sum((detail.quantity * detail.unit_price for detail in details), start=0)
+        calculated = sum((detail.quantity * detail.unit_price for detail in details), start=0)
+        original = booking.original_amount if booking.original_amount is not None else calculated
+        discount = booking.discount_amount if booking.discount_amount is not None else 0
+        total = booking.final_amount if booking.final_amount is not None else calculated
         return {
             "cantidad": quantity,
             "unidad": ("habitación" if quantity == 1 else "habitaciones")
             if is_room
             else ("persona" if quantity == 1 else "personas"),
             "precio_unitario": str(details[0].unit_price),
+            "precio_original": f"{original:.2f}",
+            "descuento": f"{discount:.2f}",
             "total": f"{total:.2f}",
         }
 

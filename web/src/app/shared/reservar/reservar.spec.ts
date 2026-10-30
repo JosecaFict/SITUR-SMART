@@ -31,10 +31,26 @@ describe('Reservar', () => {
     fixture.detectChanges();
   }
 
+  function acceptPolicy(): void {
+    const checkbox = el().querySelector('input[type="checkbox"]') as HTMLInputElement;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+  }
+
   beforeEach(async () => {
     logged.set(true);
     traveler = jasmine.createSpyObj<TravelerService>('TravelerService', ['quote', 'book']);
-    traveler.quote.and.returnValue(of({ total: '450.00', precio_unitario: '450.00', moneda_simbolo: 'Bs', disponible: true, disponibles: 10 }));
+    traveler.quote.and.returnValue(of({
+      total: '450.00', precio_unitario: '450.00', moneda_simbolo: 'Bs', disponible: true, disponibles: 10,
+      politica_cancelacion: {
+        id: 12, nombre: 'Política estándar SITUR-SMART', reembolsable: true,
+        reglas: [
+          { dias_antes_min: 0, dias_antes_max: 0, porcentaje_penalizacion: '100.00' },
+          { dias_antes_min: 7, dias_antes_max: null, porcentaje_penalizacion: '0.00' },
+        ],
+      },
+    }));
     await TestBed.configureTestingModule({
       imports: [Reservar],
       providers: [
@@ -55,6 +71,7 @@ describe('Reservar', () => {
   it('cotiza al elegir la fecha y muestra el total', () => {
     render();
     pickDate('Fecha de inicio', '2026-10-20');
+    acceptPolicy();
     expect(traveler.quote).toHaveBeenCalledWith({ producto_id: 7, fecha_inicio: '2026-10-20', cantidad: 1 });
     expect(el().textContent).toContain('Bs 450.00');
   });
@@ -73,6 +90,7 @@ describe('Reservar', () => {
     })));
     render();
     pickDate('Fecha de inicio', '2026-10-20');
+    acceptPolicy();
     (Array.from(el().querySelectorAll('button')).find((b) => b.textContent?.includes('Reservar y pagar')) as HTMLButtonElement).click();
     fixture.detectChanges();
     expect(el().querySelector('situr-verificar-correo')).not.toBeNull();
@@ -82,7 +100,24 @@ describe('Reservar', () => {
     traveler.book.and.returnValue(of({ id: 3, checkout_url: null } as TravelerBooking));
     render();
     pickDate('Fecha de inicio', '2026-10-20');
+    acceptPolicy();
     (Array.from(el().querySelectorAll('button')).find((b) => b.textContent?.includes('Reservar y pagar')) as HTMLButtonElement).click();
-    expect(traveler.book).toHaveBeenCalledWith({ producto_id: 7, fecha_inicio: '2026-10-20', cantidad: 1 }, jasmine.any(String));
+    expect(traveler.book).toHaveBeenCalledWith({
+      producto_id: 7,
+      fecha_inicio: '2026-10-20',
+      cantidad: 1,
+      politica_cancelacion_id: 12,
+      acepta_politica_cancelacion: true,
+    }, jasmine.any(String));
+  });
+
+  it('no permite pagar hasta aceptar la política', () => {
+    render();
+    pickDate('Fecha de inicio', '2026-10-20');
+    const button = Array.from(el().querySelectorAll('button'))
+      .find((item) => item.textContent?.includes('Reservar y pagar')) as HTMLButtonElement;
+    expect(button.disabled).toBeTrue();
+    acceptPolicy();
+    expect(button.disabled).toBeFalse();
   });
 });

@@ -13,7 +13,10 @@ const BOOKING: TravelerBooking = {
     localidad: null, imagen_url: null, es_hospedaje: true, hospedaje_id: 3, establecimiento: 'Hotel Cortez',
   },
   fechas: { inicio: '2026-10-20', fin: '2026-10-22', noches: 2 },
-  importe: { cantidad: 1, unidad: 'habitación', precio_unitario: '350.00', total: '700.00' },
+  importe: {
+    cantidad: 1, unidad: 'habitación', precio_unitario: '350.00',
+    precio_original: '700.00', descuento: '0.00', total: '700.00',
+  },
   huespedes: 1, moneda_codigo: 'BOB', moneda_simbolo: 'Bs', pago: null, vence_en: null,
   qr: 'token-firmado', creado_en: '2026-10-06T22:00:00-04:00',
 };

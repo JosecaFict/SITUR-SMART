@@ -70,6 +70,17 @@ def _pedido_habitacion(room, *, dias=10, noches=2, cantidad=1, huespedes=None):
         "fecha_fin": (llegada + timedelta(days=noches)).isoformat(),
         "cantidad": cantidad,
         "huespedes": huespedes or cantidad,
+        "politica_cancelacion_id": room.product.cancellation_policy_id,
+        "acepta_politica_cancelacion": True,
+    }
+
+
+def aceptar_politica(product, pedido: dict) -> dict:
+    """Agrega a un pedido la aceptacion devuelta por su cotizacion."""
+    return {
+        **pedido,
+        "politica_cancelacion_id": product.cancellation_policy_id,
+        "acepta_politica_cancelacion": True,
     }
 
 

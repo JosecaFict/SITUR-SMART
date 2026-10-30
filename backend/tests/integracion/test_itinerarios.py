@@ -15,6 +15,7 @@ from .datos import (
     _pedido_habitacion,
     _session_id,
     _webhook,
+    aceptar_politica,
     cliente,
     habitacion_publicada,
     hotel_publicado,
@@ -28,6 +29,14 @@ URL = "/api/v1/me/itinerarios/"
 
 def _dia(offset: int) -> str:
     return (_hoy() + timedelta(days=offset)).isoformat()
+
+
+def _pedido_tour(offset: int) -> dict:
+    tour = tour_publicado()
+    return aceptar_politica(
+        tour,
+        {"producto_id": tour.id, "fecha_inicio": _dia(offset), "cantidad": 1},
+    )
 
 
 def _crear(api=None, *, desde=10, hasta=13, **extra):
@@ -152,9 +161,9 @@ def test_achicar_el_viaje_con_actividades_afuera_se_rechaza():
 def test_las_reservas_pagadas_aparecen_solas_en_su_dia(stripe):
     itinerario = _crear(desde=10, hasta=13)
     hotel = _pagar(_pedido_habitacion(habitacion_publicada(), dias=10, noches=2))
-    tour = _pagar({"producto_id": tour_publicado().id, "fecha_inicio": _dia(11), "cantidad": 1})
+    tour = _pagar(_pedido_tour(11))
     # Pendiente de pago: todavia no es parte del viaje.
-    cliente().post("/api/v1/me/reservas/", {"producto_id": tour_publicado().id, "fecha_inicio": _dia(13), "cantidad": 1}, format="json")
+    cliente().post("/api/v1/me/reservas/", _pedido_tour(13), format="json")
 
     agenda = cliente().get(f"{URL}{itinerario['id']}/").json()["agenda"]
     reservas = {dia["fecha"]: [(r["reserva_id"], r["momento"]) for r in dia["reservas"]] for dia in agenda}
@@ -181,7 +190,7 @@ def test_la_salida_de_un_hotel_anterior_al_viaje_tambien_aparece(stripe):
 
 def test_cada_turista_ve_solo_lo_suyo(stripe):
     itinerario = _crear()
-    _pagar({"producto_id": tour_publicado().id, "fecha_inicio": _dia(11), "cantidad": 1})
+    _pagar(_pedido_tour(11))
     otro = cliente(OTRO_TURISTA)
 
     assert otro.get(URL).json() == []

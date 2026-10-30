@@ -16,6 +16,7 @@ from .datos import (
     _pedido_habitacion,
     _session_id,
     _webhook,
+    aceptar_politica,
     cliente,
     habitacion_publicada,
     tour_publicado,
@@ -86,9 +87,13 @@ def test_bloquear_corta_el_acceso_y_cancela_solo_lo_pendiente(stripe, correos):
     turista = _turista()
     pagada = cliente().post("/api/v1/me/reservas/", _pedido_habitacion(habitacion_publicada()), format="json").json()
     _webhook("checkout.session.completed", _session_id(pagada["id"]))
+    tour = tour_publicado()
     pendiente = cliente().post(
         "/api/v1/me/reservas/",
-        {"producto_id": tour_publicado().id, "fecha_inicio": (timezone.localdate() + timedelta(days=4)).isoformat(), "cantidad": 1},
+        aceptar_politica(
+            tour,
+            {"producto_id": tour.id, "fecha_inicio": (timezone.localdate() + timedelta(days=4)).isoformat(), "cantidad": 1},
+        ),
         format="json",
     ).json()
     cliente().post("/api/v1/me/dispositivos/", {"token": "celular"}, format="json")
