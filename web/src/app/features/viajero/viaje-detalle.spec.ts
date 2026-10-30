@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed, fakeAsync, flush } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { TravelerBooking } from '../../core/traveler/traveler.models';
+import { CancellationQuote, PaidCancellationResult, TravelerBooking } from '../../core/traveler/traveler.models';
 import { TravelerService } from '../../core/traveler/traveler.service';
 import { ViajeDetalle } from './viaje-detalle';
 
@@ -26,7 +26,9 @@ describe('ViajeDetalle', () => {
   let traveler: jasmine.SpyObj<TravelerService>;
 
   async function render(booking: TravelerBooking, pago: string | null = null): Promise<void> {
-    traveler = jasmine.createSpyObj<TravelerService>('TravelerService', ['booking', 'pay', 'cancel', 'receiptUrl']);
+    traveler = jasmine.createSpyObj<TravelerService>('TravelerService', [
+      'booking', 'pay', 'cancel', 'receiptUrl', 'cancellationQuote', 'cancelPaid',
+    ]);
     traveler.booking.and.returnValue(of(booking));
     await TestBed.configureTestingModule({
       imports: [ViajeDetalle],
@@ -59,5 +61,36 @@ describe('ViajeDetalle', () => {
     expect(text).toContain('Pagar ahora');
     expect(text).toContain('Cancelar reserva');
     fixture.destroy();
+  });
+
+  it('una reserva pagada cotiza antes de confirmar y muestra el reembolso', async () => {
+    const quote: CancellationQuote = {
+      reserva_id: 5, politica_id: 2, politica: 'Flexible', regla_id: 7, dias_anticipacion: 10,
+      monto_pagado: '700.00', porcentaje_penalizacion: '25.00', monto_penalizacion: '175.00',
+      monto_reembolso: '525.00',
+    };
+    const result: PaidCancellationResult = {
+      cancelacion_id: 9, reserva_id: 5, estado_reserva: 'CANCELADA', dias_anticipacion: 10,
+      porcentaje_penalizacion: '25.00', monto_penalizacion: '175.00', monto_reembolso: '525.00',
+      reembolso: {
+        id: 3, estado: 'COMPLETADO', monto: '525.00', moneda_id: 1, referencia: 're_1',
+        solicitado_en: '2026-10-30T10:00:00-04:00', procesado_en: '2026-10-30T10:00:01-04:00', motivo_fallo: null,
+      },
+    };
+    await render(BOOKING);
+    traveler.cancellationQuote.and.returnValue(of(quote));
+    traveler.cancelPaid.and.returnValue(of(result));
+
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    buttons.find((button) => button.textContent?.includes('Consultar cancelación'))!.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Recibirás');
+    expect(fixture.nativeElement.textContent).toContain('525.00');
+
+    const updatedButtons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    updatedButtons.find((button) => button.textContent?.includes('Confirmar cancelación'))!.click();
+    fixture.detectChanges();
+    expect(traveler.cancelPaid).toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Cancelación y devolución completadas');
   });
 });

@@ -7,9 +7,11 @@ import {
   AppNotification,
   BookingQuote,
   BookingRequest,
+  CancellationQuote,
   Itinerary,
   ItineraryDetail,
   Paged,
+  PaidCancellationResult,
   TravelerBooking,
 } from './traveler.models';
 
@@ -49,6 +51,22 @@ export class TravelerService {
 
   cancel(id: number): Observable<TravelerBooking> {
     return this.http.post<TravelerBooking>(`${this.api}/me/reservas/${id}/cancelar/`, {});
+  }
+
+  cancellationQuote(id: number): Observable<CancellationQuote> {
+    return this.http.get<CancellationQuote>(`${this.api}/me/reservas/${id}/cancelacion/cotizacion/`);
+  }
+
+  cancelPaid(
+    id: number,
+    reason: string,
+    idempotencyKey: string,
+  ): Observable<PaidCancellationResult> {
+    return this.http.post<PaidCancellationResult>(
+      `${this.api}/me/reservas/${id}/cancelacion/`,
+      { motivo: reason },
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    );
   }
 
   receiptUrl(id: number): Observable<{ url: string }> {

@@ -46,15 +46,31 @@ Map<String, dynamic> _json({
     };
 
 class _FakeBookingService extends BookingService {
-  _FakeBookingService(this.bookings);
+  _FakeBookingService(
+    this.bookings, {
+    this.quoteResult,
+    this.cancellationResult,
+  });
 
   final List<Booking> bookings;
+  final CancellationQuote? quoteResult;
+  final PaidCancellationResult? cancellationResult;
 
   @override
   Future<List<Booking>> list() async => bookings;
 
   @override
   Future<Booking> detail(int id) async => bookings.firstWhere((booking) => booking.id == id);
+
+  @override
+  Future<CancellationQuote> cancellationQuote(int id) async => quoteResult!;
+
+  @override
+  Future<PaidCancellationResult> cancelPaid(
+    int id, {
+    required String reason,
+    required String idempotencyKey,
+  }) async => cancellationResult!;
 }
 
 void main() {
@@ -112,6 +128,36 @@ void main() {
     expect(find.text('Tu voucher'), findsOneWidget);
     expect(find.text('Pagar ahora'), findsNothing);
     expect(find.text('Total pagado'), findsOneWidget);
+  });
+
+  testWidgets('una reserva pagada muestra la cotización antes de cancelarse', (tester) async {
+    final service = _FakeBookingService(
+      [Booking.fromJson(_json())],
+      quoteResult: const CancellationQuote(
+        policy: 'Flexible',
+        advanceDays: 10,
+        paidAmount: '1700.00',
+        penaltyPercentage: '25.00',
+        penaltyAmount: '425.00',
+        refundAmount: '1275.00',
+      ),
+      cancellationResult: const PaidCancellationResult(
+        bookingStatus: 'CANCELADA',
+        refundAmount: '1275.00',
+        refundStatus: 'COMPLETADO',
+      ),
+    );
+    await tester.pumpWidget(MaterialApp(home: BookingDetailPage(bookingId: 5, service: service)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Consultar cancelación'));
+    await tester.pumpAndSettle();
+    expect(find.text('Antes de cancelar'), findsOneWidget);
+    expect(find.text('Bs 1275.00'), findsOneWidget);
+
+    await tester.tap(find.text('Confirmar cancelación'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cancelación y devolución completadas'), findsOneWidget);
   });
 
   testWidgets('una reserva pendiente ofrece pagar o cancelar', (tester) async {

@@ -71,6 +71,38 @@ export interface BookingQuote {
   politica_cancelacion: CancellationPolicySummary | null;
 }
 
+export interface CancellationQuote {
+  reserva_id: number;
+  politica_id: number;
+  politica: string;
+  regla_id: number | null;
+  dias_anticipacion: number;
+  monto_pagado: string;
+  porcentaje_penalizacion: string;
+  monto_penalizacion: string;
+  monto_reembolso: string;
+}
+
+export interface PaidCancellationResult {
+  cancelacion_id: number;
+  reserva_id: number;
+  estado_reserva: TravelerBooking['estado'];
+  dias_anticipacion: number;
+  porcentaje_penalizacion: string;
+  monto_penalizacion: string;
+  monto_reembolso: string;
+  reembolso: {
+    id: number;
+    estado: 'SOLICITADO' | 'PROCESANDO' | 'COMPLETADO' | 'FALLIDO' | 'CANCELADO';
+    monto: string;
+    moneda_id: number;
+    referencia: string | null;
+    solicitado_en: string;
+    procesado_en: string | null;
+    motivo_fallo: string | null;
+  } | null;
+}
+
 export interface Itinerary {
   id: number;
   nombre: string;

@@ -5,8 +5,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import QRCode from 'qrcode';
 import { LucideArrowLeft, LucideFileText } from '@lucide/angular';
 import { apiErrorMessage } from '../../core/http/api-error';
-import { TravelerBooking } from '../../core/traveler/traveler.models';
-import { TravelerService } from '../../core/traveler/traveler.service';
+import { CancellationQuote, PaidCancellationResult, TravelerBooking } from '../../core/traveler/traveler.models';
+import { TravelerService, newIdempotencyKey } from '../../core/traveler/traveler.service';
 
 /**
  * Una reserva del turista: estado, voucher con QR, comprobante PDF, y pagar o
@@ -59,6 +59,39 @@ import { TravelerService } from '../../core/traveler/traveler.service';
               <button type="button" class="primary-button" [disabled]="working()" (click)="pay()">Pagar ahora</button>
               <button type="button" class="secondary-button" [disabled]="working()" (click)="cancel()">Cancelar reserva</button>
             </div>
+          } @else if (item.estado === 'CONFIRMADA' || item.estado === 'PAGO_PARCIAL') {
+            <div class="mt-4">
+              <button type="button" class="secondary-button" [disabled]="working()" (click)="openPaidCancellation()">
+                Consultar cancelación
+              </button>
+            </div>
+          }
+
+          @if (cancellationQuote(); as quote) {
+            <section class="mt-5 rounded-2xl border border-amber-200 bg-amber-50/70 p-5" aria-label="Resumen de cancelación">
+              <h2 class="text-title font-heading text-lg font-bold">Antes de cancelar</h2>
+              <p class="text-text-secondary mt-1 text-sm">Se aplicará la política “{{ quote.politica }}” que aceptaste al reservar.</p>
+              <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                <div><dt class="text-text-secondary">Total pagado</dt><dd class="text-title font-semibold">{{ item.moneda_simbolo }} {{ quote.monto_pagado }}</dd></div>
+                <div><dt class="text-text-secondary">Penalización ({{ quote.porcentaje_penalizacion }}%)</dt><dd class="text-title font-semibold">{{ item.moneda_simbolo }} {{ quote.monto_penalizacion }}</dd></div>
+                <div><dt class="text-text-secondary">Recibirás</dt><dd class="text-accent-dark text-lg font-bold">{{ item.moneda_simbolo }} {{ quote.monto_reembolso }}</dd></div>
+              </dl>
+              <label class="text-title mt-4 block text-sm font-semibold" for="cancellation-reason">Motivo <span class="text-text-secondary font-normal">(opcional)</span></label>
+              <textarea id="cancellation-reason" rows="2" maxlength="1000" class="field-control mt-1 w-full" [value]="cancellationReason()" (input)="setCancellationReason($event)" placeholder="Cuéntanos por qué cancelas"></textarea>
+              <p class="mt-3 text-xs text-amber-900">La reserva se cancelará y el cupo se liberará cuando Stripe confirme la devolución.</p>
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" class="primary-button" [disabled]="working()" (click)="confirmPaidCancellation()">Confirmar cancelación</button>
+                <button type="button" class="secondary-button" [disabled]="working()" (click)="closePaidCancellation()">Conservar reserva</button>
+              </div>
+            </section>
+          }
+
+          @if (cancellationResult(); as result) {
+            <section class="mt-5 rounded-2xl border p-4 text-sm" [class.border-emerald-200]="result.reembolso?.estado === 'COMPLETADO' || !result.reembolso" [class.bg-emerald-50]="result.reembolso?.estado === 'COMPLETADO' || !result.reembolso" [class.border-sky-200]="result.reembolso?.estado === 'PROCESANDO' || result.reembolso?.estado === 'SOLICITADO'" [class.bg-sky-50]="result.reembolso?.estado === 'PROCESANDO' || result.reembolso?.estado === 'SOLICITADO'" [class.border-red-200]="result.reembolso?.estado === 'FALLIDO'" [class.bg-red-50]="result.reembolso?.estado === 'FALLIDO'">
+              <p class="text-title font-bold">{{ cancellationStatus(result) }}</p>
+              <p class="text-text-secondary mt-1">Monto previsto: {{ item.moneda_simbolo }} {{ result.monto_reembolso }}.</p>
+              @if (result.reembolso?.motivo_fallo; as failure) { <p class="mt-2 text-red-700">{{ failure }}</p> }
+            </section>
           }
 
           @if (qrImage(); as image) {
@@ -91,6 +124,10 @@ export class ViajeDetalle implements OnInit, OnDestroy {
   protected readonly working = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly paymentResult = signal<string | null>(null);
+  protected readonly cancellationQuote = signal<CancellationQuote | null>(null);
+  protected readonly cancellationResult = signal<PaidCancellationResult | null>(null);
+  protected readonly cancellationReason = signal('');
+  private cancellationKey: string | null = null;
   private poll: ReturnType<typeof setTimeout> | null = null;
   private id = 0;
 
@@ -144,6 +181,78 @@ export class ViajeDetalle implements OnInit, OnDestroy {
       error: (error: HttpErrorResponse) => {
         this.working.set(false);
         this.error.set(apiErrorMessage(error, 'No se pudo cancelar.'));
+      },
+    });
+  }
+
+  protected openPaidCancellation(): void {
+    this.working.set(true);
+    this.error.set(null);
+    this.traveler.cancellationQuote(this.id).subscribe({
+      next: (quote) => {
+        this.working.set(false);
+        this.cancellationQuote.set(quote);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.working.set(false);
+        this.error.set(apiErrorMessage(error, 'No se pudo calcular la cancelación.'));
+      },
+    });
+  }
+
+  protected closePaidCancellation(): void {
+    this.cancellationQuote.set(null);
+    this.cancellationReason.set('');
+  }
+
+  protected setCancellationReason(event: Event): void {
+    this.cancellationReason.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected confirmPaidCancellation(): void {
+    if (!this.cancellationQuote()) return;
+    this.cancellationKey ??= newIdempotencyKey();
+    this.working.set(true);
+    this.error.set(null);
+    this.traveler.cancelPaid(this.id, this.cancellationReason().trim(), this.cancellationKey).subscribe({
+      next: (result) => {
+        this.working.set(false);
+        this.cancellationQuote.set(null);
+        this.cancellationResult.set(result);
+        this.scheduleCancellationPoll(result);
+        this.load();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.working.set(false);
+        this.error.set(apiErrorMessage(error, 'No se pudo solicitar la cancelación. Puedes reintentar sin duplicar el reembolso.'));
+      },
+    });
+  }
+
+  protected cancellationStatus(result: PaidCancellationResult): string {
+    return result.reembolso === null || result.reembolso.estado === 'COMPLETADO'
+      ? 'Cancelación y devolución completadas'
+      : result.reembolso.estado === 'FALLIDO'
+        ? 'La devolución requiere revisión'
+        : 'Estamos procesando tu devolución';
+  }
+
+  private scheduleCancellationPoll(result: PaidCancellationResult): void {
+    if (this.poll) clearTimeout(this.poll);
+    if (!result.reembolso || !['SOLICITADO', 'PROCESANDO'].includes(result.reembolso.estado)) return;
+    this.poll = setTimeout(() => this.refreshCancellation(), 5000);
+  }
+
+  private refreshCancellation(): void {
+    if (!this.cancellationKey) return;
+    this.traveler.cancelPaid(this.id, this.cancellationReason().trim(), this.cancellationKey).subscribe({
+      next: (result) => {
+        this.cancellationResult.set(result);
+        this.scheduleCancellationPoll(result);
+        if (result.reembolso === null || result.reembolso.estado === 'COMPLETADO') this.load();
+      },
+      error: () => {
+        this.poll = setTimeout(() => this.refreshCancellation(), 10000);
       },
     });
   }

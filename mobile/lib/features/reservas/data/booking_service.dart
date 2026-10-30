@@ -47,6 +47,23 @@ class BookingService {
   Future<Booking> cancel(int id) async =>
       Booking.fromJson(await _api.postAuth('me/reservas/$id/cancelar/', const {}));
 
+  Future<CancellationQuote> cancellationQuote(int id) async => CancellationQuote.fromJson(
+        await _api.getMap('me/reservas/$id/cancelacion/cotizacion/', ''),
+      );
+
+  Future<PaidCancellationResult> cancelPaid(
+    int id, {
+    required String reason,
+    required String idempotencyKey,
+  }) async =>
+      PaidCancellationResult.fromJson(
+        await _api.postAuth(
+          'me/reservas/$id/cancelacion/',
+          {'motivo': reason},
+          extraHeaders: {'Idempotency-Key': idempotencyKey},
+        ),
+      );
+
   /// Abre la página de pago de Stripe dentro de la app (pestaña del navegador).
   static Future<bool> openCheckout(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.inAppBrowserView);

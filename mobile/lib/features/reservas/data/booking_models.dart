@@ -130,6 +130,60 @@ class BookingQuote {
       );
 }
 
+class CancellationQuote {
+  const CancellationQuote({
+    required this.policy,
+    required this.advanceDays,
+    required this.paidAmount,
+    required this.penaltyPercentage,
+    required this.penaltyAmount,
+    required this.refundAmount,
+  });
+
+  final String policy;
+  final int advanceDays;
+  final String paidAmount;
+  final String penaltyPercentage;
+  final String penaltyAmount;
+  final String refundAmount;
+
+  factory CancellationQuote.fromJson(Map<String, dynamic> json) => CancellationQuote(
+        policy: json['politica']?.toString() ?? '',
+        advanceDays: _int(json['dias_anticipacion']) ?? 0,
+        paidAmount: json['monto_pagado']?.toString() ?? '0.00',
+        penaltyPercentage: json['porcentaje_penalizacion']?.toString() ?? '0.00',
+        penaltyAmount: json['monto_penalizacion']?.toString() ?? '0.00',
+        refundAmount: json['monto_reembolso']?.toString() ?? '0.00',
+      );
+}
+
+class PaidCancellationResult {
+  const PaidCancellationResult({
+    required this.bookingStatus,
+    required this.refundAmount,
+    this.refundStatus,
+    this.failureReason,
+  });
+
+  final String bookingStatus;
+  final String refundAmount;
+  final String? refundStatus;
+  final String? failureReason;
+
+  bool get completed => refundStatus == null || refundStatus == 'COMPLETADO';
+  bool get failed => refundStatus == 'FALLIDO';
+
+  factory PaidCancellationResult.fromJson(Map<String, dynamic> json) {
+    final refund = json['reembolso'] as Map<String, dynamic>?;
+    return PaidCancellationResult(
+      bookingStatus: json['estado_reserva']?.toString() ?? '',
+      refundAmount: json['monto_reembolso']?.toString() ?? '0.00',
+      refundStatus: refund?['estado']?.toString(),
+      failureReason: refund?['motivo_fallo']?.toString(),
+    );
+  }
+}
+
 class Booking {
   const Booking({
     required this.id,

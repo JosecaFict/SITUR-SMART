@@ -43,6 +43,8 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
   bool _loading = true;
   bool _working = false;
   String? _error;
+  PaidCancellationResult? _cancellation;
+  String? _cancellationKey;
   Timer? _poll;
 
   @override
@@ -167,6 +169,75 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
     }
   }
 
+  Future<void> _cancelPaid() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _working = true);
+    try {
+      final quote = await _service.cancellationQuote(widget.bookingId);
+      if (!mounted) return;
+      final reason = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (context) => _PaidCancellationSheet(
+          quote: quote,
+          currencySymbol: _booking!.currencySymbol,
+        ),
+      );
+      if (reason == null || !mounted) return;
+      _cancellationKey ??= BookingService.newIdempotencyKey();
+      final result = await _service.cancelPaid(
+        widget.bookingId,
+        reason: reason,
+        idempotencyKey: _cancellationKey!,
+      );
+      if (!mounted) return;
+      setState(() => _cancellation = result);
+      await _load(silent: true);
+      _scheduleCancellationPoll(result);
+      NotificationsStore.instance.refresh();
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            error is ApiException
+                ? error.message
+                : 'No se pudo solicitar la cancelación. Puedes reintentar sin duplicar el reembolso.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  void _scheduleCancellationPoll(PaidCancellationResult result) {
+    _poll?.cancel();
+    if (result.refundStatus != 'SOLICITADO' && result.refundStatus != 'PROCESANDO') return;
+    _poll = Timer(const Duration(seconds: 5), _refreshCancellation);
+  }
+
+  Future<void> _refreshCancellation() async {
+    final key = _cancellationKey;
+    if (key == null) return;
+    try {
+      final result = await _service.cancelPaid(
+        widget.bookingId,
+        reason: '',
+        idempotencyKey: key,
+      );
+      if (!mounted) return;
+      setState(() => _cancellation = result);
+      _scheduleCancellationPoll(result);
+      if (result.completed) {
+        await _load(silent: true);
+        NotificationsStore.instance.refresh();
+      }
+    } catch (_) {
+      if (mounted) _poll = Timer(const Duration(seconds: 10), _refreshCancellation);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -230,6 +301,18 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
           ),
           const SizedBox(height: 20),
           if (booking.pendingPayment) ..._pendingSection(booking),
+          if (booking.confirmed) ...[
+            OutlinedButton.icon(
+              onPressed: _working ? null : _cancelPaid,
+              icon: const Icon(Icons.event_busy_outlined),
+              label: const Text('Consultar cancelación'),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (_cancellation case final cancellation?) ...[
+            _CancellationStatus(result: cancellation, currencySymbol: booking.currencySymbol),
+            const SizedBox(height: 12),
+          ],
           if ((booking.confirmed || booking.finished) && booking.qr != null) ...[
             _Voucher(booking: booking),
             const SizedBox(height: 12),
@@ -330,6 +413,124 @@ class _BookingDetailPageState extends State<BookingDetailPage> with WidgetsBindi
         child: const Text('Cancelar reserva'),
       ),
     ];
+  }
+}
+
+class _PaidCancellationSheet extends StatefulWidget {
+  const _PaidCancellationSheet({required this.quote, required this.currencySymbol});
+
+  final CancellationQuote quote;
+  final String currencySymbol;
+
+  @override
+  State<_PaidCancellationSheet> createState() => _PaidCancellationSheetState();
+}
+
+class _PaidCancellationSheetState extends State<_PaidCancellationSheet> {
+  final TextEditingController _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final quote = widget.quote;
+    final currency = widget.currencySymbol;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Antes de cancelar', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text('Se aplicará la política “${quote.policy}” que aceptaste al reservar.'),
+            const SizedBox(height: 18),
+            _AmountRow(label: 'Total pagado', value: '$currency ${quote.paidAmount}'),
+            _AmountRow(label: 'Penalización (${quote.penaltyPercentage}%)', value: '$currency ${quote.penaltyAmount}'),
+            _AmountRow(label: 'Recibirás', value: '$currency ${quote.refundAmount}', emphasized: true),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _reason,
+              maxLength: 1000,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Motivo (opcional)', hintText: 'Cuéntanos por qué cancelas'),
+            ),
+            const Text('El cupo se liberará cuando Stripe confirme la devolución.', style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, _reason.text.trim()),
+                child: const Text('Confirmar cancelación'),
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Conservar reserva')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AmountRow extends StatelessWidget {
+  const _AmountRow({required this.label, required this.value, this.emphasized = false});
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Expanded(child: Text(label)),
+            Text(value, style: TextStyle(fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600, color: emphasized ? AppTheme.accentDark : null)),
+          ],
+        ),
+      );
+}
+
+class _CancellationStatus extends StatelessWidget {
+  const _CancellationStatus({required this.result, required this.currencySymbol});
+  final PaidCancellationResult result;
+  final String currencySymbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, icon, title) = result.completed
+        ? (const Color(0xFFECFDF5), Icons.check_circle_outline, 'Cancelación y devolución completadas')
+        : result.failed
+            ? (const Color(0xFFFEF2F2), Icons.error_outline, 'La devolución requiere revisión')
+            : (const Color(0xFFEFF6FF), Icons.hourglass_top, 'Estamos procesando tu devolución');
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.accentDark),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text('Monto previsto: $currencySymbol ${result.refundAmount}.'),
+                if (result.failureReason != null) Text(result.failureReason!, style: const TextStyle(color: Colors.red)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
