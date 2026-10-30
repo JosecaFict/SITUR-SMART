@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Min, Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -12,6 +12,7 @@ from apps.bookings import services as bookings
 from apps.bookings.models import Booking, BookingState, Cancellation, InventoryLock
 from apps.notifications.models import Notification
 from apps.notifications.services import notify
+from apps.rbac.services import require_permission, require_tenant_access
 
 from . import gateway
 from .models import Payment, Refund
@@ -212,6 +213,9 @@ def request_booking_cancellation(
         booking = Booking.objects.select_for_update().get(id=booking_id)
         if booking.status not in bookings.OCCUPYING_STATES or booking.checked_in_at is not None:
             raise ValidationError("La reserva ya no se puede cancelar.")
+        first_slot = booking.details.aggregate(first=Min("slot__start"))["first"]
+        if first_slot is not None and first_slot <= timezone.now():
+            raise ValidationError("La empresa solo puede cancelar antes de que comience el servicio.")
         cancellation, created = Cancellation.objects.get_or_create(
             booking=booking,
             defaults={
@@ -282,4 +286,87 @@ def request_booking_cancellation(
             request=request,
         )
 
+    return cancellation, _submit_refund(refund)
+
+
+def request_company_cancellation(
+    *, actor, tenant_id: int, booking_id: int, reason: str,
+    idempotency_key: str | None, manual_refund_confirmed: bool = False,
+    manual_reference: str | None = None, request=None,
+) -> tuple[Cancellation, Refund]:
+    """Cancela por decisión de la empresa y devuelve el 100 % pagado.
+
+    Stripe se confirma mediante su API/webhook. Un pago externo solo se marca
+    devuelto cuando el operador declara que ya hizo el reintegro y aporta su
+    referencia; SITUR-SMART nunca finge mover ese dinero.
+    """
+    require_tenant_access(actor, tenant_id)
+    require_permission(actor, "RESERVAS_GESTIONAR", tenant_id)
+    reason = (reason or "").strip()
+    if len(reason) < 5:
+        raise ValidationError({"motivo": "Explica el motivo (al menos 5 caracteres)."})
+    if not idempotency_key:
+        raise ValidationError({"Idempotency-Key": "Envía una clave para evitar reembolsos duplicados."})
+
+    with transaction.atomic():
+        booking = (
+            Booking.objects.select_for_update()
+            .select_related("currency")
+            .filter(id=booking_id, tenant_id=tenant_id)
+            .first()
+        )
+        if booking is None:
+            raise ValidationError("Reserva no encontrada.")
+        existing = Cancellation.objects.filter(booking=booking).first()
+        if existing is not None:
+            refund = existing.refunds.select_related("payment__booking").first()
+            if refund is None:
+                raise ValidationError("La cancelación existente no tiene un reembolso asociado.")
+            return existing, refund
+        if booking.status not in bookings.OCCUPYING_STATES or booking.checked_in_at is not None:
+            raise ValidationError("La reserva ya no se puede cancelar.")
+        payment = (
+            Payment.objects.select_for_update()
+            .filter(booking=booking, status=Payment.State.APPROVED)
+            .order_by("-processed_at", "-id")
+            .first()
+        )
+        if payment is None:
+            raise ValidationError("No existe un pago aprobado que se pueda reembolsar.")
+        is_manual = payment.provider == "MANUAL"
+        manual_reference = (manual_reference or "").strip()
+        if is_manual and not manual_refund_confirmed:
+            raise ValidationError({
+                "reembolso_manual_confirmado":
+                    "Confirma que el dinero ya fue devuelto fuera de SITUR-SMART."
+            })
+        if is_manual and not manual_reference:
+            raise ValidationError({
+                "referencia_reembolso": "Registra el comprobante o referencia del reintegro."
+            })
+        advance_days = max(0, (timezone.localdate(first_slot) - timezone.localdate()).days) if first_slot else 0
+        cancellation = Cancellation.objects.create(
+            booking=booking, penalty_rule=None, reason=reason,
+            advance_days=advance_days, applied_percentage=Decimal("0.00"),
+            penalty_amount=Decimal("0.00"), refund_amount=payment.amount,
+        )
+        refund = Refund.objects.create(
+            payment=payment, cancellation=cancellation, currency_id=payment.currency_id,
+            amount=payment.amount, reason=reason,
+            provider="MANUAL" if is_manual else gateway.PROVIDER,
+            provider_reference=manual_reference or None,
+            idempotency_key=f"empresa:{tenant_id}:{idempotency_key}"[:100],
+            requested_by=actor,
+        )
+        record_audit(
+            actor=actor, tenant_id=tenant_id, action="SOLICITAR_REEMBOLSO_EMPRESA",
+            entity="reembolso", entity_id=str(refund.id),
+            new_data={"reserva": booking.code, "monto": str(refund.amount), "motivo": reason},
+            request=request,
+        )
+
+    if is_manual:
+        return cancellation, complete_refund(
+            refund_id=refund.id, provider_reference=manual_reference
+        )
     return cancellation, _submit_refund(refund)

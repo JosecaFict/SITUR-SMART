@@ -180,7 +180,23 @@
                 <svg lucideFlag class="h-4 w-4"></svg> Reportar cliente
               </button>
             }
+            @if (canManage() && !booking.llegada && (booking.estado === 'CONFIRMADA' || booking.estado === 'PAGO_PARCIAL') && !cancelling()) {
+              <button type="button" class="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50" (click)="cancelling.set(true)">Cancelar y reembolsar</button>
+            }
           </div>
+
+          @if (cancelling()) {
+            <div class="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+              <p class="text-sm font-semibold text-red-900">Cancelación por la empresa</p>
+              <p class="mt-1 text-xs text-red-800">Se devolverá el 100 %. El cupo se libera cuando el reembolso queda confirmado.</p>
+              <textarea rows="3" maxlength="2000" class="field-control mt-2" placeholder="Motivo de la cancelación" [value]="cancelReason()" (input)="cancelReason.set($any($event.target).value)"></textarea>
+              @if (booking.pago?.proveedor === 'MANUAL') {
+                <input class="field-control mt-2" maxlength="150" placeholder="Referencia del reintegro externo" [value]="refundReference()" (input)="refundReference.set($any($event.target).value)">
+                <label class="mt-2 flex items-start gap-2 text-xs text-red-900"><input type="checkbox" [checked]="manualRefundConfirmed()" (change)="manualRefundConfirmed.set($any($event.target).checked)"> Confirmo que el dinero ya fue devuelto al cliente fuera de SITUR-SMART.</label>
+              }
+              <div class="mt-3 flex gap-2"><button type="button" class="primary-button" [disabled]="working()" (click)="cancelBooking()">{{ working() ? 'Procesando…' : 'Confirmar cancelación' }}</button><button type="button" class="secondary-button" (click)="cancelling.set(false)">Volver</button></div>
+            </div>
+          }
 
           @if (reporting()) {
             <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">

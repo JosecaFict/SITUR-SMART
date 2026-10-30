@@ -1,13 +1,14 @@
 from datetime import date, datetime, time, timedelta
 
 from django.db import transaction
-from django.db.models import Prefetch, Q, QuerySet, Sum
+from django.db.models import Count, Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.audit.services import record_audit
 from apps.bookings import services as booking_services
 from apps.bookings.models import Booking, BookingDetail, BookingState, InventoryLock
+from apps.catalog.models import Availability
 from apps.rbac.services import require_permission, require_tenant_access
 
 from .models import Payment, Refund
@@ -82,27 +83,56 @@ def company_payments(*, actor, tenant_id: int, params) -> QuerySet[Payment]:
 
 def company_summary(*, actor, tenant_id: int, params) -> list[dict]:
     queryset = company_payments(actor=actor, tenant_id=tenant_id, params=params)
+    return payment_summary(queryset)
+
+
+def global_payments(*, actor, params) -> QuerySet[Payment]:
+    if not actor.is_staff:
+        raise ValidationError("Solo el SuperAdministrador puede consultar todos los pagos.")
+    queryset = base_queryset()
+    tenant = params.get("empresa_id")
+    if tenant:
+        if not str(tenant).isdigit():
+            raise ValidationError({"empresa_id": "Empresa inválida."})
+        queryset = queryset.filter(booking__tenant_id=int(tenant))
+    return apply_filters(queryset, params)
+
+
+def payment_summary(queryset: QuerySet[Payment]) -> list[dict]:
     currencies = queryset.order_by().values("currency__iso_code", "currency__symbol").annotate(
         cobrado=Sum("amount", filter=Q(status=Payment.State.APPROVED)),
         pendiente=Sum("amount", filter=Q(status=Payment.State.PENDING)),
     )
     refunded = {
         row["payment__currency__iso_code"]: row["total"]
-        for row in Refund.objects.filter(
-            payment__in=queryset, status=Refund.State.COMPLETED
-        ).values("payment__currency__iso_code").annotate(total=Sum("amount"))
+        for row in Refund.objects.filter(payment__in=queryset, status=Refund.State.COMPLETED)
+        .values("payment__currency__iso_code").annotate(total=Sum("amount"))
     }
-    return [
-        {
-            "moneda": row["currency__iso_code"],
-            "simbolo": row["currency__symbol"],
-            "cobrado": f"{row['cobrado'] or 0:.2f}",
-            "pendiente": f"{row['pendiente'] or 0:.2f}",
-            "reembolsado": f"{refunded.get(row['currency__iso_code'], 0):.2f}",
-            "neto": f"{(row['cobrado'] or 0) - refunded.get(row['currency__iso_code'], 0):.2f}",
-        }
-        for row in currencies
-    ]
+    return [{
+        "moneda": row["currency__iso_code"], "simbolo": row["currency__symbol"],
+        "cobrado": f"{row['cobrado'] or 0:.2f}",
+        "pendiente": f"{row['pendiente'] or 0:.2f}",
+        "reembolsado": f"{refunded.get(row['currency__iso_code'], 0):.2f}",
+        "neto": f"{(row['cobrado'] or 0) - refunded.get(row['currency__iso_code'], 0):.2f}",
+    } for row in currencies]
+
+
+def upcoming_departures(*, actor, tenant_id: int) -> QuerySet[Availability]:
+    require_tenant_access(actor, tenant_id)
+    require_permission(actor, "RESERVAS_GESTIONAR", tenant_id)
+    return (
+        Availability.objects.filter(tenant_id=tenant_id, start__gte=timezone.now())
+        .select_related("product")
+        .annotate(
+            active_bookings=Count(
+                "booking_details__booking",
+                filter=Q(booking_details__booking__status__in=booking_services.OCCUPYING_STATES),
+                distinct=True,
+            )
+        )
+        .filter(active_bookings__gt=0)
+        .order_by("start", "id")
+    )
 
 
 @transaction.atomic

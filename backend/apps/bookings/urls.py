@@ -2,6 +2,7 @@ from django.urls import path
 
 from .company_views import (
     CheckInView,
+    CompanyBookingCancellationView,
     CompanyBookingDetailView,
     CompanyBookingListView,
     ReportCustomerView,
@@ -44,4 +45,5 @@ urlpatterns = [
     path("empresa/reservas/<int:pk>/", CompanyBookingDetailView.as_view(), name="company-booking-detail"),
     path("empresa/reservas/<int:pk>/llegada/", CheckInView.as_view(), name="company-booking-checkin"),
     path("empresa/reservas/<int:pk>/reportar/", ReportCustomerView.as_view(), name="company-booking-report"),
+    path("empresa/reservas/<int:pk>/cancelacion/", CompanyBookingCancellationView.as_view(), name="company-booking-cancellation"),
 ]

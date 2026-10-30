@@ -48,6 +48,7 @@ export interface PaymentFilters {
   hasta?: string;
   page?: number;
 }
+export interface Departure { id: number; producto: string; inicio: string; fin: string; reservas_activas: number; }
 
 @Injectable({ providedIn: 'root' })
 export class PaymentsService {
@@ -67,6 +68,21 @@ export class PaymentsService {
       params: this.params(filters),
       headers: { 'X-Tenant-ID': tenantId.toString() },
     });
+  }
+
+  global(filters: PaymentFilters & { empresa_id?: number } = {}): Observable<PaymentPage> {
+    return this.http.get<PaymentPage>(`${this.api}/admin/pagos/`, { params: this.params(filters) });
+  }
+
+  departures(tenantId: number): Observable<Departure[]> {
+    return this.http.get<Departure[]>(`${this.api}/empresa/salidas/`, { headers: { 'X-Tenant-ID': String(tenantId) } });
+  }
+
+  cancelDeparture(tenantId: number, id: number, motivo: string, key: string): Observable<{ total: number; procesados: number; requieren_revision: number }> {
+    return this.http.post<{ total: number; procesados: number; requieren_revision: number }>(
+      `${this.api}/empresa/salidas/${id}/cancelacion/`, { motivo },
+      { headers: { 'X-Tenant-ID': String(tenantId), 'Idempotency-Key': key } },
+    );
   }
 
   registerManual(

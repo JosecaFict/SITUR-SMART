@@ -89,6 +89,17 @@ export class CompanyBookingsService {
     return this.http.post<{ detail: string }>(`${this.url}${id}/reportar/`, { motivo }, { headers: this.headers(tenantId) });
   }
 
+  cancelByCompany(
+    tenantId: number, id: number,
+    data: { motivo: string; reembolso_manual_confirmado: boolean; referencia_reembolso: string },
+    idempotencyKey: string,
+  ): Observable<{ estado: string; monto: string; reserva_cancelada: boolean }> {
+    return this.http.post<{ estado: string; monto: string; reserva_cancelada: boolean }>(
+      `${this.url}${id}/cancelacion/`, data,
+      { headers: { ...this.headers(tenantId), 'Idempotency-Key': idempotencyKey } },
+    );
+  }
+
   private headers(tenantId: number): Record<string, string> {
     return { 'X-Tenant-ID': tenantId.toString() };
   }

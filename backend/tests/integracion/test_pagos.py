@@ -1,8 +1,9 @@
 import pytest
 from rest_framework.test import APIClient
 
+from apps.accounts.models import User
 from apps.bookings.models import Booking, InventoryLock
-from apps.payments.models import Payment
+from apps.payments.models import Payment, Refund
 from apps.rbac.models import UserRole
 
 from .datos import (
@@ -110,3 +111,54 @@ def test_manual_qr_requires_reference_and_tourist_is_forbidden(stripe):
     api = cliente()
     api.credentials(HTTP_X_TENANT_ID=str(room.tenant_id))
     assert api.post(url, body, format="json", HTTP_IDEMPOTENCY_KEY="turista").status_code == 403
+
+
+def test_company_cancels_with_full_stripe_refund(stripe):
+    booking, tenant_id = _paid_booking()
+    response = _owner(tenant_id).post(
+        f"/api/v1/empresa/reservas/{booking['id']}/cancelacion/",
+        {"motivo": "La empresa canceló la salida programada."}, format="json",
+        HTTP_IDEMPOTENCY_KEY="empresa-cancela-1",
+    )
+    assert response.status_code == 200
+    assert response.json()["estado"] == "COMPLETADO"
+    assert response.json()["monto"] == booking["importe"]["total"]
+    assert Booking.objects.get(id=booking["id"]).status == "CANCELADA"
+    assert InventoryLock.objects.get(booking_id=booking["id"]).status == "LIBERADO"
+
+
+def test_manual_refund_requires_external_confirmation(stripe):
+    room = habitacion_publicada()
+    booking = cliente().post(
+        "/api/v1/me/reservas/", _pedido_habitacion(room), format="json"
+    ).json()
+    owner = _owner(room.tenant_id)
+    owner.post(
+        "/api/v1/empresa/pagos/manuales/",
+        {"reserva_id": booking["id"], "metodo": "EFECTIVO", "referencia": "CAJA-10"},
+        format="json", HTTP_IDEMPOTENCY_KEY="cash-10",
+    )
+    url = f"/api/v1/empresa/reservas/{booking['id']}/cancelacion/"
+    assert owner.post(
+        url, {"motivo": "La empresa no podrá prestar el servicio."}, format="json",
+        HTTP_IDEMPOTENCY_KEY="manual-refund-10",
+    ).status_code == 400
+    result = owner.post(
+        url, {
+            "motivo": "La empresa no podrá prestar el servicio.",
+            "reembolso_manual_confirmado": True,
+            "referencia_reembolso": "DEV-CAJA-10",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="manual-refund-10",
+    )
+    assert result.status_code == 200
+    assert Refund.objects.get(id=result.json()["reembolso_id"]).provider == "MANUAL"
+    assert Booking.objects.get(id=booking["id"]).status == "CANCELADA"
+
+
+def test_superadmin_has_consolidated_payments(stripe):
+    booking, _ = _paid_booking()
+    api = APIClient()
+    api.force_authenticate(User.objects.get(email="superadmin@situr.com.bo"))
+    response = api.get("/api/v1/admin/pagos/")
+    assert response.status_code == 200
+    assert booking["id"] in [row["reserva_id"] for row in response.json()["results"]]

@@ -11,6 +11,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.payments import refunds
+from apps.payments.models import Refund
 from apps.rbac.views import tenant_id_from_request
 
 from . import company, receipt
@@ -149,3 +151,39 @@ class ReportCustomerView(APIView):
             reason=serializer.validated_data["motivo"], request=request,
         )
         return Response({"detail": "Le avisamos a SITUR-SMART. Gracias por reportarlo."}, status=201)
+
+
+class CompanyCancellationSerializer(serializers.Serializer):
+    motivo = serializers.CharField(min_length=5, max_length=2000, trim_whitespace=True)
+    reembolso_manual_confirmado = serializers.BooleanField(required=False, default=False)
+    referencia_reembolso = serializers.CharField(
+        max_length=150, required=False, allow_blank=True, trim_whitespace=True
+    )
+
+
+class CompanyBookingCancellationView(APIView):
+    """La empresa cancela y devuelve el 100 %; no aplica penalidad al turista."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=CompanyCancellationSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = CompanyCancellationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cancellation, refund = refunds.request_company_cancellation(
+            actor=request.user, tenant_id=tenant_id, booking_id=pk,
+            reason=serializer.validated_data["motivo"],
+            idempotency_key=request.headers.get("Idempotency-Key"),
+            manual_refund_confirmed=serializer.validated_data["reembolso_manual_confirmado"],
+            manual_reference=serializer.validated_data.get("referencia_reembolso"),
+            request=request,
+        )
+        return Response({
+            "cancelacion_id": cancellation.id,
+            "reembolso_id": refund.id,
+            "estado": refund.status,
+            "monto": str(refund.amount),
+            "referencia": refund.provider_reference,
+            "reserva_cancelada": refund.status == Refund.State.COMPLETED,
+        })

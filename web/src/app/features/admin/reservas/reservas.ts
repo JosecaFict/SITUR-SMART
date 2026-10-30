@@ -57,6 +57,10 @@ export class Reservas implements OnInit {
 
   protected readonly selected = signal<CompanyBooking | null>(null);
   protected readonly reporting = signal(false);
+  protected readonly cancelling = signal(false);
+  protected readonly cancelReason = signal('');
+  protected readonly manualRefundConfirmed = signal(false);
+  protected readonly refundReference = signal('');
   protected readonly reportReason = signal('');
   protected readonly working = signal(false);
   protected readonly message = signal<string | null>(null);
@@ -178,6 +182,31 @@ export class Reservas implements OnInit {
   protected closeDetail(): void {
     this.selected.set(null);
     this.reporting.set(false);
+    this.cancelling.set(false);
+  }
+
+  protected cancelBooking(): void {
+    const tenantId = this.tenantId(); const booking = this.selected();
+    const reason = this.cancelReason().trim();
+    if (tenantId === null || !booking || this.working()) return;
+    if (reason.length < 5) { this.detailError.set('Explica el motivo (al menos 5 caracteres).'); return; }
+    this.working.set(true); this.detailError.set(null);
+    this.service.cancelByCompany(tenantId, booking.id, {
+      motivo: reason, reembolso_manual_confirmado: this.manualRefundConfirmed(),
+      referencia_reembolso: this.refundReference().trim(),
+    }, crypto.randomUUID()).subscribe({
+      next: (result) => {
+        this.working.set(false); this.cancelling.set(false);
+        this.message.set(result.reserva_cancelada
+          ? `Reserva cancelada y ${booking.moneda_simbolo} ${result.monto} reembolsados.`
+          : `Reembolso ${result.estado.toLowerCase()}. El cupo se liberará al confirmarse.`);
+        this.closeDetail(); this.load(this.pageNumber());
+      },
+      error: (error: HttpErrorResponse) => {
+        this.working.set(false);
+        this.detailError.set(apiErrorMessage(error, 'No se pudo cancelar la reserva.'));
+      },
+    });
   }
 
   protected updateReason(event: Event): void {

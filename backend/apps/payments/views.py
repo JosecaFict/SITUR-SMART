@@ -7,12 +7,14 @@ from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bookings import services as bookings
+from apps.bookings.models import BookingDetail
 from apps.payments import refunds
 from apps.rbac.views import tenant_id_from_request
 from apps.tenancy import subscriptions
@@ -66,6 +68,77 @@ class CompanyPaymentListView(APIView):
             actor=request.user, tenant_id=tenant_id, params=request.query_params
         )
         return response
+
+
+class AdminPaymentListView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=PaymentSerializer(many=True))
+    def get(self, request):
+        queryset = services.global_payments(actor=request.user, params=request.query_params)
+        paginator = PaymentPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        response = paginator.get_paginated_response(PaymentSerializer(page, many=True).data)
+        response.data["resumen"] = services.payment_summary(queryset)
+        return response
+
+
+class CompanyDepartureListView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=serializers.ListField(child=serializers.DictField()))
+    def get(self, request):
+        tenant_id = tenant_id_from_request(request, required=True)
+        slots = services.upcoming_departures(actor=request.user, tenant_id=tenant_id)
+        return Response([{
+            "id": slot.id, "producto": slot.product.name, "inicio": slot.start,
+            "fin": slot.end, "reservas_activas": slot.active_bookings,
+        } for slot in slots])
+
+
+class CompanyDepartureCancellationView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=serializers.DictField(), responses=serializers.DictField())
+    def post(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = DepartureCancellationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # La consulta validada también impide cancelar una salida de otro tenant.
+        slot = services.upcoming_departures(actor=request.user, tenant_id=tenant_id).filter(id=pk).first()
+        if slot is None:
+            raise ValidationError("Salida no encontrada o sin reservas activas.")
+        booking_ids = list(
+            BookingDetail.objects.filter(
+                slot_id=pk, booking__tenant_id=tenant_id,
+                booking__status__in=bookings.OCCUPYING_STATES,
+                booking__checked_in_at__isnull=True,
+            ).values_list("booking_id", flat=True).distinct()
+        )
+        base_key = request.headers.get("Idempotency-Key")
+        if not base_key:
+            raise ValidationError({"Idempotency-Key": "Envía una clave para evitar duplicados."})
+        results = []
+        for booking_id in booking_ids:
+            try:
+                _, refund = refunds.request_company_cancellation(
+                    actor=request.user, tenant_id=tenant_id, booking_id=booking_id,
+                    reason=serializer.validated_data["motivo"],
+                    idempotency_key=f"salida:{pk}:{base_key}:{booking_id}", request=request,
+                )
+                results.append({"reserva_id": booking_id, "reembolso_id": refund.id, "estado": refund.status})
+            except ValidationError as exc:
+                results.append({"reserva_id": booking_id, "estado": "REQUIERE_REVISION", "error": exc.detail})
+        return Response({
+            "salida_id": pk, "total": len(results),
+            "procesados": sum(item["estado"] != "REQUIERE_REVISION" for item in results),
+            "requieren_revision": sum(item["estado"] == "REQUIERE_REVISION" for item in results),
+            "resultados": results,
+        })
+
+
+class DepartureCancellationSerializer(serializers.Serializer):
+    motivo = serializers.CharField(min_length=5, max_length=2000, trim_whitespace=True)
 
 
 class ManualPaymentRequestSerializer(serializers.Serializer):
