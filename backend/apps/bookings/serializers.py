@@ -94,6 +94,21 @@ class CancellationQuoteSerializer(serializers.Serializer):
     )
 
 
+class PaidCancellationRequestSerializer(serializers.Serializer):
+    motivo = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+
+class PaidCancellationResultSerializer(serializers.Serializer):
+    cancelacion_id = serializers.IntegerField()
+    reserva_id = serializers.IntegerField()
+    estado_reserva = serializers.CharField()
+    dias_anticipacion = serializers.IntegerField()
+    porcentaje_penalizacion = serializers.DecimalField(max_digits=5, decimal_places=2)
+    monto_penalizacion = serializers.DecimalField(max_digits=12, decimal_places=2)
+    monto_reembolso = serializers.DecimalField(max_digits=12, decimal_places=2)
+    reembolso = serializers.DictField(allow_null=True)
+
+
 class BookingSerializer(serializers.ModelSerializer):
     """Una reserva tal como la ve el turista en Mis viajes y en su voucher."""
 

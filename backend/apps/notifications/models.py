@@ -10,6 +10,8 @@ class Notification(models.Model):
         BOOKING_EXPIRED = "RESERVA_VENCIDA", "Reserva vencida"
         BOOKING_CANCELLED = "RESERVA_CANCELADA", "Reserva cancelada"
         PAYMENT_ISSUE = "PAGO_REVISION", "Pago en revisión"
+        REFUND_COMPLETED = "REEMBOLSO_COMPLETADO", "Reembolso completado"
+        REFUND_FAILED = "REEMBOLSO_FALLIDO", "Reembolso fallido"
 
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(

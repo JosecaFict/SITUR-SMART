@@ -107,6 +107,34 @@ def _webhook(event_type: str, session_id: str, payment_status="paid", secret=WEB
     )
 
 
+def _refund_webhook(
+    refund_id: str, *, status: str, local_id: int, secret: str = WEBHOOK_SECRET
+):
+    payload = json.dumps(
+        {
+            "id": f"evt_{refund_id}_{status}",
+            "object": "event",
+            "type": "refund.updated",
+            "data": {
+                "object": {
+                    "id": refund_id,
+                    "object": "refund",
+                    "status": status,
+                    "metadata": {"reembolso_id": str(local_id)},
+                }
+            },
+        }
+    )
+    timestamp = int(time.time())
+    signature = hmac.new(secret.encode(), f"{timestamp}.{payload}".encode(), hashlib.sha256).hexdigest()
+    return APIClient().post(
+        "/api/v1/pagos/stripe/webhook/",
+        data=payload,
+        content_type="application/json",
+        HTTP_STRIPE_SIGNATURE=f"t={timestamp},v1={signature}",
+    )
+
+
 def _vencer(booking_id: int) -> None:
     """Lleva la reserva al pasado: la base exige vencimiento posterior a la creacion."""
     hace_una_hora = timezone.now() - timedelta(hours=1)

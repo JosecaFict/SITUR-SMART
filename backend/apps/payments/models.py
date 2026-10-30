@@ -48,3 +48,50 @@ class Payment(models.Model):
     class Meta:
         managed = False
         db_table = "pago"
+
+
+class Refund(models.Model):
+    """Devolucion total o parcial de un pago aprobado."""
+
+    class State(models.TextChoices):
+        REQUESTED = "SOLICITADO", "Solicitado"
+        PROCESSING = "PROCESANDO", "Procesando"
+        COMPLETED = "COMPLETADO", "Completado"
+        FAILED = "FALLIDO", "Fallido"
+        CANCELLED = "CANCELADO", "Cancelado"
+
+    id = models.BigAutoField(primary_key=True)
+    payment = models.ForeignKey(
+        Payment, db_column="id_pago", on_delete=models.DO_NOTHING, related_name="refunds"
+    )
+    cancellation = models.ForeignKey(
+        "bookings.Cancellation",
+        db_column="id_cancelacion",
+        on_delete=models.DO_NOTHING,
+        related_name="refunds",
+    )
+    currency = models.ForeignKey(
+        "catalog.Currency", db_column="id_moneda", on_delete=models.DO_NOTHING, related_name="+"
+    )
+    amount = models.DecimalField(db_column="monto", max_digits=12, decimal_places=2)
+    status = models.CharField(db_column="estado", max_length=20, default=State.REQUESTED)
+    reason = models.TextField(db_column="motivo", null=True)
+    provider = models.CharField(db_column="proveedor", max_length=60, default="STRIPE")
+    provider_reference = models.CharField(
+        db_column="referencia_proveedor", max_length=150, null=True
+    )
+    idempotency_key = models.CharField(db_column="idempotency_key", max_length=100, unique=True)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        db_column="id_solicitado_por",
+        on_delete=models.DO_NOTHING,
+        related_name="+",
+    )
+    requested_at = models.DateTimeField(db_column="solicitado_en", auto_now_add=True)
+    processed_at = models.DateTimeField(db_column="procesado_en", null=True)
+    failure_reason = models.TextField(db_column="motivo_fallo", null=True)
+
+    class Meta:
+        managed = False
+        db_table = "reembolso"
+        ordering = ("-requested_at", "-id")

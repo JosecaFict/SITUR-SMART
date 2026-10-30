@@ -39,6 +39,21 @@ class CheckoutSession:
         return self.status == "complete" and self.payment_status in ("paid", "no_payment_required")
 
 
+@dataclass(frozen=True)
+class RefundResult:
+    id: str
+    status: str
+    failure_reason: str | None = None
+
+    @property
+    def succeeded(self) -> bool:
+        return self.status == "succeeded"
+
+    @property
+    def failed(self) -> bool:
+        return self.status in ("failed", "canceled")
+
+
 def is_configured() -> bool:
     return bool(settings.STRIPE_SECRET_KEY)
 
@@ -122,6 +137,47 @@ def expire_session(session_id: str) -> None:
     except stripe.StripeError as exc:
         # Ya pagada o ya vencida: no hay nada que cerrar.
         logger.info("No se expiro la sesion %s: %s", session_id, exc)
+
+
+def _refund(data) -> RefundResult:
+    failure = data.get("failure_reason")
+    return RefundResult(id=data["id"], status=data.get("status") or "pending", failure_reason=failure)
+
+
+def create_refund(
+    *, session_id: str, amount: Decimal, idempotency_key: str, metadata: dict[str, str]
+) -> RefundResult:
+    """Devuelve parte o todo un Checkout ya cobrado."""
+    if not is_configured():
+        raise PaymentUnavailable()
+    try:
+        session = stripe.checkout.Session.retrieve(session_id, api_key=settings.STRIPE_SECRET_KEY)
+        payment_intent = session.get("payment_intent")
+        if not payment_intent:
+            raise PaymentUnavailable("El cobro no tiene una operación reembolsable.")
+        data = stripe.Refund.create(
+            api_key=settings.STRIPE_SECRET_KEY,
+            idempotency_key=idempotency_key,
+            payment_intent=payment_intent,
+            amount=to_minor_units(amount),
+            metadata=metadata,
+        )
+    except PaymentUnavailable:
+        raise
+    except stripe.StripeError as exc:
+        logger.warning("Stripe rechazo el reembolso de %s: %s", session_id, exc)
+        raise PaymentUnavailable("No se pudo solicitar el reembolso en este momento.") from exc
+    return _refund(data)
+
+
+def retrieve_refund(refund_id: str) -> RefundResult | None:
+    if not is_configured():
+        return None
+    try:
+        return _refund(stripe.Refund.retrieve(refund_id, api_key=settings.STRIPE_SECRET_KEY))
+    except stripe.StripeError as exc:
+        logger.warning("No se pudo consultar el reembolso %s: %s", refund_id, exc)
+        return None
 
 
 def parse_webhook(payload: bytes, signature: str | None):

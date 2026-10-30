@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bookings import services as bookings
+from apps.payments import refunds
 from apps.tenancy import subscriptions
 
 from . import gateway
@@ -37,6 +38,9 @@ class StripeWebhookView(APIView):
             return Response({"recibido": False}, status=400)
 
         session = event["data"]["object"]
+        if event["type"] in ("refund.created", "refund.updated", "refund.failed"):
+            refunds.handle_provider_event(session)
+            return Response({"recibido": True})
         # La misma cuenta de Stripe cobra reservas y planes de empresa; la
         # metadata de la sesion dice cual es.
         is_plan = (session.get("metadata") or {}).get("tipo") == "SUSCRIPCION"

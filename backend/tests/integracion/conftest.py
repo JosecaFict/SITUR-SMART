@@ -83,6 +83,9 @@ class StripeFalso:
     def __init__(self):
         self.sessions: dict[str, dict] = {}
         self.created: list[dict] = []
+        self.refunds: dict[str, dict] = {}
+        self.refunds_created: list[dict] = []
+        self.refund_status = "succeeded"
         self.fail = False
 
     def create_checkout_session(self, **kwargs):
@@ -103,6 +106,35 @@ class StripeFalso:
     def pay(self, session_id):
         self.sessions[session_id] = {"status": "complete", "payment_status": "paid"}
 
+    def create_refund(self, **kwargs):
+        existing = next(
+            (
+                item
+                for item in self.refunds_created
+                if item["idempotency_key"] == kwargs["idempotency_key"]
+            ),
+            None,
+        )
+        if existing:
+            return self.retrieve_refund(existing["refund_id"])
+        refund_id = f"re_test_{len(self.refunds_created) + 1}"
+        self.refunds_created.append({**kwargs, "refund_id": refund_id})
+        self.refunds[refund_id] = {
+            "status": self.refund_status,
+            "failure_reason": "rechazado en pruebas" if self.refund_status == "failed" else None,
+        }
+        return self.retrieve_refund(refund_id)
+
+    def retrieve_refund(self, refund_id):
+        data = self.refunds.get(refund_id)
+        if data is None:
+            return None
+        return gateway.RefundResult(
+            id=refund_id,
+            status=data["status"],
+            failure_reason=data["failure_reason"],
+        )
+
     def _session(self, session_id):
         data = self.sessions[session_id]
         return gateway.CheckoutSession(
@@ -121,6 +153,8 @@ def stripe(monkeypatch, settings):
     monkeypatch.setattr(gateway, "create_checkout_session", fake.create_checkout_session)
     monkeypatch.setattr(gateway, "retrieve_session", fake.retrieve_session)
     monkeypatch.setattr(gateway, "expire_session", fake.expire_session)
+    monkeypatch.setattr(gateway, "create_refund", fake.create_refund)
+    monkeypatch.setattr(gateway, "retrieve_refund", fake.retrieve_refund)
     return fake
 
 

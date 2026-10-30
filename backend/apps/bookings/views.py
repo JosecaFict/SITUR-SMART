@@ -10,12 +10,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.payments import refunds
+
 from . import receipt, services
 from .models import Booking
 from .serializers import (
     BookingRequestSerializer,
     BookingSerializer,
     CancellationQuoteSerializer,
+    PaidCancellationRequestSerializer,
+    PaidCancellationResultSerializer,
     QuoteSerializer,
 )
 
@@ -141,6 +145,59 @@ class BookingCancellationQuoteView(APIView):
     def get(self, request, pk):
         quote = services.quote_paid_cancellation(user=request.user, booking_id=pk)
         return Response(CancellationQuoteSerializer(quote).data)
+
+
+class BookingPaidCancellationView(APIView):
+    """Confirma una cancelacion pagada y solicita su reembolso idempotente."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        request=PaidCancellationRequestSerializer,
+        responses=PaidCancellationResultSerializer,
+        parameters=[
+            OpenApiParameter(
+                "Idempotency-Key",
+                str,
+                OpenApiParameter.HEADER,
+                required=False,
+                description="La misma clave nunca crea dos reembolsos.",
+            )
+        ],
+    )
+    def post(self, request, pk):
+        serializer = PaidCancellationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cancellation, refund = refunds.request_booking_cancellation(
+            user=request.user,
+            booking_id=pk,
+            reason=serializer.validated_data.get("motivo"),
+            idempotency_key=request.headers.get("Idempotency-Key"),
+            request=request,
+        )
+        cancellation.booking.refresh_from_db()
+        data = {
+            "cancelacion_id": cancellation.id,
+            "reserva_id": cancellation.booking_id,
+            "estado_reserva": cancellation.booking.status,
+            "dias_anticipacion": cancellation.advance_days,
+            "porcentaje_penalizacion": cancellation.applied_percentage,
+            "monto_penalizacion": cancellation.penalty_amount,
+            "monto_reembolso": cancellation.refund_amount,
+            "reembolso": {
+                "id": refund.id,
+                "estado": refund.status,
+                "monto": str(refund.amount),
+                "moneda_id": refund.currency_id,
+                "referencia": refund.provider_reference,
+                "solicitado_en": refund.requested_at,
+                "procesado_en": refund.processed_at,
+                "motivo_fallo": refund.failure_reason,
+            }
+            if refund
+            else None,
+        }
+        return Response(PaidCancellationResultSerializer(data).data)
 
 
 class BookingReceiptLinkView(APIView):

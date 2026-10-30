@@ -12,6 +12,7 @@ from .views import (
     BookingCancelView,
     BookingDetailView,
     BookingListCreateView,
+    BookingPaidCancellationView,
     BookingPayView,
     BookingReceiptLinkView,
     QuoteView,
@@ -28,6 +29,11 @@ urlpatterns = [
         "me/reservas/<int:pk>/cancelacion/cotizacion/",
         BookingCancellationQuoteView.as_view(),
         name="booking-cancellation-quote",
+    ),
+    path(
+        "me/reservas/<int:pk>/cancelacion/",
+        BookingPaidCancellationView.as_view(),
+        name="booking-paid-cancellation",
     ),
     path("me/reservas/<int:pk>/comprobante/", BookingReceiptLinkView.as_view(), name="booking-receipt"),
     # Publico pero firmado: lo abre el navegador del celular o el enlace del correo.

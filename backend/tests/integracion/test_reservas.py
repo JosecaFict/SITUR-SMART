@@ -12,15 +12,16 @@ import pytest
 from django.db import connection
 from rest_framework.test import APIClient
 
-from apps.bookings.models import Booking, InventoryLock, Order
+from apps.bookings.models import Booking, Cancellation, InventoryLock, Order
 from apps.bookings.services import read_voucher
 from apps.catalog.models import CancellationPolicy, PenaltyRule, TourismProduct
-from apps.payments.models import Payment
+from apps.payments.models import Payment, Refund
 
 from .datos import (
     OTRO_TURISTA,
     _hoy,
     _pedido_habitacion,
+    _refund_webhook,
     _session_id,
     _vencer,
     _webhook,
@@ -138,6 +139,85 @@ def test_rechaza_una_politica_distinta_de_la_cotizada(stripe):
     assert respuesta.status_code == 400
     assert "politica_cancelacion_id" in respuesta.json()["error"]["details"]
     assert not Booking.objects.exists()
+
+
+def test_cancelar_pagada_reembolsa_y_libera_el_cupo(stripe):
+    room = habitacion_publicada()
+    creada = cliente().post(
+        "/api/v1/me/reservas/", _pedido_habitacion(room, dias=10), format="json"
+    ).json()
+    _webhook("checkout.session.completed", _session_id(creada["id"]))
+
+    respuesta = cliente().post(
+        f"/api/v1/me/reservas/{creada['id']}/cancelacion/",
+        {"motivo": "Cambio de fechas"},
+        format="json",
+        HTTP_IDEMPOTENCY_KEY="cancelacion-1",
+    )
+
+    assert respuesta.status_code == 200, respuesta.json()
+    assert respuesta.json()["estado_reserva"] == "CANCELADA"
+    assert respuesta.json()["reembolso"]["estado"] == "COMPLETADO"
+    assert len(stripe.refunds_created) == 1
+    assert Booking.objects.get(id=creada["id"]).status == "CANCELADA"
+    assert Refund.objects.get().status == Refund.State.COMPLETED
+    assert Cancellation.objects.get().reason == "Cambio de fechas"
+    assert not InventoryLock.objects.filter(
+        booking_id=creada["id"], status__in=("ACTIVO", "CONSUMIDO")
+    ).exists()
+
+
+def test_repetir_cancelacion_no_duplica_el_reembolso(stripe):
+    room = habitacion_publicada()
+    creada = cliente().post("/api/v1/me/reservas/", _pedido_habitacion(room), format="json").json()
+    _webhook("checkout.session.completed", _session_id(creada["id"]))
+    url = f"/api/v1/me/reservas/{creada['id']}/cancelacion/"
+
+    primera = cliente().post(url, {}, format="json", HTTP_IDEMPOTENCY_KEY="misma-clave")
+    segunda = cliente().post(url, {}, format="json", HTTP_IDEMPOTENCY_KEY="misma-clave")
+
+    assert primera.status_code == segunda.status_code == 200
+    assert primera.json()["cancelacion_id"] == segunda.json()["cancelacion_id"]
+    assert primera.json()["reembolso"]["id"] == segunda.json()["reembolso"]["id"]
+    assert Refund.objects.count() == 1
+    assert len(stripe.refunds_created) == 1
+
+
+def test_reembolso_pendiente_no_libera_hasta_el_webhook(stripe):
+    stripe.refund_status = "pending"
+    room = habitacion_publicada()
+    creada = cliente().post("/api/v1/me/reservas/", _pedido_habitacion(room), format="json").json()
+    _webhook("checkout.session.completed", _session_id(creada["id"]))
+
+    data = cliente().post(
+        f"/api/v1/me/reservas/{creada['id']}/cancelacion/", {}, format="json"
+    ).json()
+
+    assert data["estado_reserva"] == "CONFIRMADA"
+    assert data["reembolso"]["estado"] == "PROCESANDO"
+    refund = Refund.objects.get()
+    assert _refund_webhook(
+        refund.provider_reference, status="succeeded", local_id=refund.id
+    ).status_code == 200
+    assert Booking.objects.get(id=creada["id"]).status == "CANCELADA"
+    assert Refund.objects.get().status == Refund.State.COMPLETED
+
+
+def test_cancelacion_sin_devolucion_no_contacta_stripe(stripe):
+    room = habitacion_publicada()
+    creada = cliente().post(
+        "/api/v1/me/reservas/", _pedido_habitacion(room, dias=0), format="json"
+    ).json()
+    _webhook("checkout.session.completed", _session_id(creada["id"]))
+
+    data = cliente().post(
+        f"/api/v1/me/reservas/{creada['id']}/cancelacion/", {}, format="json"
+    ).json()
+
+    assert data["estado_reserva"] == "CANCELADA"
+    assert data["monto_reembolso"] == "0.00"
+    assert data["reembolso"] is None
+    assert not stripe.refunds_created
 
 
 def test_no_se_vende_mas_de_lo_que_hay(stripe):

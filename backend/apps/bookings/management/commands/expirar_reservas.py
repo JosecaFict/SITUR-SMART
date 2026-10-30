@@ -4,6 +4,7 @@ import time
 from django.core.management.base import BaseCommand
 
 from apps.bookings.services import complete_finished, expire_overdue
+from apps.payments.refunds import reconcile_pending as reconcile_refunds
 
 # Lo que se espera a que salgan el push y el correo antes de terminar.
 SEND_WAIT_SECONDS = 30
@@ -20,6 +21,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         expired = expire_overdue()
         completed = complete_finished()
+        refunds = reconcile_refunds()
         # El push y el correo salen en hilos aparte; si el proceso termina
         # antes, el turista no se entera. Se espera a que terminen.
         deadline = time.monotonic() + SEND_WAIT_SECONDS
@@ -27,5 +29,8 @@ class Command(BaseCommand):
             if thread is not threading.current_thread():
                 thread.join(timeout=max(0, deadline - time.monotonic()))
         self.stdout.write(
-            self.style.SUCCESS(f"Reservas conciliadas: {expired}. Completadas: {completed}.")
+            self.style.SUCCESS(
+                f"Reservas conciliadas: {expired}. Completadas: {completed}. "
+                f"Reembolsos actualizados: {refunds}."
+            )
         )
