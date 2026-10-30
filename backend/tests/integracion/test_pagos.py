@@ -3,7 +3,8 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.bookings.models import Booking, InventoryLock
-from apps.payments.models import Payment, Refund
+from apps.payments import reconciliation
+from apps.payments.models import Payment, ReconciliationIssue, Refund
 from apps.rbac.models import UserRole
 
 from .datos import (
@@ -162,3 +163,27 @@ def test_superadmin_has_consolidated_payments(stripe):
     response = api.get("/api/v1/admin/pagos/")
     assert response.status_code == 200
     assert booking["id"] in [row["reserva_id"] for row in response.json()["results"]]
+
+
+def test_reconciliation_corrects_paid_pending_payment(stripe):
+    booking, _ = _paid_booking()
+    payment = Payment.objects.get(booking_id=booking["id"], status="APROBADO")
+    Payment.objects.filter(id=payment.id).update(status="PENDIENTE")
+    result = reconciliation.run(force=True)
+    assert result["pagos"]["corregidos"] >= 1
+    assert Payment.objects.get(id=payment.id).status == "APROBADO"
+
+
+def test_reconciliation_exposes_mismatch_to_superadmin(stripe):
+    booking, _ = _paid_booking()
+    payment = Payment.objects.get(booking_id=booking["id"], status="APROBADO")
+    stripe.sessions[payment.reference] = {"status": "expired", "payment_status": "unpaid"}
+    reconciliation.run(force=True)
+    assert ReconciliationIssue.objects.filter(
+        resource_type="PAGO", resource_id=payment.id, resolved=False
+    ).exists()
+    api = APIClient()
+    api.force_authenticate(User.objects.get(email="superadmin@situr.com.bo"))
+    response = api.get("/api/v1/admin/pagos/conciliacion/")
+    assert response.status_code == 200
+    assert response.json()["abiertas"] >= 1

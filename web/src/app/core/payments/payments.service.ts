@@ -49,6 +49,11 @@ export interface PaymentFilters {
   page?: number;
 }
 export interface Departure { id: number; producto: string; inicio: string; fin: string; reservas_activas: number; }
+export interface ReconciliationIssue {
+  id: number; empresa: string; resource_type: string; resource_id: number; kind: string;
+  local_status: string; provider_status: string; details: Record<string, unknown>;
+  resolved: boolean; detected_at: string; last_seen_at: string; resolved_at: string | null;
+}
 
 @Injectable({ providedIn: 'root' })
 export class PaymentsService {
@@ -83,6 +88,14 @@ export class PaymentsService {
       `${this.api}/empresa/salidas/${id}/cancelacion/`, { motivo },
       { headers: { 'X-Tenant-ID': String(tenantId), 'Idempotency-Key': key } },
     );
+  }
+
+  reconciliation(): Observable<{ abiertas: number; resultados: ReconciliationIssue[] }> {
+    return this.http.get<{ abiertas: number; resultados: ReconciliationIssue[] }>(`${this.api}/admin/pagos/conciliacion/`);
+  }
+
+  reconcileNow(): Observable<{ omitida: boolean; pagos: Record<string, number>; reembolsos: Record<string, number> }> {
+    return this.http.post<{ omitida: boolean; pagos: Record<string, number>; reembolsos: Record<string, number> }>(`${this.api}/admin/pagos/conciliacion/`, {});
   }
 
   registerManual(

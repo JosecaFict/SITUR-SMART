@@ -213,9 +213,6 @@ def request_booking_cancellation(
         booking = Booking.objects.select_for_update().get(id=booking_id)
         if booking.status not in bookings.OCCUPYING_STATES or booking.checked_in_at is not None:
             raise ValidationError("La reserva ya no se puede cancelar.")
-        first_slot = booking.details.aggregate(first=Min("slot__start"))["first"]
-        if first_slot is not None and first_slot <= timezone.now():
-            raise ValidationError("La empresa solo puede cancelar antes de que comience el servicio.")
         cancellation, created = Cancellation.objects.get_or_create(
             booking=booking,
             defaults={
@@ -325,6 +322,9 @@ def request_company_cancellation(
             return existing, refund
         if booking.status not in bookings.OCCUPYING_STATES or booking.checked_in_at is not None:
             raise ValidationError("La reserva ya no se puede cancelar.")
+        first_slot = booking.details.aggregate(first=Min("slot__start"))["first"]
+        if first_slot is not None and first_slot <= timezone.now():
+            raise ValidationError("La empresa solo puede cancelar antes de que comience el servicio.")
         payment = (
             Payment.objects.select_for_update()
             .filter(booking=booking, status=Payment.State.APPROVED)

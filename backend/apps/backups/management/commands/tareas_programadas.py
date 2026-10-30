@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 from apps.backups.scheduled import run_if_due
 from apps.bookings.services import complete_finished, expire_overdue
 from apps.catalog.scheduling import process_due as process_publications
+from apps.payments.reconciliation import run as reconcile_payments
 from apps.payments.refunds import reconcile_pending as reconcile_refunds
 from apps.tenancy.subscriptions import process_due
 
@@ -26,6 +27,7 @@ class Command(BaseCommand):
         expired = expire_overdue()
         completed = complete_finished()
         refunds = reconcile_refunds()
+        reconciliation = reconcile_payments()
         plans = process_due()
         published = process_publications()
         backup = run_if_due()
@@ -41,6 +43,7 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"Reservas conciliadas: {expired}. Completadas: {completed}. "
                 f"Reembolsos actualizados: {refunds}. "
+                f"Conciliación diaria: {'ya ejecutada' if reconciliation['omitida'] else 'ejecutada'}. "
                 f"Planes: {plans['avisos']} avisos, {plans['renovadas']} renovados, {plans['vencidas']} vencidos. "
                 f"Publicaciones: {published['publicados']} publicadas, {published['retirados']} retiradas, "
                 f"{published['fallidos']} fallidas. "

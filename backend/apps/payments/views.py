@@ -7,7 +7,7 @@ from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -19,8 +19,8 @@ from apps.payments import refunds
 from apps.rbac.views import tenant_id_from_request
 from apps.tenancy import subscriptions
 
-from . import gateway, services
-from .models import Payment
+from . import gateway, reconciliation, services
+from .models import Payment, ReconciliationIssue
 from .serializers import PaymentSerializer
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,42 @@ class AdminPaymentListView(APIView):
         response = paginator.get_paginated_response(PaymentSerializer(page, many=True).data)
         response.data["resumen"] = services.payment_summary(queryset)
         return response
+
+
+class ReconciliationIssueSerializer(serializers.ModelSerializer):
+    empresa = serializers.CharField(source="tenant.trade_name")
+
+    class Meta:
+        model = ReconciliationIssue
+        fields = (
+            "id", "empresa", "resource_type", "resource_id", "kind",
+            "local_status", "provider_status", "details", "resolved",
+            "detected_at", "last_seen_at", "resolved_at",
+        )
+
+
+class AdminPaymentReconciliationView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def _require_admin(self, request):
+        if not request.user.is_staff:
+            raise PermissionDenied("Solo el SuperAdministrador puede conciliar pagos.")
+
+    @extend_schema(responses=ReconciliationIssueSerializer(many=True))
+    def get(self, request):
+        self._require_admin(request)
+        queryset = ReconciliationIssue.objects.select_related("tenant")
+        if request.query_params.get("resueltas") != "si":
+            queryset = queryset.filter(resolved=False)
+        return Response({
+            "abiertas": ReconciliationIssue.objects.filter(resolved=False).count(),
+            "resultados": ReconciliationIssueSerializer(queryset[:200], many=True).data,
+        })
+
+    @extend_schema(request=None, responses=serializers.DictField())
+    def post(self, request):
+        self._require_admin(request)
+        return Response(reconciliation.run(force=True, actor=request.user))
 
 
 class CompanyDepartureListView(APIView):

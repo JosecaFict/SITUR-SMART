@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AdminPaymentListView,
+    AdminPaymentReconciliationView,
     CompanyDepartureCancellationView,
     CompanyDepartureListView,
     CompanyManualPaymentView,
@@ -20,6 +21,7 @@ urlpatterns = [
     path("empresa/salidas/", CompanyDepartureListView.as_view(), name="company-departure-list"),
     path("empresa/salidas/<int:pk>/cancelacion/", CompanyDepartureCancellationView.as_view(), name="company-departure-cancellation"),
     path("admin/pagos/", AdminPaymentListView.as_view(), name="admin-payment-list"),
+    path("admin/pagos/conciliacion/", AdminPaymentReconciliationView.as_view(), name="admin-payment-reconciliation"),
     path("pagos/stripe/webhook/", StripeWebhookView.as_view(), name="stripe-webhook"),
     path("pagos/stripe/retorno/", stripe_return, name="stripe-return"),
 ]

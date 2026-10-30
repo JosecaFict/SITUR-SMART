@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.conf import settings
 from django.db import models
 
@@ -95,3 +97,44 @@ class Refund(models.Model):
         managed = False
         db_table = "reembolso"
         ordering = ("-requested_at", "-id")
+
+
+class ReconciliationIssue(models.Model):
+    """Diferencia persistente entre SITUR-SMART y la pasarela de pago."""
+
+    class Kind(models.TextChoices):
+        PAYMENT_MISMATCH = "PAGO_NO_COINCIDE", "Pago no coincide"
+        LATE_PAYMENT = "PAGO_TARDIO", "Pago tardío"
+        REFUND_MISMATCH = "REEMBOLSO_NO_COINCIDE", "Reembolso no coincide"
+
+    id = models.BigAutoField(primary_key=True)
+    resource_type = models.CharField(db_column="tipo_recurso", max_length=20)
+    resource_id = models.PositiveBigIntegerField(db_column="id_recurso")
+    kind = models.CharField(db_column="tipo_incidencia", max_length=40, choices=Kind.choices)
+    tenant = models.ForeignKey(
+        "tenancy.Tenant", db_column="id_tenant", on_delete=models.PROTECT,
+        related_name="payment_reconciliation_issues"
+    )
+    local_status = models.CharField(db_column="estado_local", max_length=30)
+    provider_status = models.CharField(db_column="estado_proveedor", max_length=30)
+    details = models.JSONField(db_column="detalle", default=dict, blank=True)
+    resolved = models.BooleanField(db_column="resuelta", default=False)
+    detected_at = models.DateTimeField(db_column="detectada_en", auto_now_add=True)
+    last_seen_at = models.DateTimeField(db_column="ultima_deteccion_en", auto_now=True)
+    resolved_at = models.DateTimeField(db_column="resuelta_en", null=True, blank=True)
+
+    class Meta:
+        db_table = "incidencia_conciliacion_pago"
+        ordering = ("resolved", "-last_seen_at", "-id")
+        constraints: ClassVar[list] = [
+            models.UniqueConstraint(
+                fields=("resource_type", "resource_id", "kind"),
+                name="uq_incidencia_conciliacion_recurso",
+            )
+        ]
+        indexes: ClassVar[list] = [
+            models.Index(
+                fields=("resolved", "-last_seen_at"),
+                name="idx_conciliacion_abierta",
+            )
+        ]
