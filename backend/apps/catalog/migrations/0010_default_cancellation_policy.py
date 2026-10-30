@@ -42,6 +42,12 @@ WHERE politica.id_tenant = producto.id_tenant
 """
 
 
+def apply(apps, schema_editor):
+    # Las tablas son del esquema SQL de PostgreSQL; en SQLite (pruebas) no existen.
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute(FORWARDS)
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("catalog", "0009_cancellationpolicy_penaltyrule"),
@@ -50,5 +56,5 @@ class Migration(migrations.Migration):
     operations = [
         # Solo completa faltantes; el reverso no borra condiciones comerciales
         # ni desasocia productos que ya pudieron generar reservas.
-        migrations.RunSQL(FORWARDS, reverse_sql=migrations.RunSQL.noop),
+        migrations.RunPython(apply, migrations.RunPython.noop),
     ]
