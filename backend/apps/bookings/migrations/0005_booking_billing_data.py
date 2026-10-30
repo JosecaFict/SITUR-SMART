@@ -12,12 +12,23 @@ ALTER TABLE reserva DROP COLUMN IF EXISTS razon_social_facturacion;
 """
 
 
+# La tabla reserva es del esquema SQL de PostgreSQL; en SQLite (pruebas) no existe.
+def apply(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute(SQL)
+
+
+def revert(apps, schema_editor):
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute(REVERSE)
+
+
 class Migration(migrations.Migration):
     dependencies: ClassVar = [("bookings", "0004_booking_commercial_terms")]
 
     operations: ClassVar = [
         migrations.SeparateDatabaseAndState(
-            database_operations=[migrations.RunSQL(SQL, REVERSE)],
+            database_operations=[migrations.RunPython(apply, revert)],
             state_operations=[
                 migrations.AddField(
                     model_name="booking", name="billing_name",

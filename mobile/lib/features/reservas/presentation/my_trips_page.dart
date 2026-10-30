@@ -73,8 +73,10 @@ class _MyTripsPageState extends State<MyTripsPage> {
           backgroundColor: AppTheme.accentDark,
           foregroundColor: Colors.white,
           title: const Text('Mis viajes', style: TextStyle(fontWeight: FontWeight.bold)),
-          actions: [IconButton(tooltip: 'Mis pagos', onPressed: () => context.push('/pagos'), icon: const Icon(Icons.receipt_long_outlined))],
-          actions: const [NotificationBell()],
+          actions: [
+            IconButton(tooltip: 'Mis pagos', onPressed: () => context.push('/pagos'), icon: const Icon(Icons.receipt_long_outlined)),
+            const NotificationBell(),
+          ],
           bottom: const TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,

@@ -108,6 +108,8 @@ describe('Reservar', () => {
       cantidad: 1,
       politica_cancelacion_id: 12,
       acepta_politica_cancelacion: true,
+      razon_social_facturacion: '',
+      nit_facturacion: '',
     }, jasmine.any(String));
   });
 
