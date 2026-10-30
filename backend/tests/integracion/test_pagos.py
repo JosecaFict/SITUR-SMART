@@ -1,6 +1,8 @@
 import pytest
 from rest_framework.test import APIClient
 
+from apps.bookings.models import Booking, InventoryLock
+from apps.payments.models import Payment
 from apps.rbac.models import UserRole
 
 from .datos import (
@@ -21,7 +23,8 @@ def _paid_booking():
     booking = cliente().post(
         "/api/v1/me/reservas/", _pedido_habitacion(room), format="json"
     ).json()
-    _webhook("checkout.session.completed", _session_id(booking["id"]))
+    stripe_session = _session_id(booking["id"])
+    _webhook("checkout.session.completed", stripe_session)
     return booking, room.tenant_id
 
 
@@ -65,3 +68,45 @@ def test_tourist_cannot_read_company_payments(stripe):
     api = cliente()
     api.credentials(HTTP_X_TENANT_ID=str(tenant_id))
     assert api.get("/api/v1/empresa/pagos/").status_code == 403
+
+
+def test_owner_registers_manual_payment_without_trusting_amount(stripe):
+    room = habitacion_publicada()
+    booking = cliente().post(
+        "/api/v1/me/reservas/", _pedido_habitacion(room), format="json"
+    ).json()
+    stripe_session = _session_id(booking["id"])
+    api = _owner(room.tenant_id)
+    url = "/api/v1/empresa/pagos/manuales/"
+    body = {"reserva_id": booking["id"], "metodo": "TRANSFERENCIA", "referencia": "TRX-900"}
+
+    first = api.post(url, body, format="json", HTTP_IDEMPOTENCY_KEY="manual-900")
+    repeated = api.post(url, body, format="json", HTTP_IDEMPOTENCY_KEY="manual-900")
+
+    assert first.status_code == repeated.status_code == 201
+    assert first.json()["id"] == repeated.json()["id"]
+    assert first.json()["amount"] == booking["importe"]["total"]
+    assert first.json()["provider"] == "MANUAL"
+    assert Booking.objects.get(id=booking["id"]).status == "CONFIRMADA"
+    assert InventoryLock.objects.get(booking_id=booking["id"]).status == "CONSUMIDO"
+    assert Payment.objects.filter(booking_id=booking["id"], status="APROBADO").count() == 1
+
+    # Si Stripe confirma tarde la sesión que quedó anulada, no crea un segundo
+    # ingreso aprobado ni cambia el pago manual.
+    _webhook("checkout.session.completed", stripe_session)
+    assert Payment.objects.filter(booking_id=booking["id"], status="APROBADO").count() == 1
+
+
+def test_manual_qr_requires_reference_and_tourist_is_forbidden(stripe):
+    room = habitacion_publicada()
+    booking = cliente().post(
+        "/api/v1/me/reservas/", _pedido_habitacion(room), format="json"
+    ).json()
+    url = "/api/v1/empresa/pagos/manuales/"
+    body = {"reserva_id": booking["id"], "metodo": "QR", "referencia": ""}
+    assert _owner(room.tenant_id).post(
+        url, body, format="json", HTTP_IDEMPOTENCY_KEY="sin-ref"
+    ).status_code == 400
+    api = cliente()
+    api.credentials(HTTP_X_TENANT_ID=str(room.tenant_id))
+    assert api.post(url, body, format="json", HTTP_IDEMPOTENCY_KEY="turista").status_code == 403

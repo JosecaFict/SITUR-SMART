@@ -29,4 +29,18 @@ describe('PaymentsService', () => {
     expect(request.request.headers.get('X-Tenant-ID')).toBe('7');
     request.flush({ count: 0, next: null, previous: null, results: [], resumen: [] });
   });
+
+  it('registra el pago manual con tenant e idempotencia', () => {
+    service.registerManual(
+      7,
+      { reserva_id: 15, metodo: 'TRANSFERENCIA', referencia: 'TRX-1' },
+      'manual-key',
+    ).subscribe();
+    const request = http.expectOne(`${environment.apiUrl}/empresa/pagos/manuales/`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('X-Tenant-ID')).toBe('7');
+    expect(request.request.headers.get('Idempotency-Key')).toBe('manual-key');
+    expect(request.request.body).toEqual({ reserva_id: 15, metodo: 'TRANSFERENCIA', referencia: 'TRX-1' });
+    request.flush({});
+  });
 });

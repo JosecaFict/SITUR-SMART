@@ -608,6 +608,15 @@ def confirm_paid_session(session_id: str) -> Booking | None:
         booking = Booking.objects.select_for_update().get(id=payment.booking_id)
         if payment.status == Payment.State.APPROVED:
             return booking
+        # La empresa pudo confirmar la reserva con efectivo, QR externo o
+        # transferencia mientras la sesión de Stripe seguía abierta. Si ese
+        # Checkout avisa tarde, no se registra un segundo cobro aprobado.
+        if payment.status == Payment.State.VOIDED and Payment.objects.filter(
+            booking=booking, status=Payment.State.APPROVED
+        ).exclude(id=payment.id).exists():
+            _record(booking, "Stripe informó un cobro después de registrar un pago manual; requiere revisión.")
+            transaction.on_commit(lambda: events.payment_needs_review(booking.id))
+            return booking
 
         payment.status = Payment.State.APPROVED
         payment.processed_at = timezone.now()

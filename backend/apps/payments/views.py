@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
+from rest_framework import serializers
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -17,6 +18,7 @@ from apps.rbac.views import tenant_id_from_request
 from apps.tenancy import subscriptions
 
 from . import gateway, services
+from .models import Payment
 from .serializers import PaymentSerializer
 
 logger = logging.getLogger(__name__)
@@ -64,6 +66,33 @@ class CompanyPaymentListView(APIView):
             actor=request.user, tenant_id=tenant_id, params=request.query_params
         )
         return response
+
+
+class ManualPaymentRequestSerializer(serializers.Serializer):
+    reserva_id = serializers.IntegerField(min_value=1)
+    metodo = serializers.ChoiceField(
+        choices=(Payment.Method.CASH, Payment.Method.QR, Payment.Method.TRANSFER)
+    )
+    referencia = serializers.CharField(max_length=150, required=False, allow_blank=True)
+
+
+class CompanyManualPaymentView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=ManualPaymentRequestSerializer, responses={201: PaymentSerializer})
+    def post(self, request):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = ManualPaymentRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment = services.register_manual_payment(
+            actor=request.user, tenant_id=tenant_id,
+            booking_id=serializer.validated_data["reserva_id"],
+            method=serializer.validated_data["metodo"],
+            reference=serializer.validated_data.get("referencia"),
+            idempotency_key=request.headers.get("Idempotency-Key", ""), request=request,
+        )
+        payment = services.base_queryset().get(id=payment.id)
+        return Response(PaymentSerializer(payment).data, status=201)
 
 
 class StripeWebhookView(APIView):

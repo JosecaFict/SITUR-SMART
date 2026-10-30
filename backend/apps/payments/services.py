@@ -1,10 +1,13 @@
 from datetime import date, datetime, time, timedelta
 
+from django.db import transaction
 from django.db.models import Prefetch, Q, QuerySet, Sum
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
-from apps.bookings.models import BookingDetail
+from apps.audit.services import record_audit
+from apps.bookings import services as booking_services
+from apps.bookings.models import Booking, BookingDetail, BookingState, InventoryLock
 from apps.rbac.services import require_permission, require_tenant_access
 
 from .models import Payment, Refund
@@ -100,3 +103,70 @@ def company_summary(*, actor, tenant_id: int, params) -> list[dict]:
         }
         for row in currencies
     ]
+
+
+@transaction.atomic
+def register_manual_payment(
+    *, actor, tenant_id: int, booking_id: int, method: str, reference: str | None,
+    idempotency_key: str, request=None,
+) -> Payment:
+    """Confirma el importe congelado de una reserva; el cliente no decide el monto."""
+    require_tenant_access(actor, tenant_id)
+    require_permission(actor, "RESERVAS_GESTIONAR", tenant_id)
+    if method not in (Payment.Method.CASH, Payment.Method.QR, Payment.Method.TRANSFER):
+        raise ValidationError({"metodo": "Usa EFECTIVO, QR o TRANSFERENCIA."})
+    reference = (reference or "").strip()
+    if method != Payment.Method.CASH and not reference:
+        raise ValidationError({"referencia": "La referencia es obligatoria para QR o transferencia."})
+    if not idempotency_key:
+        raise ValidationError({"Idempotency-Key": "Envía una clave para evitar pagos duplicados."})
+    key = f"manual:{tenant_id}:{idempotency_key}"[:100]
+
+    existing = Payment.objects.select_related("booking").filter(idempotency_key=key).first()
+    if existing:
+        if existing.booking.tenant_id != tenant_id:
+            raise ValidationError("La clave de idempotencia ya fue utilizada.")
+        return existing
+
+    booking = (
+        Booking.objects.select_for_update()
+        .select_related("order__customer", "currency")
+        .filter(id=booking_id, tenant_id=tenant_id)
+        .first()
+    )
+    if booking is None:
+        raise NotFound("Reserva no encontrada.")
+    if booking.status != BookingState.CREATED:
+        raise ValidationError("Solo se registra manualmente una reserva pendiente de pago.")
+    if booking.final_amount is None or booking.final_amount <= 0:
+        raise ValidationError("La reserva no tiene un importe válido.")
+    if Payment.objects.filter(booking=booking, status=Payment.State.APPROVED).exists():
+        raise ValidationError("La reserva ya tiene un pago aprobado.")
+
+    now = timezone.now()
+    Payment.objects.filter(booking=booking, status=Payment.State.PENDING).update(
+        status=Payment.State.VOIDED, processed_at=now
+    )
+    provider_reference = reference or f"EFECTIVO-{tenant_id}-{booking.id}-{idempotency_key[-12:]}"
+    payment = Payment.objects.create(
+        booking=booking, payer_id=booking.order.customer_id, currency=booking.currency,
+        amount=booking.final_amount, method=method, status=Payment.State.APPROVED,
+        provider="MANUAL", reference=provider_reference[:150], idempotency_key=key,
+        processed_at=now,
+    )
+    InventoryLock.objects.filter(
+        booking=booking, status=InventoryLock.State.ACTIVE
+    ).update(status=InventoryLock.State.CONSUMED)
+    booking_services._transition(
+        booking, BookingState.CONFIRMED, user=actor,
+        reason=f"Pago manual {method} registrado por {actor.get_full_name()}.",
+    )
+    record_audit(
+        actor=actor, tenant_id=tenant_id, action="REGISTRAR_PAGO_MANUAL",
+        entity="pago", entity_id=str(payment.id),
+        new_data={
+            "reserva": booking.code, "metodo": method, "monto": str(payment.amount),
+            "moneda": booking.currency.iso_code, "referencia": provider_reference,
+        }, request=request,
+    )
+    return payment

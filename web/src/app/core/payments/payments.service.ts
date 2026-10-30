@@ -69,6 +69,16 @@ export class PaymentsService {
     });
   }
 
+  registerManual(
+    tenantId: number,
+    data: { reserva_id: number; metodo: 'EFECTIVO' | 'QR' | 'TRANSFERENCIA'; referencia: string },
+    idempotencyKey: string,
+  ): Observable<PaymentMovement> {
+    return this.http.post<PaymentMovement>(`${this.api}/empresa/pagos/manuales/`, data, {
+      headers: { 'X-Tenant-ID': tenantId.toString(), 'Idempotency-Key': idempotencyKey },
+    });
+  }
+
   private params(filters: PaymentFilters): Record<string, string> {
     return Object.fromEntries(
       Object.entries(filters)
