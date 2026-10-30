@@ -117,6 +117,7 @@ export class AppShell implements OnDestroy {
     { label: 'Explorar', path: '/', icon: 'explore' },
     // Área del viajero.
     { label: 'Mis viajes', path: '/mis-viajes', icon: 'trips', customerOnly: true },
+    { label: 'Mis pagos', path: '/mis-pagos', icon: 'bookings', customerOnly: true },
     { label: 'Itinerarios', path: '/itinerarios', icon: 'itinerary', customerOnly: true },
     { label: 'Favoritos', path: '/favoritos', icon: 'favorites', customerOnly: true },
     { label: 'Notificaciones', path: '/notificaciones', icon: 'notifications', customerOnly: true },
@@ -132,6 +133,13 @@ export class AppShell implements OnDestroy {
     {
       label: 'Reservas',
       path: '/reservas',
+      icon: 'bookings',
+      hideForCustomer: true,
+      permission: 'RESERVAS_LEER',
+    },
+    {
+      label: 'Pagos',
+      path: '/pagos',
       icon: 'bookings',
       hideForCustomer: true,
       permission: 'RESERVAS_LEER',

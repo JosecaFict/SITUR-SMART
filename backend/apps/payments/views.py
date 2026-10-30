@@ -6,17 +6,64 @@ from django.http import HttpResponse
 from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema
-from rest_framework.permissions import AllowAny
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bookings import services as bookings
 from apps.payments import refunds
+from apps.rbac.views import tenant_id_from_request
 from apps.tenancy import subscriptions
 
-from . import gateway
+from . import gateway, services
+from .serializers import PaymentSerializer
 
 logger = logging.getLogger(__name__)
+
+
+class PaymentPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+class CustomerPaymentListView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=PaymentSerializer(many=True))
+    def get(self, request):
+        queryset = services.customer_payments(user=request.user, params=request.query_params)
+        paginator = PaymentPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        return paginator.get_paginated_response(PaymentSerializer(page, many=True).data)
+
+
+class CustomerPaymentDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=PaymentSerializer)
+    def get(self, request, pk):
+        payment = services.customer_payment(user=request.user, payment_id=pk)
+        return Response(PaymentSerializer(payment).data)
+
+
+class CompanyPaymentListView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=PaymentSerializer(many=True))
+    def get(self, request):
+        tenant_id = tenant_id_from_request(request, required=True)
+        queryset = services.company_payments(
+            actor=request.user, tenant_id=tenant_id, params=request.query_params
+        )
+        paginator = PaymentPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        response = paginator.get_paginated_response(PaymentSerializer(page, many=True).data)
+        response.data["resumen"] = services.company_summary(
+            actor=request.user, tenant_id=tenant_id, params=request.query_params
+        )
+        return response
 
 
 class StripeWebhookView(APIView):

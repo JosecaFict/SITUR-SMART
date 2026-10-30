@@ -86,6 +86,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/viajero/viaje-detalle').then((m) => m.ViajeDetalle),
       },
       {
+        path: 'mis-pagos',
+        loadComponent: () => import('./features/viajero/mis-pagos').then((m) => m.MisPagos),
+      },
+      {
         path: 'itinerarios',
         loadComponent: () => import('./features/viajero/itinerarios').then((m) => m.Itinerarios),
       },
@@ -132,6 +136,11 @@ export const routes: Routes = [
         path: 'reservas',
         canActivate: [anyPermissionGuard(['RESERVAS_LEER'])],
         loadComponent: () => import('./features/admin/reservas/reservas').then((m) => m.Reservas),
+      },
+      {
+        path: 'pagos',
+        canActivate: [anyPermissionGuard(['RESERVAS_LEER'])],
+        loadComponent: () => import('./features/admin/pagos/pagos').then((m) => m.Pagos),
       },
       {
         path: 'clientes',

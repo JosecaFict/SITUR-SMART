@@ -7,6 +7,7 @@ import '../../features/marketplace/presentation/explore_page.dart';
 import '../../features/marketplace/presentation/lodging_detail_page.dart';
 import '../../features/marketplace/presentation/product_detail_page.dart';
 import '../../features/notificaciones/presentation/notifications_page.dart';
+import '../../features/pagos/presentation/my_payments_page.dart';
 import '../../features/perfil/presentation/profile_page.dart';
 import '../../features/reservas/presentation/booking_detail_page.dart';
 import '../../features/reservas/presentation/my_trips_page.dart';
@@ -124,6 +125,12 @@ class AppRouter {
         path: '/notificaciones',
         name: 'notificaciones',
         builder: (context, state) => const NotificationsInboxPage(),
+      ),
+
+      GoRoute(
+        path: '/pagos',
+        name: 'pagos',
+        builder: (context, state) => const MyPaymentsPage(),
       ),
 
       // El personal de empresas y el SuperAdmin administran desde la web: aquí
