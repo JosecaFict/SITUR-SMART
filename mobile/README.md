@@ -11,7 +11,7 @@ La URL no está escrita directamente en el código. Se configura al ejecutar o c
 Backend desplegado en Railway (el mismo que usa la web):
 
 ```powershell
-flutter run --dart-define=API_URL=https://situr-smart-production.up.railway.app/api/v1/
+flutter run --dart-define=API_URL=https://situr-smart-production-54e4.up.railway.app/api/v1/
 ```
 
 Emulador Android con backend local:
@@ -29,7 +29,7 @@ flutter run --dart-define=API_URL=http://IP-DE-LA-COMPUTADORA:8000/api/v1/
 Para generar un APK conectado a Railway se incluye el mismo `--dart-define`:
 
 ```powershell
-flutter build apk --dart-define=API_URL=https://situr-smart-production.up.railway.app/api/v1/
+flutter build apk --dart-define=API_URL=https://situr-smart-production-54e4.up.railway.app/api/v1/
 ```
 
 Sin `--dart-define`, la app usa `http://10.0.2.2:8000/api/v1/` (emulador contra backend local).

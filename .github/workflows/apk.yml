@@ -20,7 +20,7 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.47.2"
-  API_URL: ${{ vars.API_URL || 'https://situr-smart-production.up.railway.app/api/v1/' }}
+  API_URL: ${{ vars.API_URL || 'https://situr-smart-production-54e4.up.railway.app/api/v1/' }}
 
 jobs:
   apk:
