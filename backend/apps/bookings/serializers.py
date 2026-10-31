@@ -14,7 +14,9 @@ class BookingRequestSerializer(serializers.Serializer):
     """Lo que el turista pide. Igual para cotizar y para reservar."""
 
     producto_id = serializers.IntegerField(min_value=1)
-    fecha_inicio = serializers.DateField()
+    # En un tour con ficha basta la salida; sin ella se busca la salida de esa fecha.
+    fecha_inicio = serializers.DateField(required=False)
+    salida_id = serializers.IntegerField(min_value=1, required=False)
     # Solo en habitaciones: el dia de salida (la ultima noche es la anterior).
     fecha_fin = serializers.DateField(required=False, allow_null=True)
     # Habitaciones en un hospedaje; personas en lo demas.
@@ -24,6 +26,11 @@ class BookingRequestSerializer(serializers.Serializer):
     acepta_politica_cancelacion = serializers.BooleanField(required=False)
     razon_social_facturacion = serializers.CharField(max_length=180, required=False, allow_blank=True)
     nit_facturacion = serializers.CharField(max_length=40, required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if "fecha_inicio" not in attrs and "salida_id" not in attrs:
+            raise serializers.ValidationError({"fecha_inicio": "Indica la fecha o la salida."})
+        return attrs
 
 
 class QuoteSerializer(serializers.Serializer):
@@ -39,6 +46,8 @@ class QuoteSerializer(serializers.Serializer):
     moneda_simbolo = serializers.CharField()
     disponibles = serializers.IntegerField()
     disponible = serializers.BooleanField()
+    salida_id = serializers.IntegerField(allow_null=True)
+    salida_inicio = serializers.DateTimeField(allow_null=True)
     politica_cancelacion = serializers.DictField(allow_null=True)
 
     @staticmethod
@@ -58,6 +67,8 @@ class QuoteSerializer(serializers.Serializer):
             "moneda_simbolo": product.currency.symbol,
             "disponibles": remaining,
             "disponible": remaining >= quote.quantity,
+            "salida_id": quote.departure.id if quote.departure else None,
+            "salida_inicio": quote.departure.start if quote.departure else None,
             "politica_cancelacion": {
                 "id": policy.id,
                 "nombre": policy.name,

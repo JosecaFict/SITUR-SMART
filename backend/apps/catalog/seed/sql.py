@@ -169,6 +169,84 @@ def _company(empresa: dict) -> list[str]:
     return lines
 
 
+def _tours(empresa: dict) -> list[str]:
+    """Fichas, recorridos, guias y salidas de los tours (CU20).
+
+    Va aparte de ``_company`` porque tambien tiene que completar empresas que ya
+    existian antes de CU20. Todo es idempotente: la ficha y los guias se crean
+    una vez y las salidas repetidas chocan con uq_disponibilidad_producto_inicio
+    y se omiten, asi que cada ejecucion solo suma las semanas que falten.
+    """
+    tours = [item for item in empresa["productos"] if item.get("ficha")]
+    if not tours or empresa["estado"] != "ACTIVO":
+        return []
+    lines = [
+        "",
+        f"  -- Tours de {empresa['nombre']}",
+        f"  v_tenant := NULL; SELECT id INTO v_tenant FROM tenant WHERE nombre_comercial = {q(empresa['nombre'])} "
+        "AND estado = 'ACTIVO';",
+        "  IF v_tenant IS NOT NULL THEN",
+    ]
+    for guide in bolivia.guias_empresa(empresa):
+        lines += [
+            "    INSERT INTO guia (id_tenant, nombres, idiomas)",
+            f"    SELECT v_tenant, {q(guide['nombres'])}, {q(json.dumps(guide['idiomas'], ensure_ascii=False))}::jsonb",
+            f"    WHERE NOT EXISTS (SELECT 1 FROM guia WHERE id_tenant = v_tenant AND nombres = {q(guide['nombres'])});",
+        ]
+    guide_names = {guide["usuario"]: guide["nombres"] for guide in bolivia.guias_empresa(empresa)}
+    days = 7 * bolivia.SEMANAS_SALIDAS
+
+    for item in tours:
+        ficha = item["ficha"]
+        lines += [
+            "    v_producto := NULL;",
+            "    SELECT p.id INTO v_producto FROM producto_turistico p JOIN tipo_producto t ON t.id = p.id_tipo_producto",
+            f"     WHERE p.id_tenant = v_tenant AND p.nombre = {q(item['nombre'])} AND t.codigo = {q(item['tipo'])};",
+            "    IF v_producto IS NOT NULL AND NOT EXISTS (SELECT 1 FROM detalle_tour WHERE id_producto = v_producto) THEN",
+            "      INSERT INTO detalle_tour (id_producto, id_tenant, duracion_minutos, idioma, dificultad, edad_minima, "
+            "punto_encuentro, latitud, longitud, incluye, no_incluye, requisitos)",
+            f"      VALUES (v_producto, v_tenant, {ficha['duracion_minutos']}, {q(ficha['idioma'])}, "
+            f"{q(ficha['dificultad'])}, {q(ficha['edad_minima'])}, {q(ficha['punto_encuentro'])}, "
+            f"{ficha['latitud']}, {ficha['longitud']}, "
+            f"{q(json.dumps(ficha['incluye'], ensure_ascii=False))}::jsonb, "
+            f"{q(json.dumps(ficha['no_incluye'], ensure_ascii=False))}::jsonb, {q(ficha['requisitos'])});",
+        ]
+        for order, stop in enumerate(ficha["paradas"], start=1):
+            lines.append(
+                "      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) "
+                f"VALUES (v_producto, v_tenant, {order}, {q(stop['nombre'])}, {q(stop['descripcion'])}, "
+                f"{q(stop['duracion_minutos'])});"
+            )
+        lines += [
+            # Desde ahora se vende por salidas: los cupos diarios futuros dejan de venderse.
+            "      UPDATE disponibilidad SET cerrado = TRUE WHERE id_producto = v_producto "
+            "AND inicio > CURRENT_TIMESTAMP AND NOT cerrado;",
+            "    END IF;",
+        ]
+        schedule = ficha["salidas"]
+        if schedule["horas"]:
+            iso_days = ", ".join(str(day + 1) for day in schedule["dias"])
+            guide_sql = (
+                f"(SELECT id FROM guia WHERE id_tenant = v_tenant AND nombres = {q(guide_names[schedule['guia']])})"
+                if schedule["guia"] else "NULL"
+            )
+            for hour in schedule["horas"]:
+                start = f"((g.d + TIME {q(hour)}) AT TIME ZONE 'America/La_Paz')"
+                lines += [
+                    "    IF v_producto IS NOT NULL THEN",
+                    "      INSERT INTO disponibilidad (id_producto, id_tenant, inicio, fin, cupo_total, id_guia)",
+                    f"      SELECT v_producto, v_tenant, {start}, {start} + INTERVAL '{ficha['duracion_minutos']} minutes', "
+                    f"p.capacidad_maxima, {guide_sql}",
+                    "        FROM producto_turistico p,",
+                    f"             generate_series(CURRENT_DATE + 1, CURRENT_DATE + {days}, INTERVAL '1 day') AS g(d)",
+                    f"       WHERE p.id = v_producto AND EXTRACT(ISODOW FROM g.d) IN ({iso_days})",
+                    "      ON CONFLICT (id_producto, inicio) DO NOTHING;",
+                    "    END IF;",
+                ]
+    lines.append("  END IF;")
+    return lines
+
+
 def render(*, limpiar_demo_viejo: bool = False) -> str:
     lines = [
         "-- ============================================================",
@@ -177,7 +255,8 @@ def render(*, limpiar_demo_viejo: bool = False) -> str:
         "-- No editar a mano: los datos viven en backend/apps/catalog/seed/bolivia.py",
         "--",
         f"-- Contrasena de todas las cuentas: {bolivia.PASSWORD} (aqui viaja cifrada).",
-        "-- Se puede ejecutar mas de una vez: las empresas que ya existen se omiten.",
+        "-- Se puede ejecutar mas de una vez: las empresas que ya existen se omiten y a los",
+        "-- tours solo se les suman las salidas de las semanas que falten.",
         "-- Si algo falla, no se guarda nada.",
         "-- ============================================================",
         "",
@@ -214,6 +293,10 @@ def render(*, limpiar_demo_viejo: bool = False) -> str:
 
     for empresa in bolivia.EMPRESAS:
         lines += _company(empresa)
+
+    lines += ["", "  -- Tours y experiencias (CU20): fichas, guias y salidas de las proximas semanas"]
+    for empresa in bolivia.EMPRESAS:
+        lines += _tours(empresa)
 
     lines += ["", "  -- Turistas"]
     for tourist in bolivia.cuentas_turistas():

@@ -15,6 +15,7 @@ La cuenta del **SuperAdmin** no está aquí: se crea con `python manage.py creat
 - 18 empresas, 53 cuentas.
 - 8 hoteles con 27 tipos de habitación.
 - 37 productos más (restaurantes, tours, experiencias, atracciones y paquetes).
+- 18 tours y experiencias con ficha y recorrido; 17 con salidas para las próximas 6 semanas; 7 guías.
 - Una empresa suspendida (Red Cap Walking Tours) y una pendiente de activación (Tupiza Tours).
 
 ## Cómo cargar los datos
@@ -25,6 +26,9 @@ python manage.py createsituradmin        # solo si todavía no existe un SuperAd
 python manage.py seed_bolivia            # carga todo; lo que ya existe se omite
 python manage.py seed_bolivia --reset    # borra lo que creó el seed y lo vuelve a cargar
 ```
+
+Volver a ejecutar `seed_bolivia` no duplica nada y suma a los tours las salidas de las semanas
+que falten, así la demo siempre tiene salidas próximas.
 
 Sin acceso a `manage.py` (por ejemplo, la base de Railway): abrir
 `backend/database/seed_bolivia.sql` en el Query Tool de pgAdmin y ejecutarlo. Hace lo mismo
@@ -123,6 +127,12 @@ y se puede ejecutar más de una vez.
 - **Plan:** Max
 - **Estado:** Activa
 - **Publica:** 1 hotel, 5 tipos de habitación, 3 tours, 2 experiencias, 2 paquetes
+- **Tours con salidas:**
+  - City Tour Santa Cruz de la Sierra: lun, mar, mié, jue, vie, sáb a las 09:00 · guía: Guía 1 SczTourBo
+  - Lomas de Arena: mar, jue, sáb a las 14:00 · guía: Guía 1 SczTourBo
+  - Fuerte de Samaipata y Valles: mié, dom a las 07:00 · guía: Guía 2 SczTourBo
+  - Noche Cruceña con Show Folclórico: vie, sáb a las 20:00
+  - Avistamiento de Aves en el Jardín Botánico: sáb a las 06:30 · guía: Guía 2 SczTourBo
 
 | Rol | Email |
 |---|---|
@@ -187,6 +197,11 @@ y se puede ejecutar más de una vez.
 - **Plan:** Pro
 - **Estado:** Activa
 - **Publica:** 3 tours, 1 experiencia
+- **Tours con salidas:**
+  - Descenso en Bicicleta por el Camino de la Muerte: todos los días a las 07:00 · guía: Guía 1 Gravity Bolivia
+  - Bici de Montaña en Chacaltaya: mar, vie a las 07:30 · guía: Guía 2 Gravity Bolivia
+  - Ruta en Bicicleta a Sorata: sáb a las 07:00 · guía: Guía 2 Gravity Bolivia
+  - Tirolesa en los Yungas: todos los días a las 14:00
 
 | Rol | Email |
 |---|---|
@@ -214,6 +229,11 @@ y se puede ejecutar más de una vez.
 - **Plan:** Pro
 - **Estado:** Activa
 - **Publica:** 3 tours, 1 experiencia, 1 paquete
+- **Tours con salidas:**
+  - Salar de Uyuni Día Completo: todos los días a las 10:00 · guía: Guía 1 Red Planet Expedition
+  - Travesía 3D/2N Salar y Lagunas de Colores: lun, jue a las 10:30 · guía: Guía 2 Red Planet Expedition
+  - Atardecer y Estrellas en el Salar: todos los días a las 16:00
+  - Amanecer en el Espejo del Salar: sin salidas (queda en borrador)
 
 | Rol | Email |
 |---|---|
@@ -228,6 +248,10 @@ y se puede ejecutar más de una vez.
 - **Plan:** Pro
 - **Estado:** Activa
 - **Publica:** 1 hotel, 2 tipos de habitación, 2 tours, 1 experiencia
+- **Tours con salidas:**
+  - Expedición 3D/2N en el Parque Madidi: lun a las 08:00 · guía: Guía 1 Madidi Jungle Ecolodge
+  - Pampas del Yacuma 3D/2N: jue a las 08:00 · guía: Guía 1 Madidi Jungle Ecolodge
+  - Caminata Nocturna en la Selva: todos los días a las 19:00
 
 | Rol | Email |
 |---|---|
@@ -241,6 +265,9 @@ y se puede ejecutar más de una vez.
 - **Plan:** Básico
 - **Estado:** Activa
 - **Publica:** 2 experiencias
+- **Tours con salidas:**
+  - Visita y Cata en Bodegas Kohlberg: mar, mié, jue, vie, sáb a las 10:00 y 15:00
+  - Ruta del Vino y Singani: sáb a las 09:00
 
 | Rol | Email |
 |---|---|

@@ -23,7 +23,7 @@ from apps.audit.services import record_audit
 from apps.rbac.services import require_permission, require_tenant_access
 from apps.tenancy.subscriptions import is_restricted, owner_ids, require_active_plan
 
-from .models import ROOM_PRODUCT_CODE, LodgingEstablishment, TourismProduct
+from .models import ROOM_PRODUCT_CODE, LodgingEstablishment, TourDetail, TourismProduct
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,11 @@ def _publish_problem(product: TourismProduct) -> str | None:
         return "el hospedaje no tiene ninguna habitación publicada con precio"
     if lodging is None and product.base_price <= 0:
         return "el producto no tiene precio"
+    if TourDetail.objects.filter(product_id=product.id).exists():
+        from .tours import publish_problems
+
+        if problems := publish_problems(product):
+            return problems[0].rstrip(".").lower()
     return None
 
 

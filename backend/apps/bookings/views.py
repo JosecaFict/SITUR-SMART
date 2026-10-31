@@ -34,7 +34,8 @@ def _request_args(request, *, include_policy: bool = False) -> dict:
     data = serializer.validated_data
     result = {
         "product_id": data["producto_id"],
-        "start": data["fecha_inicio"],
+        "start": data.get("fecha_inicio"),
+        "departure_id": data.get("salida_id"),
         "end": data.get("fecha_fin"),
         "quantity": data["cantidad"],
         "guests": data.get("huespedes"),
