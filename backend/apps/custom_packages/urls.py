@@ -6,6 +6,7 @@ from .views import (
                     PackageComponentListView,
                     PackageDetailView,
                     PackageListView,
+                    PackagePurchaseView,
                     PackageQuoteView,
                     PackageValidationView,
 )
@@ -18,4 +19,5 @@ urlpatterns = [
     path("me/paquetes/<int:pk>/componentes/<int:component_id>/", PackageComponentDetailView.as_view(), name="custom-package-component-detail"),
     path("me/paquetes/<int:pk>/cotizar/", PackageQuoteView.as_view(), name="custom-package-quote"),
     path("me/paquetes/<int:pk>/validar/", PackageValidationView.as_view(), name="custom-package-validate"),
+    path("me/paquetes/<int:pk>/comprar/", PackagePurchaseView.as_view(), name="custom-package-purchase"),
 ]

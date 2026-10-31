@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Min, Sum
 from django.utils import timezone
@@ -151,10 +152,15 @@ def _submit_refund(refund: Refund) -> Refund:
     if refund.status != Refund.State.REQUESTED or refund.provider_reference:
         return reconcile_refund(refund)
     payment = refund.payment
-    if not payment.reference:
+    session_reference = payment.reference
+    try:
+        session_reference = payment.booking.package_allocation.purchase.provider_reference
+    except (AttributeError, ObjectDoesNotExist):
+        pass
+    if not session_reference:
         raise ValidationError("El pago no tiene una referencia reembolsable.")
     result = gateway.create_refund(
-        session_id=payment.reference,
+        session_id=session_reference,
         amount=refund.amount,
         idempotency_key=refund.idempotency_key,
         metadata={

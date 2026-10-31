@@ -40,6 +40,7 @@ export interface CustomPackage {
   componentes?: PackageComponent[];
   advertencias?: string[];
   requiere_revalidacion?: boolean;
+  compra?: { id: number; estado: string; total: string; reservas: number[] } | null;
 }
 
 export interface PackagePayload {
@@ -70,3 +71,11 @@ export interface PackageQuote {
 }
 
 export type PackageCatalogPage = MarketplacePage;
+
+export interface PackagePurchaseResult {
+  id: number;
+  estado: 'CREADA' | 'CONFIRMADA' | 'CANCELADA' | 'EXPIRADA' | 'REEMBOLSADA';
+  total: string;
+  checkout_url: string | null;
+  reservas: number[];
+}

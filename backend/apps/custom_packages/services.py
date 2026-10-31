@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -161,6 +162,16 @@ def package_data(package, *, detail=True):
         "total": str(package.total), "cantidad_servicios": package.components.count(),
         "creado_en": package.created_at, "actualizado_en": package.updated_at,
     }
+    try:
+        purchase = package.purchase
+    except ObjectDoesNotExist:
+        purchase = None
+    data["compra"] = ({
+        "id": purchase.id,
+        "estado": purchase.status,
+        "total": str(purchase.final_amount),
+        "reservas": list(purchase.allocations.values_list("booking_id", flat=True)),
+    } if purchase else None)
     if detail:
         components, warnings = evaluate(package)
         data.update(componentes=components, advertencias=warnings,

@@ -9,9 +9,11 @@ from apps.catalog.views import MarketplacePagination
 
 from . import services
 from .models import CustomPackage
+from .purchase import create_purchase
 from .serializers import (
     CatalogQuerySerializer,
     ComponentWriteSerializer,
+    PackagePurchaseSerializer,
     PackageWriteSerializer,
 )
 
@@ -104,3 +106,26 @@ class PackageValidationView(APIView):
         if not isinstance(save, bool):
             raise ValidationError({"guardar": "Debe ser verdadero o falso."})
         return Response(services.package_data(services.validate_package(request.user, pk, save=save)))
+
+
+class PackagePurchaseView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, pk):
+        serializer = PackagePurchaseSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        purchase = create_purchase(
+            user=request.user, package_id=pk,
+            success_url=data["success_url"], cancel_url=data["cancel_url"],
+            policies_accepted=data["acepta_politicas"],
+            billing_name=data.get("razon_social_facturacion"),
+            billing_tax_id=data.get("nit_facturacion"),
+            idempotency_key=request.headers.get("Idempotency-Key"),
+        )
+        return Response({
+            "id": purchase.id, "estado": purchase.status,
+            "total": str(purchase.final_amount),
+            "checkout_url": getattr(purchase, "checkout_url", None),
+            "reservas": list(purchase.allocations.values_list("booking_id", flat=True)),
+        }, status=status.HTTP_201_CREATED)

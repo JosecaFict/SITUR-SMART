@@ -54,3 +54,11 @@ class CatalogQuerySerializer(serializers.Serializer):
     buscar = serializers.CharField(max_length=180, required=False)
     page = serializers.IntegerField(min_value=1, required=False)
     page_size = serializers.IntegerField(min_value=1, max_value=50, required=False)
+
+
+class PackagePurchaseSerializer(serializers.Serializer):
+    acepta_politicas = serializers.BooleanField()
+    razon_social_facturacion = serializers.CharField(max_length=180, required=False, allow_blank=True)
+    nit_facturacion = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    success_url = serializers.URLField()
+    cancel_url = serializers.URLField()
