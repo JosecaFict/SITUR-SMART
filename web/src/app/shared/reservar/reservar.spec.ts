@@ -113,6 +113,58 @@ describe('Reservar', () => {
     }, jasmine.any(String));
   });
 
+  describe('en un tour que se vende por salidas', () => {
+    const departures = [
+      { id: 31, tour_id: 7, inicio: '2026-11-08T08:00:00-04:00', fin: '2026-11-08T11:30:00-04:00', disponibles: 3, guia: 'Marcelo Choque', guia_idiomas: ['Español'] },
+      { id: 32, tour_id: 7, inicio: '2026-11-09T08:00:00-04:00', fin: '2026-11-09T11:30:00-04:00', disponibles: 0, guia: null, guia_idiomas: null },
+    ];
+
+    function renderTour(list = departures): void {
+      fixture = TestBed.createComponent(Reservar);
+      fixture.componentRef.setInput('productId', 7);
+      fixture.componentRef.setInput('maxQuantity', 12);
+      fixture.componentRef.setInput('departures', list);
+      fixture.detectChanges();
+    }
+
+    function chooseDeparture(id: number): void {
+      const select = el().querySelector('select[aria-label="Salida"]') as HTMLSelectElement;
+      select.value = String(id);
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    }
+
+    it('pide elegir una salida en vez de una fecha', () => {
+      renderTour();
+      expect(el().querySelector('input[aria-label="Fecha de inicio"]')).toBeNull();
+      const options = Array.from(el().querySelectorAll('select[aria-label="Salida"] option')) as HTMLOptionElement[];
+      expect(options.length).toBe(3);
+      expect(options[2].disabled).toBeTrue();
+      expect(options[2].textContent).toContain('agotada');
+    });
+
+    it('cotiza con la salida y sin fecha, y muestra el guía', () => {
+      renderTour();
+      chooseDeparture(31);
+      expect(traveler.quote).toHaveBeenCalledWith({ producto_id: 7, salida_id: 31, cantidad: 1 });
+      expect(el().textContent).toContain('Guía: Marcelo Choque');
+    });
+
+    it('no ofrece más personas que los lugares libres de la salida', () => {
+      renderTour();
+      chooseDeparture(31);
+      const options = el().querySelectorAll('select[aria-label="Cantidad"] option');
+      expect(options.length).toBe(3);
+    });
+
+    it('sin salidas próximas lo dice y no deja reservar', () => {
+      renderTour([]);
+      expect(el().textContent).toContain('no tiene salidas próximas');
+      const button = Array.from(el().querySelectorAll('button')).find((b) => b.textContent?.includes('Reservar y pagar')) as HTMLButtonElement;
+      expect(button.disabled).toBeTrue();
+    });
+  });
+
   it('no permite pagar hasta aceptar la política', () => {
     render();
     pickDate('Fecha de inicio', '2026-10-20');

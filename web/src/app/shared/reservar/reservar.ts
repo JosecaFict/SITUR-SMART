@@ -3,6 +3,7 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { apiErrorMessage } from '../../core/http/api-error';
+import { PublicDeparture } from '../../core/tours/tours.models';
 import { BookingQuote, BookingRequest } from '../../core/traveler/traveler.models';
 import { TravelerService, newIdempotencyKey } from '../../core/traveler/traveler.service';
 import { VerificarCorreo } from '../verificar-correo/verificar-correo';
@@ -12,9 +13,18 @@ function isoDay(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** "sáb 8 nov · 08:00". */
+function departureLabel(departure: PublicDeparture): string {
+  const start = new Date(departure.inicio);
+  const day = start.toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
+  const time = start.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${day} · ${time}`;
+}
+
 /**
  * Reservar desde la web: una habitación (llegada, salida, habitaciones y
- * huéspedes) o un tour/experiencia (día y personas). Cotiza con el backend en
+ * huéspedes), un tour con salidas (salida y personas) o lo demás (día y
+ * personas). Cotiza con el backend en
  * cada cambio y abre el pago en Stripe, que vuelve a Mis viajes.
  */
 @Component({
@@ -30,9 +40,29 @@ function isoDay(date: Date): string {
         </button>
       } @else {
         <div class="mt-3 grid gap-3" [class]="isRoom() ? 'sm:grid-cols-2' : ''">
-          <label class="flex flex-col gap-1 text-xs font-semibold text-label">{{ isRoom() ? 'Llegada' : 'Fecha' }}
-            <input type="date" class="field-control" [min]="today" [value]="start()" (change)="start.set($any($event.target).value); requote()" aria-label="Fecha de inicio" />
-          </label>
+          @if (departures(); as list) {
+            @if (list.length === 0) {
+              <p class="text-text-secondary text-sm">Este tour no tiene salidas próximas. Vuelve a revisar más adelante.</p>
+            } @else {
+              <label class="flex flex-col gap-1 text-xs font-semibold text-label">Salida
+                <select class="field-control" (change)="chooseDeparture(+$any($event.target).value)" aria-label="Salida">
+                  <option value="">Elige una salida…</option>
+                  @for (departure of list; track departure.id) {
+                    <option [value]="departure.id" [disabled]="departure.disponibles === 0" [selected]="departure.id === departureId()">
+                      {{ label(departure) }} — {{ departure.disponibles === 0 ? 'agotada' : departure.disponibles + ' lugares' }}
+                    </option>
+                  }
+                </select>
+              </label>
+              @if (chosenDeparture()?.guia; as guide) {
+                <p class="text-text-secondary -mt-1 text-xs">Guía: {{ guide }}{{ chosenDeparture()?.guia_idiomas?.length ? ' (' + chosenDeparture()!.guia_idiomas!.join(', ') + ')' : '' }}</p>
+              }
+            }
+          } @else {
+            <label class="flex flex-col gap-1 text-xs font-semibold text-label">{{ isRoom() ? 'Llegada' : 'Fecha' }}
+              <input type="date" class="field-control" [min]="today" [value]="start()" (change)="start.set($any($event.target).value); requote()" aria-label="Fecha de inicio" />
+            </label>
+          }
           @if (isRoom()) {
             <label class="flex flex-col gap-1 text-xs font-semibold text-label">Salida
               <input type="date" class="field-control" [min]="start() || today" [value]="end()" (change)="end.set($any($event.target).value); requote()" aria-label="Fecha de salida" />
@@ -107,6 +137,15 @@ export class Reservar {
   readonly maxQuantity = input(1);
   /** Huéspedes por habitación (solo habitaciones). */
   readonly capacityPerUnit = input(1);
+  /**
+   * Salidas de un tour que se vende por salidas. Con `null` (lo demás) se
+   * elige un día; con una lista, una salida concreta.
+   */
+  readonly departures = input<PublicDeparture[] | null>(null);
+  protected readonly departureId = signal<number | null>(null);
+  protected readonly chosenDeparture = computed(
+    () => this.departures()?.find((item) => item.id === this.departureId()) ?? null,
+  );
 
   protected readonly today = isoDay(new Date());
   protected readonly start = signal('');
@@ -123,7 +162,12 @@ export class Reservar {
   protected readonly billingTaxId = signal('');
   private idempotencyKey = newIdempotencyKey();
 
-  protected readonly quantities = computed(() => Array.from({ length: Math.max(1, Math.min(this.maxQuantity(), 20)) }, (_, i) => i + 1));
+  protected readonly quantities = computed(() => {
+    // En una salida, no se ofrecen más personas que los lugares libres.
+    const free = this.chosenDeparture()?.disponibles;
+    const max = free !== undefined ? Math.min(this.maxQuantity(), free) : this.maxQuantity();
+    return Array.from({ length: Math.max(1, Math.min(max, 20)) }, (_, i) => i + 1);
+  });
   protected readonly guestOptions = computed(() => {
     const max = Math.max(this.quantity(), this.quantity() * this.capacityPerUnit());
     return Array.from({ length: max - this.quantity() + 1 }, (_, i) => this.quantity() + i);
@@ -142,6 +186,17 @@ export class Reservar {
     return `${range}: devolución del ${refund} %`;
   }
 
+  protected label(departure: PublicDeparture): string {
+    return departureLabel(departure);
+  }
+
+  protected chooseDeparture(id: number): void {
+    this.departureId.set(id || null);
+    const free = this.chosenDeparture()?.disponibles;
+    if (free !== undefined && this.quantity() > free) this.quantity.set(Math.max(1, free));
+    this.requote();
+  }
+
   protected goLogin(): void {
     this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
   }
@@ -153,6 +208,10 @@ export class Reservar {
   }
 
   private request(): BookingRequest | null {
+    if (this.departures() !== null) {
+      const departureId = this.departureId();
+      return departureId ? { producto_id: this.productId(), salida_id: departureId, cantidad: this.quantity() } : null;
+    }
     if (!this.start() || (this.isRoom() && !this.end())) return null;
     return {
       producto_id: this.productId(),

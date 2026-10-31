@@ -200,6 +200,32 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/hospedajes/hospedaje-detalle').then((m) => m.HospedajeDetalle),
       },
+      // Tours y experiencias (CU20). 'nuevo' va antes de ':id'.
+      {
+        path: 'tours',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () => import('./features/admin/tours/tours-lista').then((m) => m.ToursLista),
+      },
+      {
+        path: 'tours/nuevo',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () => import('./features/admin/tours/tour-form').then((m) => m.TourForm),
+      },
+      {
+        path: 'tours/:id',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () => import('./features/admin/tours/tour-form').then((m) => m.TourForm),
+      },
+      {
+        path: 'tours/:id/salidas',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () => import('./features/admin/tours/tour-salidas').then((m) => m.TourSalidas),
+      },
+      {
+        path: 'guias',
+        canActivate: [permissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () => import('./features/admin/guias/guias').then((m) => m.Guias),
+      },
       {
         path: 'reportes',
         canActivate: [anyPermissionGuard(['REPORTES_GLOBALES', 'REPORTES_TENANT'])],

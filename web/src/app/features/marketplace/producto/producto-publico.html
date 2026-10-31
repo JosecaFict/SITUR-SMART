@@ -35,6 +35,68 @@
             <p class="text-text-secondary mt-1 flex items-center gap-2 text-sm"><svg lucideUsers class="h-4 w-4"></svg>Hasta {{ item.capacidad_maxima }} personas</p>
           }
           <p class="text-label mt-4 text-sm leading-relaxed">{{ item.descripcion || 'La empresa todavía no agregó una descripción.' }}</p>
+
+          @if (tour()?.detalle; as detail) {
+            <div class="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
+              @if (detail.duracion) { <span class="bg-demo-bg text-accent-dark flex items-center gap-1.5 rounded-full px-3 py-1.5"><svg lucideClock class="h-3.5 w-3.5"></svg>{{ detail.duracion }}</span> }
+              @if (detail.idioma) { <span class="bg-demo-bg text-accent-dark flex items-center gap-1.5 rounded-full px-3 py-1.5"><svg lucideLanguages class="h-3.5 w-3.5"></svg>{{ detail.idioma }}</span> }
+              @if (detail.dificultad) { <span class="bg-demo-bg text-accent-dark flex items-center gap-1.5 rounded-full px-3 py-1.5"><svg lucideMountain class="h-3.5 w-3.5"></svg>Dificultad {{ difficulty(detail.dificultad).toLowerCase() }}</span> }
+              @if (detail.edad_minima) { <span class="bg-demo-bg text-accent-dark flex items-center gap-1.5 rounded-full px-3 py-1.5"><svg lucideBaby class="h-3.5 w-3.5"></svg>Desde {{ detail.edad_minima }} años</span> }
+            </div>
+
+            @if (detail.incluye.length || detail.no_incluye.length) {
+              <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                @if (detail.incluye.length) {
+                  <div>
+                    <p class="text-sm font-bold text-title">Incluye</p>
+                    <ul class="mt-2 space-y-1 text-sm text-label">
+                      @for (item of detail.incluye; track item) { <li class="flex items-start gap-2"><svg lucideCheck class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"></svg>{{ item }}</li> }
+                    </ul>
+                  </div>
+                }
+                @if (detail.no_incluye.length) {
+                  <div>
+                    <p class="text-sm font-bold text-title">No incluye</p>
+                    <ul class="mt-2 space-y-1 text-sm text-label">
+                      @for (item of detail.no_incluye; track item) { <li class="flex items-start gap-2"><svg lucideX class="mt-0.5 h-4 w-4 shrink-0 text-gray-400"></svg>{{ item }}</li> }
+                    </ul>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (tour()!.paradas.length) {
+              <div class="mt-6">
+                <p class="flex items-center gap-2 text-sm font-bold text-title"><svg lucideRoute class="h-4 w-4"></svg>Recorrido</p>
+                <ol class="border-input-border mt-3 space-y-3 border-l-2 pl-5">
+                  @for (stop of tour()!.paradas; track stop.id) {
+                    <li class="relative">
+                      <span class="bg-accent absolute top-1 -left-[1.6rem] h-3 w-3 rounded-full"></span>
+                      <p class="text-sm font-semibold text-title">{{ stop.nombre }}@if (stop.duracion_minutos) { <span class="text-text-secondary font-normal"> · {{ stop.duracion_minutos }} min</span> }</p>
+                      @if (stop.descripcion) { <p class="text-text-secondary text-sm">{{ stop.descripcion }}</p> }
+                    </li>
+                  }
+                </ol>
+              </div>
+            }
+
+            @if (detail.punto_encuentro || meetingPoint()) {
+              <div class="mt-6">
+                <p class="flex items-center gap-2 text-sm font-bold text-title"><svg lucideMapPin class="h-4 w-4"></svg>Punto de encuentro</p>
+                @if (detail.punto_encuentro) { <p class="text-label mt-1 text-sm">{{ detail.punto_encuentro }}</p> }
+                @if (meetingPoint(); as point) {
+                  <div class="mt-3"><situr-mapa-ubicacion [value]="point" [center]="point" [editable]="false" /></div>
+                }
+              </div>
+            }
+
+            @if (detail.requisitos) {
+              <div class="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p class="font-bold">Antes de ir</p>
+                <p class="mt-1">{{ detail.requisitos }}</p>
+              </div>
+            }
+          }
           <div class="mt-5 flex flex-wrap items-center gap-3">
             <div class="border-input-border rounded-2xl border bg-white px-4 py-2">
               <p class="text-text-secondary text-xs">Desde</p>
@@ -46,8 +108,10 @@
         </div>
 
         <aside class="space-y-4">
-          @if (bookable()) {
-            <situr-reservar [productId]="item.id" [maxQuantity]="item.capacidad_maxima" />
+          @if (tourLoading()) {
+            <div class="h-40 animate-pulse rounded-2xl bg-gray-200"></div>
+          } @else if (bookable()) {
+            <situr-reservar [productId]="item.id" [maxQuantity]="item.capacidad_maxima" [departures]="tour() ? departures() : null" />
           } @else {
             <p class="border-input-border rounded-2xl border bg-white p-4 text-sm text-text-secondary">Este producto no se reserva en línea. Consulta con la empresa.</p>
           }

@@ -133,6 +133,16 @@ export class Productos implements OnInit {
     this.router.navigate(['/hospedajes'], { queryParams });
   }
 
+  /** Un tour o experiencia: su ficha y sus salidas viven en /tours. */
+  protected isTour(product: TourismProduct): boolean {
+    return product.tipo_codigo === 'TOUR' || product.tipo_codigo === 'EXPERIENCIA';
+  }
+
+  protected manageTour(product: TourismProduct): void {
+    const companyId = this.selectedCompanyId();
+    this.router.navigate(['/tours', product.id], { queryParams: companyId ? { empresa: companyId } : undefined });
+  }
+
   /**
    * Alta de hospedaje desde Catálogo. No se duplica acá la comprobación de si
    * la empresa tiene hoteles: /hospedajes ya distingue lista de estado vacío.

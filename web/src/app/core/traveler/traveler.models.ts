@@ -41,7 +41,9 @@ export interface TravelerBooking {
 
 export interface BookingRequest {
   producto_id: number;
-  fecha_inicio: string;
+  /** En un tour con salidas basta `salida_id`. */
+  fecha_inicio?: string;
+  salida_id?: number;
   fecha_fin?: string;
   cantidad: number;
   huespedes?: number;
@@ -71,6 +73,9 @@ export interface BookingQuote {
   disponible: boolean;
   disponibles: number;
   noches?: number | null;
+  /** La salida cotizada, en tours que se venden por salidas. */
+  salida_id?: number | null;
+  salida_inicio?: string | null;
   politica_cancelacion: CancellationPolicySummary | null;
 }
 
