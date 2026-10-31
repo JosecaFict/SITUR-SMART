@@ -1,0 +1,306 @@
+<section class="mx-auto max-w-5xl space-y-6">
+  <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <h1 class="font-heading text-title text-3xl font-bold tracking-tight">
+        {{ isNew() ? 'Registrar tour o experiencia' : (tour()?.nombre ?? 'Tour') }}
+      </h1>
+      <p class="text-text-secondary mt-1 max-w-2xl text-sm sm:text-base">
+        {{ isNew()
+            ? 'Se guarda como borrador. Después programas sus salidas y lo publicas.'
+            : 'Su ficha, el punto de encuentro y el recorrido que verá el turista.' }}
+      </p>
+    </div>
+    <button type="button" (click)="backToList()" class="border-input-border hover:bg-input-bg flex items-center justify-center gap-2 self-start rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold text-label transition">
+      <svg lucideArrowLeft class="h-4 w-4"></svg>Volver a Tours
+    </button>
+  </header>
+
+  @if (successMessage(); as message) {
+    <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+      <span>{{ message }}</span>
+      <button type="button" (click)="successMessage.set(null)" aria-label="Cerrar mensaje"><svg lucideX class="h-4 w-4"></svg></button>
+    </div>
+  }
+  @if (notice(); as message) {
+    <div class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ message }}</span>
+    </div>
+  }
+  @if (errorMessage(); as message) {
+    <div class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg><span>{{ message }}</span>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="h-96 animate-pulse rounded-2xl bg-gray-200"></div>
+  } @else {
+    @if (tour(); as current) {
+      <!-- Resumen y acciones -->
+      <div class="border-input-border flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-white px-5 py-4 shadow-sm">
+        <div class="flex items-center gap-3">
+          <span class="bg-demo-bg text-accent-dark flex h-10 w-10 items-center justify-center rounded-xl"><svg lucideCompass class="h-5 w-5"></svg></span>
+          <div>
+            <p class="font-semibold text-title">{{ current.nombre }}</p>
+            <p class="text-xs text-text-secondary">
+              {{ current.tipo }} · {{ current.ciudad }} · {{ current.moneda_simbolo }} {{ current.precio_base }} por persona ·
+              @if (current.salidas_proximas) { {{ current.salidas_proximas }} salida(s) próxima(s) }
+              @else { <span class="text-amber-700">sin salidas próximas</span> }
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          @if (current.estado === 'PUBLICADO') {
+            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Publicado</span>
+          } @else if (current.estado === 'BORRADOR') {
+            <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Borrador</span>
+          } @else {
+            <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700">Inactivo</span>
+          }
+          <button type="button" (click)="goToDepartures()" [disabled]="!current.detalle" class="flex items-center gap-1.5 rounded-xl border border-input-border bg-white px-3 py-2 text-xs font-semibold text-label transition hover:bg-input-bg disabled:opacity-50">
+            <svg lucideCalendarDays class="h-3.5 w-3.5"></svg>Salidas
+          </button>
+          @if (canManage()) {
+            <button type="button" (click)="togglePublication()" class="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100/80">
+              @if (current.estado === 'PUBLICADO') { <svg lucideEyeOff class="h-3.5 w-3.5"></svg>Retirar }
+              @else { <svg lucideEye class="h-3.5 w-3.5"></svg>Publicar }
+            </button>
+            <button type="button" (click)="scheduleOpen.set(!scheduleOpen())" class="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2 text-xs font-semibold text-sky-800 transition hover:bg-sky-100/80">
+              <svg lucideCalendarClock class="h-3.5 w-3.5"></svg>Programar
+            </button>
+            @if (current.estado !== 'INACTIVO') {
+              <button type="button" (click)="deactivate()" class="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100/80">
+                <svg lucideTrash2 class="h-3.5 w-3.5"></svg>Desactivar
+              </button>
+            }
+          }
+        </div>
+      </div>
+      @if (current.publicar_en || current.retirar_en) {
+        <div class="flex flex-wrap gap-1.5">
+          @if (current.publicar_en) { <span class="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800">Se publica el {{ current.publicar_en | date: 'dd/MM/yyyy HH:mm' }}</span> }
+          @if (current.retirar_en) { <span class="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-bold text-orange-800">Se retira el {{ current.retirar_en | date: 'dd/MM/yyyy HH:mm' }}</span> }
+        </div>
+      }
+      @if (scheduleOpen() && canManage() && companyId(); as tenantId) {
+        <situr-programar-publicacion [tenantId]="tenantId" [productId]="current.id" [estado]="current.estado"
+          [publicarEn]="current.publicar_en" [retirarEn]="current.retirar_en" (saved)="scheduled($event)" />
+      }
+      @if (withoutDetail()) {
+        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+          Este tour viene del Catálogo y todavía no tiene ficha. Al guardarla pasa a venderse <strong>por salidas</strong>:
+          después programa sus salidas para que se pueda reservar.
+        </div>
+      }
+    }
+
+    <form [formGroup]="form" (ngSubmit)="save()" class="space-y-6">
+      @if (formErrors().length) {
+        <div class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          <svg lucideCircleAlert class="mt-0.5 h-4 w-4 shrink-0"></svg>
+          <ul class="space-y-1">@for (message of formErrors(); track message) { <li>{{ message }}</li> }</ul>
+        </div>
+      }
+
+      <!-- ============ INFORMACIÓN GENERAL ============ -->
+      <fieldset class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6" [disabled]="!canManage()">
+        <legend class="sr-only">Información general</legend>
+        <h2 aria-hidden="true" class="text-sm font-bold text-title">Información general</h2>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Tipo
+            <select formControlName="tipo_codigo" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+              <option value="TOUR">Tour</option>
+              <option value="EXPERIENCIA">Experiencia</option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2">Nombre
+            <input formControlName="nombre" placeholder="Ej. Salar de Uyuni al amanecer" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+            @if (form.controls.nombre.touched && form.controls.nombre.invalid) { <span class="text-xs font-normal text-red-700">El nombre es obligatorio.</span> }
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">País
+            <select formControlName="pais" (change)="countryChanged()" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+              <option value="">Selecciona un país</option>
+              @for (country of countries(); track country.id) { <option [value]="country.id">{{ country.nombre }}</option> }
+            </select>
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Ciudad
+            <select formControlName="ciudad_id" (change)="cityChanged()" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+              <option [value]="0">Selecciona una ciudad</option>
+              @for (city of filteredCities(); track city.id) { <option [value]="city.id">{{ city.nombre }}</option> }
+            </select>
+            @if (form.controls.ciudad_id.touched && form.controls.ciudad_id.invalid) { <span class="text-xs font-normal text-red-700">Elige la ciudad.</span> }
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Localidad
+            <input formControlName="localidad" placeholder="Ej. Colchani" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Moneda
+            <select formControlName="moneda_codigo" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+              @for (currency of currencies(); track currency.codigo) { <option [value]="currency.codigo">{{ currency.codigo }} · {{ currency.nombre }}</option> }
+            </select>
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Precio por persona
+            <input type="number" min="0" step="0.01" formControlName="precio_base" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Capacidad máxima por salida
+            <input type="number" min="1" max="500" formControlName="capacidad_maxima" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+            <span class="text-xs font-normal text-text-secondary">Es el cupo por defecto de cada salida.</span>
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label sm:col-span-2 lg:col-span-3">Descripción
+            <textarea formControlName="descripcion" rows="3" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"></textarea>
+          </label>
+        </div>
+
+        <div class="mt-4">
+          <p class="text-sm font-semibold text-label">Imagen principal</p>
+          <div class="mt-2 flex flex-wrap items-center gap-4">
+            <div class="flex h-24 w-36 items-center justify-center overflow-hidden rounded-xl border border-input-border bg-gray-50 text-text-secondary">
+              @if (form.controls.imagen_url.value) { <img [src]="form.controls.imagen_url.value" alt="Imagen del tour" class="h-full w-full object-cover" /> }
+              @else { <svg lucideImage class="h-8 w-8"></svg> }
+            </div>
+            <label class="flex cursor-pointer items-center gap-2 rounded-xl border border-input-border px-4 py-2 text-sm font-semibold text-label hover:bg-input-bg">
+              <svg lucideUpload class="h-4 w-4"></svg>{{ uploadingImage() ? 'Subiendo…' : 'Subir imagen' }}
+              <input type="file" accept="image/*" class="hidden" (change)="uploadImage($event)" [disabled]="uploadingImage()" />
+            </label>
+            @if (form.controls.imagen_url.value) {
+              <button type="button" (click)="removeImage()" class="text-sm font-semibold text-red-600 hover:underline">Quitar</button>
+            }
+          </div>
+          @if (imageError(); as message) { <p class="mt-2 text-xs text-red-700">{{ message }}</p> }
+        </div>
+      </fieldset>
+
+      <!-- ============ FICHA ============ -->
+      <fieldset class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6" [disabled]="!canManage()">
+        <legend class="sr-only">Ficha del tour</legend>
+        <h2 aria-hidden="true" class="text-sm font-bold text-title">Ficha del tour</h2>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="flex flex-col gap-1.5 text-sm font-semibold text-label">Duración
+            <div class="flex gap-2">
+              <label class="flex flex-1 items-center gap-1.5 font-normal">
+                <input type="number" min="0" max="168" formControlName="duracion_horas" aria-label="Horas" class="border-input-border w-full rounded-xl border px-3 py-2.5 text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /><span class="text-xs">h</span>
+              </label>
+              <label class="flex flex-1 items-center gap-1.5 font-normal">
+                <input type="number" min="0" max="59" formControlName="duracion_min" aria-label="Minutos" class="border-input-border w-full rounded-xl border px-3 py-2.5 text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /><span class="text-xs">min</span>
+              </label>
+            </div>
+            <span class="text-xs font-normal text-text-secondary">Se usa para calcular el fin de cada salida.</span>
+          </div>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Idioma
+            <input formControlName="idioma" placeholder="Español e inglés" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Dificultad
+            <select formControlName="dificultad" class="border-input-border rounded-xl border bg-white px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15">
+              <option value="">Sin indicar</option>
+              @for (item of difficulties; track item.value) { <option [value]="item.value">{{ item.label }}</option> }
+            </select>
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm font-semibold text-label">Edad mínima
+            <input type="number" min="0" max="120" formControlName="edad_minima" placeholder="Sin mínimo" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+          </label>
+        </div>
+
+        <div class="mt-5 grid gap-5 sm:grid-cols-2">
+          <div>
+            <p class="text-sm font-semibold text-label">Incluye</p>
+            <div class="mt-2 flex gap-2">
+              <input [formControl]="newInclude" (keydown)="addOnEnter($event, 'includes')" placeholder="Ej. Transporte" aria-label="Agregar a incluye" class="border-input-border flex-1 rounded-xl border px-3.5 py-2 text-sm text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+              <button type="button" (click)="addItem('includes')" class="border-input-border hover:bg-input-bg rounded-xl border px-3 text-label" aria-label="Agregar"><svg lucidePlus class="h-4 w-4"></svg></button>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              @for (item of includes(); track item; let i = $index) {
+                <span class="flex items-center gap-1 rounded-full bg-emerald-50 py-1 pr-1.5 pl-3 text-xs font-semibold text-emerald-800">
+                  <svg lucideCheck class="h-3 w-3"></svg>{{ item }}
+                  <button type="button" (click)="removeItem('includes', i)" class="rounded-full p-0.5 hover:bg-emerald-100" [attr.aria-label]="'Quitar ' + item"><svg lucideX class="h-3 w-3"></svg></button>
+                </span>
+              }
+            </div>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-label">No incluye</p>
+            <div class="mt-2 flex gap-2">
+              <input [formControl]="newExclude" (keydown)="addOnEnter($event, 'excludes')" placeholder="Ej. Propinas" aria-label="Agregar a no incluye" class="border-input-border flex-1 rounded-xl border px-3.5 py-2 text-sm text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+              <button type="button" (click)="addItem('excludes')" class="border-input-border hover:bg-input-bg rounded-xl border px-3 text-label" aria-label="Agregar"><svg lucidePlus class="h-4 w-4"></svg></button>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              @for (item of excludes(); track item; let i = $index) {
+                <span class="flex items-center gap-1 rounded-full bg-gray-100 py-1 pr-1.5 pl-3 text-xs font-semibold text-gray-700">
+                  {{ item }}
+                  <button type="button" (click)="removeItem('excludes', i)" class="rounded-full p-0.5 hover:bg-gray-200" [attr.aria-label]="'Quitar ' + item"><svg lucideX class="h-3 w-3"></svg></button>
+                </span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <label class="mt-5 flex flex-col gap-1.5 text-sm font-semibold text-label">Requisitos y recomendaciones
+          <textarea formControlName="requisitos" rows="2" placeholder="Ej. Ropa abrigada, protector solar, documento de identidad." class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"></textarea>
+        </label>
+      </fieldset>
+
+      <!-- ============ PUNTO DE ENCUENTRO ============ -->
+      <fieldset class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6" [disabled]="!canManage()">
+        <legend class="sr-only">Punto de encuentro</legend>
+        <h2 aria-hidden="true" class="flex items-center gap-2 text-sm font-bold text-title"><svg lucideMapPin class="h-4 w-4"></svg>Punto de encuentro</h2>
+        <p class="mt-1 text-xs text-text-secondary">Obligatorio para publicar. Marca en el mapa dónde empieza el tour.</p>
+        <label class="mt-4 flex flex-col gap-1.5 text-sm font-semibold text-label">Dónde se encuentran
+          <input formControlName="punto_encuentro" placeholder="Ej. Plaza Arce, frente a la estación de trenes" class="border-input-border rounded-xl border px-3.5 py-2.5 font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+        </label>
+        <div class="mt-4">
+          <situr-mapa-ubicacion [value]="coordinates()" [center]="cityCenter()" [editable]="canManage()" (picked)="pinPicked($event)" />
+          <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
+            @if (coordinates(); as point) {
+              <span class="flex items-center gap-1.5"><svg lucideMapPin class="h-3.5 w-3.5"></svg>{{ point.lat.toFixed(6) }}, {{ point.lng.toFixed(6) }}</span>
+              @if (canManage()) { <button type="button" (click)="clearPin()" class="font-semibold text-red-600 hover:underline">Quitar punto</button> }
+            } @else {
+              <span>Haz clic en el mapa para marcar el punto.</span>
+            }
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- ============ RECORRIDO ============ -->
+      <fieldset class="border-input-border rounded-2xl border bg-white p-5 shadow-sm sm:p-6" [disabled]="!canManage()">
+        <legend class="sr-only">Recorrido</legend>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 aria-hidden="true" class="flex items-center gap-2 text-sm font-bold text-title"><svg lucideRoute class="h-4 w-4"></svg>Recorrido ({{ stops().length }} paradas)</h2>
+          @if (canManage()) {
+            <button type="button" (click)="addStop()" class="border-input-border hover:bg-input-bg flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold text-label">
+              <svg lucidePlus class="h-3.5 w-3.5"></svg>Agregar parada
+            </button>
+          }
+        </div>
+        @if (stops().length === 0) {
+          <p class="mt-3 text-sm text-text-secondary">Sin paradas. Agrega los lugares que se visitan, en orden.</p>
+        }
+        <ol class="mt-4 space-y-3">
+          @for (stop of stops(); track stop.key; let i = $index, first = $first, last = $last) {
+            <li class="flex gap-3 rounded-xl border border-input-border p-3">
+              <span class="bg-demo-bg text-accent-dark flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold">{{ i + 1 }}</span>
+              <div class="grid flex-1 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem]">
+                <input [value]="stop.nombre" (input)="updateStop(i, 'nombre', $any($event.target).value)" placeholder="Nombre de la parada" [attr.aria-label]="'Nombre de la parada ' + (i + 1)" class="border-input-border rounded-xl border px-3 py-2 text-sm text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                <input type="number" min="1" [value]="stop.duracion_minutos ?? ''" (input)="updateStop(i, 'duracion_minutos', $any($event.target).value)" placeholder="Minutos" [attr.aria-label]="'Duración de la parada ' + (i + 1)" class="border-input-border rounded-xl border px-3 py-2 text-sm text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15" />
+                <input [value]="stop.descripcion" (input)="updateStop(i, 'descripcion', $any($event.target).value)" placeholder="Descripción (opcional)" class="border-input-border rounded-xl border px-3 py-2 text-sm text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15 sm:col-span-2" />
+              </div>
+              @if (canManage()) {
+                <div class="flex flex-col gap-1">
+                  <button type="button" (click)="moveStop(i, -1)" [disabled]="first" class="rounded-lg p-1.5 text-text-secondary hover:bg-input-bg disabled:opacity-30" aria-label="Subir parada"><svg lucideArrowUp class="h-4 w-4"></svg></button>
+                  <button type="button" (click)="moveStop(i, 1)" [disabled]="last" class="rounded-lg p-1.5 text-text-secondary hover:bg-input-bg disabled:opacity-30" aria-label="Bajar parada"><svg lucideArrowDown class="h-4 w-4"></svg></button>
+                  <button type="button" (click)="removeStop(i)" class="rounded-lg p-1.5 text-red-600 hover:bg-red-50" aria-label="Quitar parada"><svg lucideTrash2 class="h-4 w-4"></svg></button>
+                </div>
+              }
+            </li>
+          }
+        </ol>
+      </fieldset>
+
+      @if (canManage()) {
+        <div class="flex justify-end gap-3">
+          <button type="button" (click)="backToList()" class="border-input-border hover:bg-input-bg rounded-xl border bg-white px-5 py-2.5 text-sm font-semibold text-label">Cancelar</button>
+          <button type="submit" [disabled]="saving()" class="bg-accent hover:bg-accent-dark rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-60">
+            {{ saving() ? 'Guardando…' : (isNew() ? 'Guardar y programar salidas' : 'Guardar cambios') }}
+          </button>
+        </div>
+      }
+    </form>
+  }
+</section>

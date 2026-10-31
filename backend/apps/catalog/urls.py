@@ -5,6 +5,18 @@ from .review_views import (
     OwnReviewDetailView,
     ProductReviewListCreateView,
 )
+from .tour_views import (
+    CompanyTourDetailView,
+    CompanyTourListCreateView,
+    DepartureCloseView,
+    DepartureDetailView,
+    GuideDetailView,
+    GuideListCreateView,
+    PublicTourDeparturesView,
+    PublicTourDetailView,
+    TourDepartureListCreateView,
+    TourStopsView,
+)
 from .views import (
     CompanyDepartureCloseView,
     CompanyDepartureDetailView,
@@ -65,6 +77,17 @@ urlpatterns = [
         name="company-lodging-room-list-create",
     ),
     path("habitaciones/<int:pk>/", CompanyRoomDetailView.as_view(), name="company-room-detail"),
+    # Tours y experiencias (CU20): ficha, recorrido, salidas y guias.
+    path("tours/", CompanyTourListCreateView.as_view(), name="company-tour-list-create"),
+    path("tours/<int:pk>/", CompanyTourDetailView.as_view(), name="company-tour-detail"),
+    path("tours/<int:pk>/paradas/", TourStopsView.as_view(), name="company-tour-stops"),
+    path("tours/<int:pk>/salidas/", TourDepartureListCreateView.as_view(), name="company-tour-departures"),
+    path("salidas/<int:pk>/", DepartureDetailView.as_view(), name="company-tour-departure-detail"),
+    path("salidas/<int:pk>/cerrar/", DepartureCloseView.as_view(), name="company-tour-departure-close"),
+    path("guias/", GuideListCreateView.as_view(), name="company-guide-list-create"),
+    path("guias/<int:pk>/", GuideDetailView.as_view(), name="company-guide-detail"),
+    path("marketplace/tours/<int:pk>/", PublicTourDetailView.as_view(), name="public-tour-detail"),
+    path("marketplace/tours/<int:pk>/salidas/", PublicTourDeparturesView.as_view(), name="public-tour-departures"),
     # Geocodificacion: el navegador nunca habla con el proveedor, la clave no
     # sale del servidor. Requieren sesion, X-Tenant-ID y PRODUCTOS_GESTIONAR.
     path("geo/buscar/", GeocodingSearchView.as_view(), name="geocoding-search"),

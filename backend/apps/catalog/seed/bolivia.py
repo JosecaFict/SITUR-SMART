@@ -118,7 +118,180 @@ def producto(tipo, nombre, descripcion, precio, *, ciudad, localidad, capacidad,
         "localidad": localidad,
         "capacidad_maxima": capacidad,
         "estado": estado,
+        # Tours y experiencias con ficha (CU20); se busca por nombre en FICHAS.
+        "ficha": FICHAS.get(nombre),
     }
+
+
+# ----------------------------------------------------------------------
+# Tours y experiencias (CU20): ficha, recorrido y salidas
+# ----------------------------------------------------------------------
+# Las salidas se programan desde manana y por SEMANAS_SALIDAS semanas. Volver a
+# ejecutar el seed agrega las semanas que falten, asi la demo siempre tiene
+# salidas proximas. Los horarios estan pensados para que un mismo guia nunca
+# quede en dos salidas que se cruzan.
+
+SEMANAS_SALIDAS = 6
+LUN, MAR, MIE, JUE, VIE, SAB, DOM = range(7)
+TODOS_LOS_DIAS = (LUN, MAR, MIE, JUE, VIE, SAB, DOM)
+ESPANOL_INGLES = "Español e inglés"
+
+
+def parada(nombre, minutos=None, descripcion=None):
+    return {"nombre": nombre, "duracion_minutos": minutos, "descripcion": descripcion}
+
+
+def ficha(
+    *, minutos, punto, latitud, longitud, paradas, dias, horas, guia=None, idioma=ESPANOL_INGLES,
+    dificultad="BAJA", edad=None, incluye=(), no_incluye=(), requisitos=None,
+):
+    """Ficha de un tour. ``dias`` 0 = lunes; ``guia`` es el usuario del guia ("guia1")."""
+    return {
+        "duracion_minutos": minutos,
+        "idioma": idioma,
+        "dificultad": dificultad,
+        "edad_minima": edad,
+        "punto_encuentro": punto,
+        "latitud": latitud,
+        "longitud": longitud,
+        "incluye": list(incluye),
+        "no_incluye": list(no_incluye),
+        "requisitos": requisitos,
+        "paradas": list(paradas),
+        "salidas": {"dias": list(dias), "horas": list(horas), "guia": guia},
+    }
+
+
+GRAVITY_OFICINA = ("Oficina de Gravity Bolivia, calle Linares, La Paz", "-16.497200", "-68.139300")
+RED_PLANET_OFICINA = ("Oficina de Red Planet, Av. Ferroviaria, Uyuni", "-20.460300", "-66.825300")
+MUELLE_RURRE = ("Muelle de Rurrenabaque, a orillas del río Beni", "-14.441300", "-67.527800")
+DOS_NOCHES = 2 * 24 * 60
+
+FICHAS = {
+    # SczTourBo queda sin fichas a proposito: sus tours son los del Catalogo
+    # generico (se reservan por dia o por las salidas que la empresa programe
+    # desde Catalogo), y las pruebas de salidas, paquetes y promociones los usan.
+    # --- Gravity Bolivia ------------------------------------------------------
+    "Descenso en Bicicleta por el Camino de la Muerte": ficha(
+        minutos=600, punto=GRAVITY_OFICINA[0], latitud=GRAVITY_OFICINA[1], longitud=GRAVITY_OFICINA[2],
+        dificultad="ALTA", edad=14,
+        paradas=[parada("La Cumbre (4.700 m)", 30), parada("Descenso en asfalto", 60),
+                 parada("Camino de la Muerte", 180), parada("Almuerzo en Yolosa", 60)],
+        incluye=["Bicicleta de doble suspensión", "Equipo de protección", "Guías", "Almuerzo",
+                 "Transporte de vuelta"],
+        no_incluye=["Entrada al camino", "Propinas"],
+        requisitos="Saber andar en bicicleta. Ropa abrigada y zapatos cerrados.",
+        dias=TODOS_LOS_DIAS, horas=["07:00"], guia="guia1",
+    ),
+    "Bici de Montaña en Chacaltaya": ficha(
+        minutos=480, punto=GRAVITY_OFICINA[0], latitud=GRAVITY_OFICINA[1], longitud=GRAVITY_OFICINA[2],
+        dificultad="ALTA", edad=16,
+        paradas=[parada("Nevado Chacaltaya", 60), parada("Descenso", 150), parada("Valle de Zongo", 60)],
+        incluye=["Bicicleta", "Equipo de protección", "Guía", "Refrigerio"],
+        requisitos="Buena condición física: se pedalea sobre los 5.000 m.",
+        dias=(MAR, VIE), horas=["07:30"], guia="guia2",
+    ),
+    "Ruta en Bicicleta a Sorata": ficha(
+        minutos=24 * 60 + 9 * 60, punto=GRAVITY_OFICINA[0], latitud=GRAVITY_OFICINA[1],
+        longitud=GRAVITY_OFICINA[2], dificultad="ALTA", edad=16,
+        paradas=[parada("Salida desde La Paz", 30), parada("Achacachi", 60), parada("Valle de Sorata", 180)],
+        incluye=["Bicicleta", "Guía", "Alojamiento una noche", "Comidas"],
+        requisitos="Experiencia previa en rutas de varios días.",
+        dias=(SAB,), horas=["07:00"], guia="guia2",
+    ),
+    "Tirolesa en los Yungas": ficha(
+        minutos=120, punto="Yolosa, base de la tirolesa", latitud="-16.231000", longitud="-67.748000",
+        dificultad="MEDIA", edad=10,
+        paradas=[parada("Primer tramo", 20), parada("Segundo tramo", 20), parada("Tercer tramo", 20)],
+        incluye=["Arnés y casco", "Instructor"], no_incluye=["Transporte desde La Paz"],
+        dias=TODOS_LOS_DIAS, horas=["14:00"],
+    ),
+    # --- Red Planet Expedition ------------------------------------------------
+    "Salar de Uyuni Día Completo": ficha(
+        minutos=480, punto=RED_PLANET_OFICINA[0], latitud=RED_PLANET_OFICINA[1], longitud=RED_PLANET_OFICINA[2],
+        paradas=[parada("Cementerio de trenes", 40), parada("Colchani", 45),
+                 parada("Isla Incahuasi", 90, "Cactus gigantes y vista al salar"),
+                 parada("Fotos de perspectiva", 60)],
+        incluye=["Vehículo 4x4", "Guía", "Almuerzo"], no_incluye=["Entrada a la isla Incahuasi"],
+        requisitos="Lentes de sol, protector solar y abrigo.",
+        dias=TODOS_LOS_DIAS, horas=["10:00"], guia="guia1",
+    ),
+    "Travesía 3D/2N Salar y Lagunas de Colores": ficha(
+        minutos=DOS_NOCHES + 390, punto=RED_PLANET_OFICINA[0], latitud=RED_PLANET_OFICINA[1],
+        longitud=RED_PLANET_OFICINA[2], dificultad="MEDIA", edad=6,
+        paradas=[parada("Salar de Uyuni"), parada("Laguna Colorada"), parada("Géiseres Sol de Mañana"),
+                 parada("Laguna Verde")],
+        incluye=["Vehículo 4x4", "Guía", "Refugios", "Comidas"], no_incluye=["Entrada a la reserva"],
+        requisitos="Abrigo para temperaturas bajo cero. Se recomienda bolsa de dormir.",
+        dias=(LUN, JUE), horas=["10:30"], guia="guia2",
+    ),
+    "Atardecer y Estrellas en el Salar": ficha(
+        minutos=240, punto=RED_PLANET_OFICINA[0], latitud=RED_PLANET_OFICINA[1], longitud=RED_PLANET_OFICINA[2],
+        paradas=[parada("Salar al atardecer", 90), parada("Observación de estrellas", 60)],
+        incluye=["Vehículo 4x4", "Bebida caliente"], requisitos="Abrigo: de noche hace mucho frío.",
+        dias=TODOS_LOS_DIAS, horas=["16:00"],
+    ),
+    # Queda en borrador sin salidas: muestra en la demo que le falta para publicarse.
+    "Amanecer en el Espejo del Salar": ficha(
+        minutos=180, punto=RED_PLANET_OFICINA[0], latitud=RED_PLANET_OFICINA[1], longitud=RED_PLANET_OFICINA[2],
+        paradas=[parada("Efecto espejo al amanecer", 120)],
+        incluye=["Vehículo 4x4", "Botas de goma"], dias=(), horas=[],
+    ),
+    # --- Madidi Jungle Ecolodge -----------------------------------------------
+    "Expedición 3D/2N en el Parque Madidi": ficha(
+        minutos=DOS_NOCHES + 480, punto=MUELLE_RURRE[0], latitud=MUELLE_RURRE[1], longitud=MUELLE_RURRE[2],
+        dificultad="MEDIA", edad=8,
+        paradas=[parada("Navegación por el río Beni"), parada("Collpa de guacamayos"),
+                 parada("Caminata en la selva"), parada("Pesca artesanal")],
+        incluye=["Lancha", "Guía de la comunidad", "Alojamiento", "Pensión completa"],
+        requisitos="Repelente, ropa de manga larga y botas.",
+        dias=(LUN,), horas=["08:00"], guia="guia1",
+    ),
+    "Pampas del Yacuma 3D/2N": ficha(
+        minutos=DOS_NOCHES + 480, punto=MUELLE_RURRE[0], latitud=MUELLE_RURRE[1], longitud=MUELLE_RURRE[2],
+        paradas=[parada("Santa Rosa del Yacuma"), parada("Río Yacuma"), parada("Delfines rosados"),
+                 parada("Caimanes y capibaras")],
+        incluye=["Transporte", "Lancha", "Guía", "Alojamiento", "Pensión completa"],
+        no_incluye=["Entrada al área protegida"],
+        dias=(JUE,), horas=["08:00"], guia="guia1",
+    ),
+    "Caminata Nocturna en la Selva": ficha(
+        minutos=120, punto="Recepción de Madidi Jungle Ecolodge", latitud="-14.441300",
+        longitud="-67.527800", edad=10,
+        paradas=[parada("Sendero de los insectos", 50), parada("Charca de las ranas", 40)],
+        incluye=["Linterna frontal", "Guía"], requisitos="Botas y repelente.",
+        dias=TODOS_LOS_DIAS, horas=["19:00"],
+    ),
+    # --- Bodegas Kohlberg --------------------------------------------------------
+    "Visita y Cata en Bodegas Kohlberg": ficha(
+        minutos=120, punto="Bodegas Kohlberg, Santa Ana", latitud="-21.623000", longitud="-64.628000",
+        idioma="Español", edad=18,
+        paradas=[parada("Viñedos", 30), parada("Bodega", 40), parada("Cata de vinos de altura", 50)],
+        incluye=["Cata de 4 vinos", "Quesos tarijeños"], requisitos="La cata es solo para mayores de 18 años.",
+        dias=(MAR, MIE, JUE, VIE, SAB), horas=["10:00", "15:00"],
+    ),
+    "Ruta del Vino y Singani": ficha(
+        minutos=480, punto="Plaza Luis de Fuentes, Tarija", latitud="-21.535500", longitud="-64.729600",
+        idioma="Español", edad=18,
+        paradas=[parada("Bodega Kohlberg", 90), parada("Viñedos del Valle Central", 60),
+                 parada("Almuerzo campestre", 90), parada("Destilería de singani", 60)],
+        incluye=["Transporte", "Catas", "Almuerzo"], requisitos="Solo para mayores de 18 años.",
+        dias=(SAB,), horas=["09:00"],
+    ),
+}
+
+
+def guias_empresa(empresa: dict) -> list[dict]:
+    """Guias de la empresa: uno por cada cuenta con rol GUIA, con el mismo nombre."""
+    return [
+        {
+            "usuario": persona["usuario"],
+            "nombres": f"{nombre_cuenta(persona['usuario'])} {empresa['nombre']}",
+            "idiomas": ["Español", "Inglés"],
+        }
+        for persona in empresa["empleados"]
+        if persona["rol"] == "GUIA"
+    ]
 
 
 def empleado(usuario, rol):

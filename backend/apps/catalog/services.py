@@ -25,6 +25,7 @@ from .models import (
     LodgingType,
     ProductType,
     Room,
+    TourDetail,
     TourismProduct,
 )
 from .reviews import review_stat_annotations, with_review_stats
@@ -130,6 +131,19 @@ def update_product(*, actor, tenant_id: int, product_id: int, request=None, **da
             }
         )
     data.pop("codigo", None)
+    # Un tour con ficha se vende por salidas: publicarlo por la via generica
+    # exige lo mismo que en /api/v1/tours/ (precio, punto de encuentro, una
+    # salida futura y lugar en el plan).
+    if (
+        data.get("estado") == TourismProduct.Status.PUBLISHED
+        and product.status != TourismProduct.Status.PUBLISHED
+        and TourDetail.objects.filter(product_id=product.id).exists()
+    ):
+        from .tours import check_publishable
+
+        if "precio_base" in data:
+            product.base_price = data["precio_base"]
+        check_publishable(product)
     values = _relations(data)
     previous = {"name": product.name, "status": product.status}
     for field, value in values.items():

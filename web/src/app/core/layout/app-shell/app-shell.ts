@@ -17,6 +17,7 @@ import {
   LucideMenu,
   LucideMapPinned,
   LucidePackageOpen,
+  LucideMountain,
   LucideChartNoAxesCombined,
   LucideScrollText,
   LucideBadgePercent,
@@ -32,7 +33,7 @@ import { TravelerService } from '../../traveler/traveler.service';
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'packages' | 'promotions' | 'lodging' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings' | 'trips' | 'itinerary' | 'favorites' | 'notifications';
+  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'packages' | 'promotions' | 'lodging' | 'tours' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings' | 'trips' | 'itinerary' | 'favorites' | 'notifications';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
@@ -66,6 +67,7 @@ interface NavItem {
     LucideMenu,
     LucideMapPinned,
     LucidePackageOpen,
+    LucideMountain,
     LucideChartNoAxesCombined,
     LucideScrollText,
     LucideBadgePercent,
@@ -213,6 +215,13 @@ export class AppShell implements OnDestroy {
       label: 'Hospedajes',
       path: '/hospedajes',
       icon: 'lodging',
+      hideForCustomer: true,
+      permission: 'PRODUCTOS_LEER',
+    },
+    {
+      label: 'Tours y experiencias',
+      path: '/tours',
+      icon: 'tours',
       hideForCustomer: true,
       permission: 'PRODUCTOS_LEER',
     },

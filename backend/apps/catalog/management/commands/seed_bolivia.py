@@ -1,13 +1,18 @@
+from datetime import time as dtime
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError, connection, transaction
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import CustomerProfile, User
 from apps.accounts.services import create_or_link_tenant_user
 from apps.audit.services import record_audit
+from apps.catalog.guides import create_guide
+from apps.catalog.models import Guide, TourDetail, TourismProduct
 from apps.catalog.seed import bolivia, credenciales, sql
 from apps.catalog.services import (
     create_lodging,
@@ -15,6 +20,8 @@ from apps.catalog.services import (
     create_room,
     update_lodging,
 )
+from apps.catalog.tour_departures import create_recurring
+from apps.catalog.tours import update_tour
 from apps.rbac.models import Role, UserRole
 from apps.rbac.services import create_tenant_role, is_superadmin
 from apps.tenancy.models import City, Country, Tenant
@@ -33,7 +40,10 @@ SQL_PATH = Path(settings.BASE_DIR) / "database" / "seed_bolivia.sql"
 _RESET_STATEMENTS = (
     "DELETE FROM habitacion WHERE id_tenant = ANY(%(t)s)",
     "DELETE FROM establecimiento_hospedaje WHERE id_tenant = ANY(%(t)s)",
+    "DELETE FROM parada_tour WHERE id_tenant = ANY(%(t)s)",
+    "DELETE FROM detalle_tour WHERE id_tenant = ANY(%(t)s)",
     "DELETE FROM disponibilidad WHERE id_tenant = ANY(%(t)s)",
+    "DELETE FROM guia WHERE id_tenant = ANY(%(t)s)",
     "DELETE FROM producto_turistico WHERE id_tenant = ANY(%(t)s)",
     "DELETE FROM usuario_rol WHERE id_tenant = ANY(%(t)s) OR id_usuario = ANY(%(u)s)",
     "DELETE FROM rol WHERE id_tenant = ANY(%(t)s)",
@@ -80,12 +90,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if options["credenciales"]:
-            CREDENTIALS_PATH.write_text(credenciales.render(), encoding="utf-8")
+            # newline fijo: en Windows write_text guardaria CRLF.
+            CREDENTIALS_PATH.write_text(credenciales.render(), encoding="utf-8", newline="\n")
             self.stdout.write(self.style.SUCCESS(f"Credenciales escritas en {CREDENTIALS_PATH}"))
             return
         if options["sql"]:
             SQL_PATH.write_text(
-                sql.render(limpiar_demo_viejo=options["limpiar_demo_viejo"]), encoding="utf-8"
+                sql.render(limpiar_demo_viejo=options["limpiar_demo_viejo"]), encoding="utf-8", newline="\n"
             )
             self.stdout.write(self.style.SUCCESS(f"Script SQL escrito en {SQL_PATH}"))
             return
@@ -106,8 +117,13 @@ class Command(BaseCommand):
             cities = self._cities(admin)
             created = 0
             for empresa in bolivia.EMPRESAS:
-                if Tenant.objects.filter(trade_name=empresa["nombre"]).exists():
+                existing = Tenant.objects.filter(trade_name=empresa["nombre"]).first()
+                if existing is not None:
                     self.stdout.write(f"= ya existe: {empresa['nombre']}")
+                    # Los tours si se completan: la empresa pudo cargarse antes
+                    # de CU20, y cada ejecucion suma las salidas que falten.
+                    if existing.status == Tenant.Status.ACTIVE:
+                        self._load_tours(empresa, existing.id)
                     continue
                 self._load_company(admin, empresa, cities)
                 created += 1
@@ -211,6 +227,9 @@ class Command(BaseCommand):
                 estado=item["estado"],
             )
 
+        if empresa["estado"] == "ACTIVO":
+            self._load_tours(empresa, tenant_id)
+
         if empresa["estado"] == "SUSPENDIDO":
             change_company_status(actor=admin, company_id=tenant_id, estado=Tenant.Status.SUSPENDED)
 
@@ -220,6 +239,75 @@ class Command(BaseCommand):
                 f"{rooms} habitaciones, {len(empresa['productos'])} productos"
             )
         )
+
+    # --- Tours y experiencias (CU20) ------------------------------------
+
+    def _load_tours(self, empresa: dict, tenant_id: int) -> None:
+        """Fichas, recorridos, guias y salidas de los tours de la empresa.
+
+        Se puede repetir: la ficha y los guias se crean una sola vez y las
+        salidas que ya existen se omiten, asi que cada ejecucion solo suma las
+        semanas que falten. Lo hace el propietario, por los mismos services que
+        usa el panel.
+        """
+        tours = [item for item in empresa["productos"] if item.get("ficha")]
+        if not tours:
+            return
+        owner = User.objects.filter(email=bolivia.cuentas_empresa(empresa)[0]["email"]).first()
+        if owner is None:
+            return
+        guides = self._ensure_guides(empresa, tenant_id, owner)
+        today = timezone.localdate()
+        departures = 0
+        for item in tours:
+            product = TourismProduct.objects.filter(
+                tenant_id=tenant_id, name=item["nombre"], product_type__code=item["tipo"]
+            ).first()
+            if product is None:
+                continue
+            ficha = item["ficha"]
+            new_detail = not TourDetail.objects.filter(product=product).exists()
+            if new_detail:
+                detail = {key: value for key, value in ficha.items() if key != "salidas"}
+                update_tour(actor=owner, tenant_id=tenant_id, tour_id=product.id, **detail)
+
+            schedule = ficha["salidas"]
+            guide = guides.get(schedule["guia"]) if schedule["guia"] else None
+            for hour in schedule["horas"]:
+                try:
+                    result = create_recurring(
+                        actor=owner, tenant_id=tenant_id, tour_id=product.id,
+                        weekdays=schedule["dias"], start_time=dtime.fromisoformat(hour),
+                        date_from=today + timedelta(days=1),
+                        date_to=today + timedelta(days=7 * bolivia.SEMANAS_SALIDAS),
+                        guide_id=guide.id if guide else None,
+                    )
+                    departures += len(result["created"])
+                except ValidationError as error:
+                    # "No hay fechas nuevas": ya estaban todas programadas.
+                    if "dias_semana" not in getattr(error, "detail", {}):
+                        self.stdout.write(self.style.WARNING(f"  ! {item['nombre']}: {error.detail}"))
+
+            # Completar la ficha lo deja en borrador hasta tener salidas; si el
+            # seed lo quiere publicado, se vuelve a publicar ahora.
+            product.refresh_from_db()
+            if new_detail and item["estado"] == bolivia.PUBLICADO and product.status != bolivia.PUBLICADO:
+                try:
+                    update_tour(actor=owner, tenant_id=tenant_id, tour_id=product.id, estado=bolivia.PUBLICADO)
+                except ValidationError as error:
+                    self.stdout.write(self.style.WARNING(f"  ! no se publicó {item['nombre']}: {error.detail}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"  + tours de {empresa['nombre']}: {len(tours)} con ficha, {departures} salidas nuevas")
+        )
+
+    def _ensure_guides(self, empresa: dict, tenant_id: int, owner) -> dict[str, Guide]:
+        guides = {}
+        for data in bolivia.guias_empresa(empresa):
+            guide = Guide.objects.filter(tenant_id=tenant_id, names=data["nombres"]).first()
+            if guide is None:
+                guide = create_guide(actor=owner, tenant_id=tenant_id, nombres=data["nombres"], idiomas=data["idiomas"])
+            guides[data["usuario"]] = guide
+        return guides
 
     def _load_tourists(self) -> int:
         role = Role.objects.get(code="CLIENTE", scope=Role.Scope.GLOBAL)

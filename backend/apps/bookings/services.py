@@ -47,6 +47,7 @@ from apps.catalog.models import (
     ROOM_PRODUCT_CODE,
     Availability,
     CancellationPolicy,
+    TourDetail,
     TourismProduct,
 )
 from apps.payments import gateway
@@ -154,7 +155,7 @@ def _bookable_product(product_id: int) -> TourismProduct:
 
 
 def build_quote(
-    *, product_id: int, start: date, end: date | None, quantity: int, guests: int | None,
+    *, product_id: int, start: date | None, end: date | None, quantity: int, guests: int | None,
     slot_id: int | None = None,
     promotion_id: int | None = None,
 ) -> Quote:
@@ -162,6 +163,15 @@ def build_quote(
     product = _bookable_product(product_id)
     is_room = product.product_type.code == ROOM_PRODUCT_CODE
     today = timezone.localdate()
+    is_tour = product.product_type.code in departures.DEPARTURE_CODES
+    # CU20: un tour con ficha se vende solo por salidas, nunca por cupo diario.
+    sells_by_departure = is_tour and TourDetail.objects.filter(product_id=product.id).exists()
+    if start is None:
+        # Con la salida basta: su dia es la fecha del pedido.
+        chosen = Availability.objects.filter(id=slot_id, product=product).first() if slot_id and is_tour else None
+        if chosen is None:
+            raise ValidationError({"fecha_inicio": "Este campo es obligatorio."})
+        start = timezone.localtime(chosen.start, _zone()).date()
 
     if start < today:
         raise ValidationError({"fecha_inicio": "Elige una fecha desde hoy en adelante."})
@@ -227,6 +237,8 @@ def build_quote(
             raise ValidationError({"salida_id": "No hay una salida programada para esa fecha."})
     elif slot_id is not None:
         raise ValidationError({"salida_id": "Este producto no tiene salidas programadas."})
+    if sells_by_departure and selected_slot is None:
+        raise ValidationError({"fecha_inicio": "Este tour no tiene salidas ese día. Elige otra fecha."})
 
     discount = product_discount(product, promotion_id=promotion_id)
     if discount and discount.final * quantity >= Decimal("10000000000"):
@@ -295,9 +307,14 @@ def _code(prefix: str) -> str:
 
 
 def _lock_slots(quote: Quote) -> list[Availability]:
-    """Crea los cupos que falten y los bloquea en orden de fecha."""
+    """Crea los cupos que falten y los bloquea en orden de fecha.
+
+    Una salida programada ya existe y su cupo lo fija la empresa: solo se bloquea.
+    """
     if quote.slot is not None:
-        slot = Availability.objects.select_for_update().get(id=quote.slot.id)
+        slot = Availability.objects.select_for_update().filter(id=quote.slot.id, closed=False).first()
+        if slot is None:
+            raise NoCapacity("La salida se cerró. Elige otra.")
         return [slot]
     product = quote.product
     starts = [_slot_start(day) for day in quote.days]
@@ -493,7 +510,7 @@ def create_booking(
     *,
     user,
     product_id: int,
-    start: date,
+    start: date | None,
     end: date | None,
     quantity: int,
     guests: int | None,

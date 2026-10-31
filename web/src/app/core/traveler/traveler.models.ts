@@ -47,7 +47,8 @@ export interface TravelerBooking {
 
 export interface BookingRequest {
   producto_id: number;
-  fecha_inicio: string;
+  /** Con `salida_id` la fecha es opcional: el día es el de la salida. */
+  fecha_inicio?: string;
   fecha_fin?: string;
   cantidad: number;
   huespedes?: number;

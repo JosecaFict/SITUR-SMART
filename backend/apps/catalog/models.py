@@ -314,7 +314,132 @@ class Room(models.Model):
         return self.product.name
 
 
+# ============================================================
+# TOURS Y EXPERIENCIAS (CU20)
+# ============================================================
+# Un tour o una experiencia es un producto_turistico mas su ficha en
+# detalle_tour, igual que un hotel lo es con establecimiento_hospedaje. Tener
+# ficha es lo que pone al producto en "modo salidas": se reserva una salida con
+# fecha, hora y cupo propios (filas de disponibilidad que crea la empresa) en
+# lugar del cupo diario automatico que siguen usando atracciones y restaurantes.
+
+TOUR_PRODUCT_CODES = frozenset({"TOUR", "EXPERIENCIA"})
+
+
+class TourDetail(models.Model):
+    """Datos propios de un tour o experiencia."""
+
+    class Difficulty(models.TextChoices):
+        LOW = "BAJA", "Baja"
+        MEDIUM = "MEDIA", "Media"
+        HIGH = "ALTA", "Alta"
+
+    id = models.BigAutoField(primary_key=True)
+    product = models.OneToOneField(
+        TourismProduct, db_column="id_producto", on_delete=models.DO_NOTHING, related_name="tour"
+    )
+    tenant = models.ForeignKey(
+        "tenancy.Tenant", db_column="id_tenant", on_delete=models.DO_NOTHING, related_name="tours"
+    )
+    duration_minutes = models.PositiveIntegerField(db_column="duracion_minutos", null=True, blank=True)
+    language = models.CharField(db_column="idioma", max_length=80, null=True, blank=True)
+    difficulty = models.CharField(
+        db_column="dificultad", max_length=10, choices=Difficulty.choices, null=True, blank=True
+    )
+    minimum_age = models.PositiveSmallIntegerField(db_column="edad_minima", null=True, blank=True)
+    meeting_point = models.CharField(db_column="punto_encuentro", max_length=250, null=True, blank=True)
+    # Mismo par que establecimiento_hospedaje: las dos o ninguna, y la base lo
+    # obliga con chk_detalle_tour_coordenadas.
+    latitude = models.DecimalField(db_column="latitud", max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(db_column="longitud", max_digits=9, decimal_places=6, null=True, blank=True)
+    includes = models.JSONField(db_column="incluye", default=list, blank=True)
+    excludes = models.JSONField(db_column="no_incluye", default=list, blank=True)
+    requirements = models.TextField(db_column="requisitos", null=True, blank=True)
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+    updated_at = models.DateTimeField(db_column="actualizado_en", auto_now=True)
+
+    class Meta:
+        managed = False
+        db_table = "detalle_tour"
+        ordering = ("id",)
+
+    def __str__(self) -> str:
+        return self.product.name
+
+    @property
+    def readable_duration(self) -> str | None:
+        """La duracion como se lee en una ficha: "3 h 30 min"."""
+        if not self.duration_minutes:
+            return None
+        hours, minutes = divmod(self.duration_minutes, 60)
+        if hours and minutes:
+            return f"{hours} h {minutes} min"
+        return f"{hours} h" if hours else f"{minutes} min"
+
+
+class TourStop(models.Model):
+    """Una parada del recorrido, en orden."""
+
+    id = models.BigAutoField(primary_key=True)
+    product = models.ForeignKey(
+        TourismProduct, db_column="id_producto", on_delete=models.DO_NOTHING, related_name="stops"
+    )
+    tenant = models.ForeignKey(
+        "tenancy.Tenant", db_column="id_tenant", on_delete=models.DO_NOTHING, related_name="+"
+    )
+    order = models.PositiveSmallIntegerField(db_column="orden")
+    name = models.CharField(db_column="nombre", max_length=150)
+    description = models.TextField(db_column="descripcion", null=True, blank=True)
+    duration_minutes = models.PositiveIntegerField(db_column="duracion_minutos", null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = "parada_tour"
+        ordering = ("order", "id")
+
+    def __str__(self) -> str:
+        return f"{self.order}. {self.name}"
+
+
+class Guide(models.Model):
+    """Guia de una empresa, asignable a las salidas de sus tours."""
+
+    class Status(models.TextChoices):
+        ACTIVE = "ACTIVO", "Activo"
+        INACTIVE = "INACTIVO", "Inactivo"
+
+    id = models.BigAutoField(primary_key=True)
+    tenant = models.ForeignKey(
+        "tenancy.Tenant", db_column="id_tenant", on_delete=models.DO_NOTHING, related_name="guides"
+    )
+    names = models.CharField(db_column="nombres", max_length=150)
+    phone = models.CharField(db_column="telefono", max_length=30, null=True, blank=True)
+    languages = models.JSONField(db_column="idiomas", default=list, blank=True)
+    status = models.CharField(db_column="estado", max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+    updated_at = models.DateTimeField(db_column="actualizado_en", auto_now=True)
+
+    class Meta:
+        managed = False
+        db_table = "guia"
+        ordering = ("names", "id")
+
+    def __str__(self) -> str:
+        return self.names
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == self.Status.ACTIVE
+
+
 class Availability(models.Model):
+    """Cupo de un producto en un periodo.
+
+    En habitaciones, atracciones y restaurantes es el cupo de un dia y lo crea
+    solo la primera reserva. En un tour con ficha es una salida: la crea la
+    empresa con su hora real y puede llevar un guia.
+    """
+
     id = models.BigAutoField(primary_key=True)
     product = models.ForeignKey(
         TourismProduct,
@@ -324,6 +449,14 @@ class Availability(models.Model):
     )
     tenant = models.ForeignKey(
         "tenancy.Tenant", db_column="id_tenant", on_delete=models.DO_NOTHING
+    )
+    guide = models.ForeignKey(
+        Guide,
+        db_column="id_guia",
+        on_delete=models.DO_NOTHING,
+        related_name="departures",
+        null=True,
+        blank=True,
     )
     start = models.DateTimeField(db_column="inicio")
     end = models.DateTimeField(db_column="fin")

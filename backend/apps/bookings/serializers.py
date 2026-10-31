@@ -15,7 +15,10 @@ class BookingRequestSerializer(serializers.Serializer):
     """Lo que el turista pide. Igual para cotizar y para reservar."""
 
     producto_id = serializers.IntegerField(min_value=1)
-    fecha_inicio = serializers.DateField()
+    # Con la salida basta (su dia es la fecha). Sin ella, en un tour se usa la
+    # primera salida con cupo de esa fecha: asi sigue funcionando la app movil.
+    fecha_inicio = serializers.DateField(required=False)
+    salida_id = serializers.IntegerField(min_value=1, required=False)
     # Solo en habitaciones: el dia de salida (la ultima noche es la anterior).
     fecha_fin = serializers.DateField(required=False, allow_null=True)
     # Habitaciones en un hospedaje; personas en lo demas.
@@ -25,9 +28,12 @@ class BookingRequestSerializer(serializers.Serializer):
     acepta_politica_cancelacion = serializers.BooleanField(required=False)
     razon_social_facturacion = serializers.CharField(max_length=180, required=False, allow_blank=True)
     nit_facturacion = serializers.CharField(max_length=40, required=False, allow_blank=True)
-    # Opcional para clientes existentes: si hay salidas, se usa la primera con cupo.
-    salida_id = serializers.IntegerField(min_value=1, required=False)
     promocion_id = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs):
+        if "fecha_inicio" not in attrs and "salida_id" not in attrs:
+            raise serializers.ValidationError({"fecha_inicio": "Indica la fecha o la salida."})
+        return attrs
 
 
 class QuoteSerializer(serializers.Serializer):

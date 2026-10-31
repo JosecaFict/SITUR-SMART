@@ -400,9 +400,12 @@ def test_invalid_components_currency_duplicates_and_owner(company):
         ).status_code
         == 400
     )
+    # Un tour visible de otra empresa activa: uno de una empresa suspendida
+    # daria 404 (no existe para nadie) y no probaria la regla de empresa.
     foreign = (
-        TourismProduct.objects.filter(status="PUBLICADO", product_type__code="TOUR")
+        TourismProduct.objects.filter(status="PUBLICADO", product_type__code="TOUR", tenant__status="ACTIVO")
         .exclude(tenant_id=company.tenant_id)
+        .order_by("id")
         .first()
     )
     assert (

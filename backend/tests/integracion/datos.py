@@ -27,9 +27,26 @@ def cliente(email: str = TURISTA) -> APIClient:
 
 
 def tour_publicado() -> TourismProduct:
+    """El primer tour publicado del seed: uno del Catalogo, sin ficha de CU20.
+
+    Las pruebas de salidas, paquetes y promociones le crean sus propias salidas.
+    """
     return TourismProduct.objects.filter(
         status="PUBLICADO", tenant__status="ACTIVO", product_type__code="TOUR"
     ).order_by("id").first()
+
+
+def tour_con_salidas() -> TourismProduct:
+    """Un tour del seed con ficha y salidas programadas."""
+    return (
+        TourismProduct.objects.filter(
+            status="PUBLICADO", tenant__status="ACTIVO", product_type__code="TOUR", tour__isnull=False,
+            availabilities__start__gt=timezone.now(),
+        )
+        .distinct()
+        .order_by("id")
+        .first()
+    )
 
 
 def hotel_publicado() -> LodgingEstablishment:

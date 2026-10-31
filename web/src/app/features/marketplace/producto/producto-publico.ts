@@ -2,11 +2,18 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LucideArrowLeft, LucideImage, LucideMapPin, LucideStar, LucideUsers } from '@lucide/angular';
+import {
+  LucideArrowLeft, LucideBaby, LucideCheck, LucideClock, LucideImage, LucideLanguages, LucideMapPin,
+  LucideMountain, LucideRoute, LucideStar, LucideUsers, LucideX,
+} from '@lucide/angular';
 import { AuthService } from '../../../core/auth/auth.service';
 import { apiErrorMessage } from '../../../core/http/api-error';
 import { TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
+import { Tour } from '../../../core/tours/tours.models';
+import { ToursService } from '../../../core/tours/tours.service';
+import { LatLng } from '../../../core/geo/geo.models';
+import { MapaUbicacion } from '../../../shared/mapa-ubicacion/mapa-ubicacion';
 import { Itinerary } from '../../../core/traveler/traveler.models';
 import { TravelerService } from '../../../core/traveler/traveler.service';
 import { Favorito } from '../../../shared/favorito/favorito';
@@ -15,6 +22,8 @@ import { Resenas } from '../../../shared/resenas/resenas';
 
 /** Lo que se reserva por día y persona desde su ficha (un hotel se reserva por habitación). */
 const BOOKABLE = new Set(['TOUR', 'EXPERIENCIA', 'ATRACCION', 'RESTAURANTE', 'PAQUETE']);
+const TOUR_CODES = new Set(['TOUR', 'EXPERIENCIA']);
+const DIFFICULTY_LABELS: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta' };
 
 /**
  * Ficha pública de un tour, experiencia, atracción, restaurante o paquete:
@@ -22,19 +31,35 @@ const BOOKABLE = new Set(['TOUR', 'EXPERIENCIA', 'ATRACCION', 'RESTAURANTE', 'PA
  */
 @Component({
   selector: 'situr-producto-publico',
-  imports: [DatePipe, RouterLink, Favorito, Reservar, Resenas, LucideArrowLeft, LucideImage, LucideMapPin, LucideStar, LucideUsers],
+  imports: [
+    DatePipe, RouterLink, Favorito, Reservar, Resenas, MapaUbicacion, LucideArrowLeft, LucideBaby, LucideCheck,
+    LucideClock, LucideImage, LucideLanguages, LucideMapPin, LucideMountain, LucideRoute, LucideStar, LucideUsers,
+    LucideX,
+  ],
   templateUrl: './producto-publico.html',
 })
 export class ProductoPublico implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly products = inject(ProductsService);
   private readonly traveler = inject(TravelerService);
+  private readonly toursService = inject(ToursService);
   protected readonly auth = inject(AuthService);
   protected readonly inShell = this.route.snapshot.data['inShell'] === true;
   protected readonly imageFailed = signal(false);
 
   protected readonly product = signal<TourismProduct | null>(null);
   protected readonly loading = signal(true);
+  /**
+   * Ficha del tour (CU20): recorrido, punto de encuentro, incluye. Null si no
+   * es un tour o si todavía no tiene ficha. Las salidas las muestra Reservar.
+   */
+  protected readonly tour = signal<Tour | null>(null);
+  protected readonly meetingPoint = computed<LatLng | null>(() => {
+    const detail = this.tour()?.detalle;
+    if (!detail?.latitud || !detail.longitud) return null;
+    const point = { lat: Number(detail.latitud), lng: Number(detail.longitud) };
+    return Number.isFinite(point.lat) && Number.isFinite(point.lng) ? point : null;
+  });
   protected readonly notFound = signal(false);
   protected readonly bookable = computed(() => {
     const product = this.product();
@@ -62,6 +87,7 @@ export class ProductoPublico implements OnInit {
       next: (product) => {
         this.product.set(product);
         this.loading.set(false);
+        if (TOUR_CODES.has(product.tipo_codigo)) this.loadTour(product.id);
       },
       error: () => {
         this.loading.set(false);
@@ -75,6 +101,18 @@ export class ProductoPublico implements OnInit {
         error: () => this.itineraries.set([]),
       });
     }
+  }
+
+  private loadTour(id: number): void {
+    this.toursService.getPublic(id).subscribe({
+      next: (tour) => this.tour.set(tour),
+      // Sin ficha (404): la página muestra solo los datos del producto.
+      error: () => this.tour.set(null),
+    });
+  }
+
+  protected difficulty(code: string | null): string {
+    return code ? DIFFICULTY_LABELS[code] ?? code : '';
   }
 
   protected chooseItinerary(event: Event): void {

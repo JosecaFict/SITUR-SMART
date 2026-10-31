@@ -9,6 +9,7 @@ import { AppShell } from '../../../core/layout/app-shell/app-shell';
 import { ProductsService } from '../../../core/products/products.service';
 import { TourismProduct } from '../../../core/products/products.models';
 import { MyPlanService } from '../../../core/subscription/my-plan.service';
+import { ToursService } from '../../../core/tours/tours.service';
 import { TravelerService } from '../../../core/traveler/traveler.service';
 import { ProductoPublico } from './producto-publico';
 
@@ -27,6 +28,8 @@ describe('ProductoPublico: layout según sesión', () => {
         { provide: ProductsService, useValue: products },
         { provide: TravelerService, useValue: { itineraries: () => of([]), unread: signal(0) } },
         { provide: MyPlanService, useValue: { get: () => of(null) } },
+        // La ficha de un tour (CU20) se pide aparte; aquí no hace falta.
+        { provide: ToursService, useValue: { getPublic: () => of(null) } },
       ],
     })
       .overrideComponent(AppShell, {
