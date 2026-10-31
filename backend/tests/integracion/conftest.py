@@ -1,4 +1,4 @@
-"""Base desechable de PostgreSQL para las pruebas de integracion.
+"""Base aislada de PostgreSQL para las pruebas de integracion.
 
 Se arma igual que una instalacion nueva: los scripts de database/migrations en
 orden y despues ``migrate``, que sobre esas tablas solo registra estado y
@@ -8,6 +8,7 @@ con sus triggers, CHECK y FK compuestas.
 En la suite normal (SQLite) estos archivos ni se recolectan.
 """
 
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -44,10 +45,18 @@ def _admin_connection(db: dict) -> psycopg.Connection:
 def django_db_setup(django_db_blocker):
     db = settings.DATABASES["default"]
     test_name = db["TEST"]["NAME"]
+    if (
+        not re.fullmatch(r"situr_smart_pruebas[a-z0-9_]*", test_name)
+        or len(test_name) > 63
+        or test_name == db["NAME"]
+    ):
+        raise RuntimeError("SITUR_TEST_DB_NAME debe ser una base de pruebas nueva con el prefijo situr_smart_pruebas.")
     with django_db_blocker.unblock():
         connections.close_all()
         with _admin_connection(db) as admin:
-            admin.execute(f'DROP DATABASE IF EXISTS "{test_name}" WITH (FORCE)')
+            # Nunca borrar una base preexistente al iniciar pruebas.
+            if admin.execute("SELECT 1 FROM pg_database WHERE datname = %s", (test_name,)).fetchone():
+                raise RuntimeError(f"La base de pruebas {test_name} ya existe; usa SITUR_TEST_DB_NAME con un nombre nuevo.")
             admin.execute(f'CREATE DATABASE "{test_name}"')
 
         for alias in connections:

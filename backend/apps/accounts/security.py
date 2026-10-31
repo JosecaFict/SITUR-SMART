@@ -200,6 +200,7 @@ def delete_account(*, user: User, password: str, request=None) -> None:
     la administra la empresa o la plataforma.
     """
     from apps.bookings.services import cancel_unpaid_for_customer
+    from apps.catalog.models import ProductReview
     from apps.notifications.models import PushDevice
 
     if not user.check_password(password or ""):
@@ -208,6 +209,9 @@ def delete_account(*, user: User, password: str, request=None) -> None:
         raise ValidationError({"detail": "Las cuentas de empresas o de la plataforma no se eliminan desde aquí."})
     with transaction.atomic():
         cancel_unpaid_for_customer(customer=user, actor=user, reason="El turista eliminó su cuenta.")
+        # La cuenta se anonimiza, no se borra fisicamente: retirar tambien sus
+        # comentarios evita conservar texto personal publicado tras la baja.
+        ProductReview.objects.filter(user=user).delete()
         PushDevice.objects.filter(user=user).delete()
         UserSession.objects.filter(user=user, revoked_at__isnull=True).update(revoked_at=timezone.now())
         profile = getattr(user, "customer_profile", None)

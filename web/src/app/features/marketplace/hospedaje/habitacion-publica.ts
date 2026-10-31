@@ -8,6 +8,7 @@ import {
 import { Room } from '../../../core/lodging/lodging.models';
 import { LodgingService } from '../../../core/lodging/lodging.service';
 import { Reservar } from '../../../shared/reservar/reservar';
+import { Resenas } from '../../../shared/resenas/resenas';
 
 /**
  * Detalle público de un tipo de habitación.
@@ -21,7 +22,7 @@ import { Reservar } from '../../../shared/reservar/reservar';
 @Component({
   selector: 'situr-habitacion-publica',
   imports: [
-    RouterLink, Reservar, LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCircleAlert,
+    RouterLink, Reservar, Resenas, LucideArrowLeft, LucideBedDouble, LucideBuilding2, LucideCircleAlert,
     LucideImage, LucideMapPin, LucideUsers,
   ],
   templateUrl: './habitacion-publica.html',
@@ -79,4 +80,10 @@ export class HabitacionPublica implements OnInit {
    * a fallar y disparar `error` otra vez, en bucle.
    */
   protected readonly imageFailed = signal(false);
+
+  protected refreshRating(): void {
+    this.lodgingService.getPublicRoom(this.roomId).subscribe({
+      next: (room) => this.room.set(room),
+    });
+  }
 }

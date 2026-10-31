@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import {
   authGuard,
+  authenticatedMatch,
   anyPermissionGuard,
   companyRegistryGuard,
   companyPermissionGuard,
@@ -37,8 +38,30 @@ export const routes: Routes = [
   },
   {
     path: 'marketplace/productos/:id',
+    canMatch: [authenticatedMatch],
+    component: AppShell,
+    children: [{
+      path: '',
+      data: { inShell: true },
+      loadComponent: () =>
+        import('./features/marketplace/producto/producto-publico').then((m) => m.ProductoPublico),
+    }],
+  },
+  {
+    path: 'marketplace/productos/:id',
     loadComponent: () =>
       import('./features/marketplace/producto/producto-publico').then((m) => m.ProductoPublico),
+  },
+  {
+    path: 'marketplace/promociones/:id',
+    canMatch: [authenticatedMatch],
+    component: AppShell,
+    children: [{ path: '', data: { inShell: true }, loadComponent: () =>
+      import('./features/marketplace/promocion/promocion-publica').then((m) => m.PromocionPublica) }],
+  },
+  {
+    path: 'marketplace/promociones/:id',
+    loadComponent: () => import('./features/marketplace/promocion/promocion-publica').then((m) => m.PromocionPublica),
   },
   {
     path: 'marketplace/hospedajes/:id',
@@ -77,6 +100,22 @@ export const routes: Routes = [
         loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.Dashboard),
       },
       // Área del viajero.
+      {
+        path: 'paquetes/nuevo',
+        loadComponent: () => import('./features/viajero/paquete-editor').then((m) => m.PaqueteEditor),
+      },
+      {
+        path: 'paquetes/:id/editar',
+        loadComponent: () => import('./features/viajero/paquete-editor').then((m) => m.PaqueteEditor),
+      },
+      {
+        path: 'paquetes/:id',
+        loadComponent: () => import('./features/viajero/paquete-detalle').then((m) => m.PaqueteDetalle),
+      },
+      {
+        path: 'paquetes',
+        loadComponent: () => import('./features/viajero/paquetes').then((m) => m.Paquetes),
+      },
       {
         path: 'mis-viajes',
         loadComponent: () => import('./features/viajero/mis-viajes').then((m) => m.MisViajes),
@@ -161,6 +200,26 @@ export const routes: Routes = [
         canActivate: [permissionGuard('PRODUCTOS_LEER')],
         loadComponent: () =>
           import('./features/admin/productos/productos').then((m) => m.Productos),
+      },
+      {
+        path: 'promociones',
+        canActivate: [companyPermissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () => import('./features/admin/promociones/promociones').then((m) => m.Promociones),
+      },
+      {
+        path: 'promociones/nueva',
+        canActivate: [companyPermissionGuard('PRODUCTOS_GESTIONAR')],
+        loadComponent: () => import('./features/admin/promociones/promocion-editor').then((m) => m.PromocionEditor),
+      },
+      {
+        path: 'promociones/:id/editar',
+        canActivate: [companyPermissionGuard('PRODUCTOS_GESTIONAR')],
+        loadComponent: () => import('./features/admin/promociones/promocion-editor').then((m) => m.PromocionEditor),
+      },
+      {
+        path: 'promociones/:id',
+        canActivate: [companyPermissionGuard('PRODUCTOS_LEER')],
+        loadComponent: () => import('./features/admin/promociones/promocion-editor').then((m) => m.PromocionEditor),
       },
       // El orden importa: 'nuevo' va antes de ':id' para que no lo capture como
       // identificador. La ficha y su pestaña de habitaciones son el mismo

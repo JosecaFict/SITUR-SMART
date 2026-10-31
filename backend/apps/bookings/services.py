@@ -1,12 +1,13 @@
 """Reservas del turista: cupos automaticos, bloqueo mientras paga y estados.
 
-Cupos automaticos
-    Nadie carga disponibilidad a mano. El cupo de un dia sale del producto:
+Cupos automaticos y salidas programadas
+    La disponibilidad diaria historica se crea al reservar. El cupo de un dia sale del producto:
     una habitacion ofrece ``cantidad_habitaciones`` por noche; un tour,
     experiencia, atraccion, restaurante o paquete, ``capacidad_maxima``
     personas por dia. La fila de ``disponibilidad`` se crea la primera vez que
     alguien reserva esa fecha, porque ``reserva_detalle`` la exige como FK. Una
-    empresa puede cerrar un dia marcando ``cerrado``.
+    empresa puede cerrar un dia marcando ``cerrado``. Los tours y experiencias
+    tambien pueden usar salidas horarias con cupo propio en la misma tabla.
 
 Ocupacion de un cupo
     Lo confirmado (detalle de reservas CONFIRMADA, PAGO_PARCIAL o COMPLETADA)
@@ -41,9 +42,12 @@ from rest_framework.exceptions import APIException, NotFound, ValidationError
 
 from apps.accounts.models import CustomerProfile
 from apps.accounts.security import require_verified_email
+from apps.catalog import departures
 from apps.catalog.models import ROOM_PRODUCT_CODE, Availability, TourismProduct
 from apps.payments import gateway
 from apps.payments.models import Payment
+from apps.promotions.models import BookingPromotionSnapshot
+from apps.promotions.pricing import Discount, product_discount
 from apps.tenancy.subscriptions import restricted_tenant_ids
 
 from . import events
@@ -102,6 +106,8 @@ class Quote:
     guests: int | None
     capacity: int
     unit_price: Decimal
+    slot: Availability | None = None
+    promotion_discount: Discount | None = None
 
     @property
     def total(self) -> Decimal:
@@ -142,9 +148,11 @@ def _bookable_product(product_id: int) -> TourismProduct:
 
 
 def build_quote(
-    *, product_id: int, start: date, end: date | None, quantity: int, guests: int | None
+    *, product_id: int, start: date, end: date | None, quantity: int, guests: int | None,
+    slot_id: int | None = None,
+    promotion_id: int | None = None,
 ) -> Quote:
-    """Valida lo pedido contra el producto. No mira la ocupacion."""
+    """Valida lo pedido y resuelve la salida; la cotizacion no aparta cupo."""
     product = _bookable_product(product_id)
     is_room = product.product_type.code == ROOM_PRODUCT_CODE
     today = timezone.localdate()
@@ -157,6 +165,8 @@ def build_quote(
         raise ValidationError({"producto_id": "Este producto todavía no tiene precio publicado."})
 
     if is_room:
+        if slot_id is not None:
+            raise ValidationError({"salida_id": "Las habitaciones se reservan por noches."})
         room = product.room
         if end is None or end <= start:
             raise ValidationError({"fecha_fin": "La salida debe ser posterior a la llegada."})
@@ -186,6 +196,35 @@ def build_quote(
         guests = None
         capacity = product.max_capacity
 
+    selected_slot = None
+    if product.product_type.code in departures.DEPARTURE_CODES:
+        scheduled = departures.scheduled_slots(product.id, start)
+        if slot_id is not None:
+            selected_slot = next((slot for slot in scheduled if slot.id == slot_id), None)
+            if selected_slot is None:
+                raise ValidationError({"salida_id": "La salida no pertenece a este producto y fecha."})
+        elif scheduled:
+            # Contrato anterior (web y Flutter): solo fecha. Se asigna la
+            # primera salida futura con cupo; la respuesta revela cual fue.
+            viable = [slot for slot in scheduled if not slot.closed and slot.start > timezone.now()]
+            selected_slot = next(
+                (slot for slot in viable if slot.total_capacity - _occupied([slot.id]).get(slot.id, 0) >= quantity),
+                viable[0] if viable else None,
+            )
+            if selected_slot is None:
+                raise ValidationError({"fecha_inicio": "No hay salidas abiertas para esa fecha."})
+        if selected_slot is not None:
+            if selected_slot.closed or selected_slot.start <= timezone.now():
+                raise ValidationError({"salida_id": "La salida esta cerrada o ya comenzo."})
+            capacity = selected_slot.total_capacity
+        elif slot_id is not None:
+            raise ValidationError({"salida_id": "No hay una salida programada para esa fecha."})
+    elif slot_id is not None:
+        raise ValidationError({"salida_id": "Este producto no tiene salidas programadas."})
+
+    discount = product_discount(product, promotion_id=promotion_id)
+    if discount and discount.final * quantity >= Decimal("10000000000"):
+        raise ValidationError({"cantidad": "El importe supera el límite admitido por la reserva."})
     return Quote(
         product=product,
         is_room=is_room,
@@ -193,7 +232,9 @@ def build_quote(
         quantity=quantity,
         guests=guests,
         capacity=capacity,
-        unit_price=product.base_price,
+        unit_price=discount.final if discount else product.base_price,
+        slot=selected_slot,
+        promotion_discount=discount,
     )
 
 
@@ -219,6 +260,10 @@ def availability(quote: Quote) -> int:
     Solo lee: no crea cupos ni aparta nada. Un dia sin fila de disponibilidad
     todavia no tiene reservas, asi que esta entero.
     """
+    if quote.slot is not None:
+        slot = quote.slot
+        used = _occupied([slot.id]).get(slot.id, 0)
+        return 0 if slot.closed else max(slot.total_capacity - used, 0)
     slots = {
         slot.start: slot
         for slot in Availability.objects.filter(
@@ -245,6 +290,9 @@ def _code(prefix: str) -> str:
 
 def _lock_slots(quote: Quote) -> list[Availability]:
     """Crea los cupos que falten y los bloquea en orden de fecha."""
+    if quote.slot is not None:
+        slot = Availability.objects.select_for_update().get(id=quote.slot.id)
+        return [slot]
     product = quote.product
     starts = [_slot_start(day) for day in quote.days]
     with connection.cursor() as cursor:
@@ -263,6 +311,8 @@ def _lock_slots(quote: Quote) -> list[Availability]:
         Availability.objects.select_for_update().filter(product=product, start__in=starts).order_by("start")
     )
     # El cupo sigue al producto: si la empresa agrego habitaciones, la fila se pone al dia.
+    # Solo los cupos diarios automaticos siguen la capacidad del producto.
+    # Nunca se modifica aqui un cupo particular de una salida programada.
     stale = [slot.id for slot in slots if slot.total_capacity != quote.capacity]
     if stale:
         Availability.objects.filter(id__in=stale).update(total_capacity=quote.capacity)
@@ -309,7 +359,8 @@ def _description(quote: Quote) -> str:
         hotel = product.room.establishment.product.name
         nights = len(quote.days)
         return f"{hotel} - {product.name} ({nights} {'noche' if nights == 1 else 'noches'})"
-    return f"{product.name} - {quote.start.strftime('%d/%m/%Y')}"
+    when = quote.slot.start.astimezone(_zone()).strftime('%d/%m/%Y %H:%M') if quote.slot else quote.start.strftime('%d/%m/%Y')
+    return f"{product.name} - {when}"
 
 
 @dataclass
@@ -326,6 +377,8 @@ def create_booking(
     end: date | None,
     quantity: int,
     guests: int | None,
+    slot_id: int | None = None,
+    promotion_id: int | None = None,
     success_url: str,
     cancel_url: str,
     idempotency_key: str | None = None,
@@ -353,10 +406,16 @@ def create_booking(
             f"Tienes {pending} reservas esperando pago. Paga o cancela alguna antes de reservar otra."
         )
 
-    quote = build_quote(product_id=product_id, start=start, end=end, quantity=quantity, guests=guests)
+    quote = build_quote(product_id=product_id, start=start, end=end, quantity=quantity, guests=guests,
+                        slot_id=slot_id, promotion_id=promotion_id)
     expires_at = timezone.now() + timedelta(minutes=settings.RESERVA_MINUTOS_PAGO)
 
     with transaction.atomic():
+        # Serializa altas de salidas, cambios de cupo y reservas sin hora del
+        # mismo producto. Recalcular evita usar una seleccion ya obsoleta.
+        TourismProduct.objects.select_for_update().get(id=product_id)
+        quote = build_quote(product_id=product_id, start=start, end=end, quantity=quantity, guests=guests,
+                            slot_id=slot_id, promotion_id=promotion_id)
         slots = _lock_slots(quote)
         _check_capacity(slots, quantity=quote.quantity, is_room=quote.is_room)
 
@@ -382,6 +441,17 @@ def create_booking(
                 for slot in slots
             ]
         )
+        if quote.promotion_discount:
+            discount = quote.promotion_discount
+            promotion = discount.promotion
+            BookingPromotionSnapshot.objects.create(
+                booking=booking, promotion=promotion, name=promotion.name, currency_id=booking.currency_id,
+                percentage=promotion.percentage, original_unit_price=discount.original,
+                final_unit_price=discount.final, quantity=quote.quantity,
+                original_total=discount.original * quote.quantity,
+                discount_amount=(discount.original - discount.final) * quote.quantity, total=quote.total,
+                starts_at=promotion.starts_at, ends_at=promotion.ends_at,
+            )
         InventoryLock.objects.bulk_create(
             [
                 InventoryLock(
@@ -619,7 +689,7 @@ def complete_finished() -> int:
 def _customer_bookings(user):
     return (
         Booking.objects.filter(order__customer__user=user)
-        .select_related("tenant", "currency", "order")
+        .select_related("tenant", "currency", "order", "promotion_snapshot")
         .prefetch_related(
             Prefetch(
                 "details",

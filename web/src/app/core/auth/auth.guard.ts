@@ -1,6 +1,9 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, CanMatchFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
+
+/** Selecciona el layout del panel solo cuando hay una sesión; la ruta pública queda disponible. */
+export const authenticatedMatch: CanMatchFn = () => inject(AuthService).isAuthenticated();
 
 export const authGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);

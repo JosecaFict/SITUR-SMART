@@ -1,3 +1,5 @@
+import { PromotionDiscount } from '../promotions/promotions.models';
+
 export type ProductStatus = 'BORRADOR' | 'PUBLICADO' | 'INACTIVO';
 
 export interface ProductType { id: number; codigo: string; nombre: string; }
@@ -34,6 +36,8 @@ export interface TourismProduct {
    * `establecimiento_hospedaje`, distinto del id del producto.
    */
   hospedaje_id: number | null;
+  calificacion_promedio: number | null;
+  cantidad_resenas: number;
   /** Nombre del hotel. Solo en habitaciones. */
   establecimiento: string | null;
   /** Publicación programada: el sistema lo publica o retira solo a esa hora. */
@@ -43,6 +47,7 @@ export interface TourismProduct {
   publicado_automaticamente_en?: string | null;
   creado_en: string;
   actualizado_en: string;
+  promocion?: PromotionDiscount | null;
 }
 
 export interface ProductPayload {
@@ -77,4 +82,25 @@ export interface MarketplacePage {
   next: string | null;
   previous: string | null;
   results: TourismProduct[];
+}
+
+/** Una salida horaria; las disponibilidades diarias históricas no aparecen en esta lista. */
+export interface ProductDeparture {
+  id: number;
+  producto_id: number;
+  fecha: string;
+  hora_inicio: string;
+  hora_fin: string;
+  inicio: string;
+  fin: string;
+  cupo_total: number;
+  cupos_restantes: number;
+  cerrado: boolean;
+}
+
+export interface DeparturePayload {
+  fecha: string;
+  hora_inicio: string;
+  hora_fin: string;
+  cupo_total: number;
 }

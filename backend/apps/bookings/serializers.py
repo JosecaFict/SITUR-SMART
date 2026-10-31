@@ -4,6 +4,7 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.catalog.departures import is_legacy_daily
 from apps.catalog.models import ROOM_PRODUCT_CODE
 
 from .models import Booking, BookingState
@@ -20,6 +21,9 @@ class BookingRequestSerializer(serializers.Serializer):
     # Habitaciones en un hospedaje; personas en lo demas.
     cantidad = serializers.IntegerField(min_value=1, max_value=500)
     huespedes = serializers.IntegerField(min_value=1, max_value=500, required=False, allow_null=True)
+    # Opcional para clientes existentes: si hay salidas, se usa la primera con cupo.
+    salida_id = serializers.IntegerField(min_value=1, required=False)
+    promocion_id = serializers.IntegerField(min_value=1, required=False)
 
 
 class QuoteSerializer(serializers.Serializer):
@@ -35,6 +39,10 @@ class QuoteSerializer(serializers.Serializer):
     moneda_simbolo = serializers.CharField()
     disponibles = serializers.IntegerField()
     disponible = serializers.BooleanField()
+    salida_id = serializers.IntegerField(allow_null=True)
+    inicio = serializers.DateTimeField(allow_null=True)
+    fin = serializers.DateTimeField(allow_null=True)
+    promocion = serializers.DictField(allow_null=True)
 
     @staticmethod
     def from_quote(quote, remaining: int) -> dict:
@@ -52,6 +60,10 @@ class QuoteSerializer(serializers.Serializer):
             "moneda_simbolo": product.currency.symbol,
             "disponibles": remaining,
             "disponible": remaining >= quote.quantity,
+            "salida_id": quote.slot.id if quote.slot else None,
+            "inicio": quote.slot.start if quote.slot else None,
+            "fin": quote.slot.end if quote.slot else None,
+            "promocion": quote.promotion_discount.data(quote.quantity) if quote.promotion_discount else None,
         }
 
 
@@ -73,18 +85,31 @@ class BookingSerializer(serializers.ModelSerializer):
     importe = serializers.SerializerMethodField()
     pago = serializers.SerializerMethodField()
     qr = serializers.SerializerMethodField()
+    salida = serializers.SerializerMethodField()
+    promocion = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
         fields = (
             "id", "codigo", "orden", "estado", "estado_nombre", "empresa", "producto",
             "fechas", "importe", "huespedes", "moneda_codigo", "moneda_simbolo",
-            "pago", "vence_en", "qr", "creado_en",
+            "pago", "vence_en", "qr", "salida", "creado_en", "promocion",
         )
 
     @staticmethod
     def _details(booking):
         return list(booking.details.all())
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_promocion(self, booking):
+        snapshot = getattr(booking, "promotion_snapshot", None)
+        if snapshot is None:
+            return None
+        return {"id": snapshot.promotion_id, "nombre": snapshot.name,
+                "porcentaje_descuento": str(snapshot.percentage),
+                "precio_original": str(snapshot.original_unit_price), "precio_final": str(snapshot.final_unit_price),
+                "total_original": str(snapshot.original_total), "descuento_total": str(snapshot.discount_amount),
+                "total": str(snapshot.total), "inicio": snapshot.starts_at, "fin": snapshot.ends_at}
 
     def get_estado_nombre(self, booking) -> str:
         return BookingState(booking.status).label
@@ -131,6 +156,15 @@ class BookingSerializer(serializers.ModelSerializer):
             "fin": (local_last + timedelta(days=1)).isoformat() if is_room else local_first.isoformat(),
             "noches": len(details) if is_room else None,
         }
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_salida(self, booking) -> dict | None:
+        details = self._details(booking)
+        if not details or is_legacy_daily(details[0].slot):
+            return None
+        slot = details[0].slot
+        return {"id": slot.id, "inicio": serializers.DateTimeField().to_representation(slot.start),
+                "fin": serializers.DateTimeField().to_representation(slot.end)}
 
     @extend_schema_field(serializers.DictField())
     def get_importe(self, booking) -> dict:

@@ -12,7 +12,7 @@ import {
   LucideStar,
   LucideX,
 } from '@lucide/angular';
-import { Observable, forkJoin, map } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { City, Country } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
 import { LodgingEstablishment } from '../../../core/lodging/lodging.models';
@@ -20,6 +20,8 @@ import { LodgingService } from '../../../core/lodging/lodging.service';
 import { ProductType, TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { Promotion } from '../../../core/promotions/promotions.models';
+import { promotionApiError, PromotionsService } from '../../../core/promotions/promotions.service';
 
 type SortOrder = 'recientes' | 'precio_asc' | 'precio_desc' | 'nombre';
 
@@ -68,6 +70,13 @@ interface MarketplaceCard {
   /** Hospedaje a abrir al expandir: el propio hotel o el de la habitación. */
   hospedajeId: number | null;
   estrellas: number | null;
+  calificacionPromedio: number | null;
+  cantidadResenas: number;
+  promocionId: number | null;
+  precioOriginal: string | null;
+  porcentajeDescuento: string | null;
+  cityIds: number[];
+  countryIds: number[];
 }
 
 @Component({
@@ -93,6 +102,7 @@ export class Busqueda implements OnInit {
   private readonly companiesService = inject(CompaniesService);
   private readonly lodgingService = inject(LodgingService);
   private readonly auth = inject(AuthService);
+  private readonly promotions = inject(PromotionsService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -108,17 +118,10 @@ export class Busqueda implements OnInit {
   protected readonly validationMessage = signal<string | null>(null);
   protected readonly selectedType = signal('');
   protected readonly selectedCountryId = signal(0);
-  /**
-   * Producto no hospedaje con su descripción desplegada.
-   *
-   * Solo aplica a tours, experiencias, atracciones, restaurantes y paquetes: un
-   * hospedaje no se despliega, navega a su página. La descripción ya viene en la
-   * tarjeta, así que desplegar no consulta nada.
-   */
-  protected readonly expandedCardId = signal<number | null>(null);
   protected readonly total = signal(0);
   protected readonly page = signal(1);
   protected readonly pageSize = 9;
+  private searchVersion = 0;
 
   protected readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.pageSize)));
   protected readonly hasPreviousPage = computed(() => this.page() > 1);
@@ -189,8 +192,8 @@ export class Busqueda implements OnInit {
     this.loading.set(true);
     this.errorMessage.set(null);
     this.selectedType.set(raw.tipo);
-    this.expandedCardId.set(null);
     this.syncUrl();
+    const version = ++this.searchVersion;
 
     const common = {
       buscar: raw.buscar.trim() || undefined,
@@ -208,7 +211,24 @@ export class Busqueda implements OnInit {
     // precio "desde" de un hotel y a qué establecimiento pertenece una
     // habitación. El resto del catálogo sigue por la consulta genérica.
     let request: Observable<{ count: number; results: MarketplaceCard[] }>;
-    if (raw.tipo === 'HOTEL') {
+    if (raw.tipo === 'PROMOCIONES') {
+      request = this.promotionCards().pipe(map((cards) => {
+        const search = raw.buscar.trim().toLocaleLowerCase('es');
+        const locality = raw.localidad.trim().toLocaleLowerCase('es');
+        const filtered = cards.filter((card) =>
+          (!search || [card.nombre, card.empresa, card.descripcion, card.ciudad].join(' ').toLocaleLowerCase('es').includes(search)) &&
+          (!raw.pais || card.countryIds.includes(Number(raw.pais))) &&
+          (!raw.ciudad || card.cityIds.includes(Number(raw.ciudad))) &&
+          (!locality || (card.localidad ?? '').toLocaleLowerCase('es').includes(locality)) &&
+          (minimum === undefined || Number(card.precio?.replace(/[^\d.,]/g, '').replace(',', '.')) >= minimum) &&
+          (maximum === undefined || Number(card.precio?.replace(/[^\d.,]/g, '').replace(',', '.')) <= maximum));
+        const ordered = [...filtered];
+        if (raw.orden === 'nombre') ordered.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+        if (raw.orden === 'precio_asc') ordered.sort((a, b) => this.cardPrice(a) - this.cardPrice(b));
+        if (raw.orden === 'precio_desc') ordered.sort((a, b) => this.cardPrice(b) - this.cardPrice(a));
+        return { count: ordered.length, results: ordered.slice((this.page() - 1) * this.pageSize, this.page() * this.pageSize) };
+      }));
+    } else if (raw.tipo === 'HOTEL') {
       request = this.lodgingService
         .listPublicLodgings(common)
         .pipe(map((page) => ({ count: page.count, results: page.results.map((item) => this.lodgingCard(item)) })));
@@ -220,17 +240,17 @@ export class Busqueda implements OnInit {
 
     request.subscribe({
       next: (response) => {
+        if (version !== this.searchVersion) return;
         this.cards.set(response.results);
         this.total.set(response.count);
         this.loading.set(false);
       },
       error: (error: HttpErrorResponse) => {
+        if (version !== this.searchVersion) return;
         this.loading.set(false);
-        this.errorMessage.set(
-          error.status === 0
-            ? 'No se pudo conectar con el backend.'
-            : 'No se pudieron obtener los resultados. Revisa los filtros e inténtalo otra vez.',
-        );
+        this.errorMessage.set(raw.tipo === 'PROMOCIONES' || error.status === 500
+          ? promotionApiError(error, 'No se pudieron obtener los resultados.')
+          : error.status === 0 ? 'No se pudo conectar con el backend.' : 'No se pudieron obtener los resultados. Revisa los filtros e inténtalo otra vez.');
       },
     });
   }
@@ -295,6 +315,10 @@ export class Busqueda implements OnInit {
     } else if (isRoom) {
       precioEtiqueta = 'Por noche';
     }
+    if (product.promocion) {
+      precioEtiqueta = 'Precio promocional';
+      precio = `${product.moneda_simbolo} ${product.promocion.precio_final}`;
+    }
 
     return {
       id: product.id,
@@ -318,7 +342,14 @@ export class Busqueda implements OnInit {
       // establecimiento_hospedaje, no el del producto.
       hospedajeId: product.hospedaje_id,
       estrellas: null,
+      calificacionPromedio: product.calificacion_promedio,
+      cantidadResenas: product.cantidad_resenas,
       esHospedaje: isHotel,
+      promocionId: null,
+      precioOriginal: product.promocion ? `${product.moneda_simbolo} ${product.promocion.precio_original}` : null,
+      porcentajeDescuento: product.promocion?.porcentaje_descuento ?? null,
+      cityIds: [product.ciudad_id],
+      countryIds: [product.pais_id],
     };
   }
 
@@ -339,7 +370,59 @@ export class Busqueda implements OnInit {
       establecimiento: null,
       hospedajeId: lodging.id,
       estrellas: lodging.categoria_estrellas,
+      calificacionPromedio: lodging.calificacion_promedio,
+      cantidadResenas: lodging.cantidad_resenas,
       esHospedaje: true,
+      promocionId: null,
+      precioOriginal: null,
+      porcentajeDescuento: null,
+      cityIds: [lodging.ciudad_id],
+      countryIds: [lodging.pais_id],
+    };
+  }
+
+  private cardPrice(card: MarketplaceCard): number {
+    return Number(card.precio?.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+  }
+
+  /** Public promotions do not carry location or ratings; use real product records when accessible. */
+  private promotionCards(): Observable<MarketplaceCard[]> {
+    return this.promotions.listPublic().pipe(switchMap((offers) => {
+      if (!offers.length) return of([]);
+      const ids = [...new Set(offers.flatMap((offer) => offer.modalidad === 'EXISTENTE'
+        ? offer.producto_id ? [offer.producto_id] : []
+        : offer.componentes.map((part) => part.producto_id)))];
+      if (!ids.length) return of(offers.map((offer) => this.combinedCard(offer, [])));
+      return forkJoin(ids.map((id) => this.productsService.getPublic(id).pipe(catchError(() => of(null))))).pipe(map((products) => {
+        const byId = new Map(ids.map((id, index) => [id, products[index]]));
+        return offers.flatMap((offer): MarketplaceCard[] => {
+          if (offer.modalidad === 'EXISTENTE') {
+            const product = offer.producto_id ? byId.get(offer.producto_id) : null;
+            return product?.promocion?.id === offer.id ? [this.productCard(product)] : [];
+          }
+          return [this.combinedCard(offer, offer.componentes.flatMap((part) => {
+            const product = byId.get(part.producto_id);
+            return product ? [product] : [];
+          }))];
+        });
+      }));
+    }));
+  }
+
+  private combinedCard(offer: Promotion, products: TourismProduct[]): MarketplaceCard {
+    const first = products[0];
+    const cityIds = [...new Set(products.map((product) => product.ciudad_id))];
+    const countryIds = [...new Set(products.map((product) => product.pais_id))];
+    return {
+      id: offer.id, promocionId: offer.id, tipo: 'Paquete promocional', nombre: offer.nombre,
+      descripcion: offer.descripcion, localidad: cityIds.length === 1 ? first?.localidad ?? null : null,
+      ciudad: cityIds.length > 1 ? 'Varias ciudades' : first?.ciudad ?? '', pais: first?.pais ?? '',
+      empresa: offer.empresa, imagen: offer.imagen_url || FALLBACK_IMAGE, precioEtiqueta: 'Precio del conjunto',
+      precio: offer.precio_final === null ? null : `${offer.moneda_simbolo ?? ''} ${offer.precio_final}`,
+      precioOriginal: offer.precio_original === null ? null : `${offer.moneda_simbolo ?? ''} ${offer.precio_original}`,
+      porcentajeDescuento: offer.porcentaje_descuento, capacidad: null, esHospedaje: false,
+      establecimiento: null, hospedajeId: null, estrellas: null, calificacionPromedio: null, cantidadResenas: 0,
+      cityIds, countryIds,
     };
   }
 
@@ -369,10 +452,6 @@ export class Busqueda implements OnInit {
     if (!this.hasNextPage() || this.loading()) return;
     this.page.update((value) => value + 1);
     this.search(false);
-  }
-
-  protected toggleDetails(card: MarketplaceCard): void {
-    this.expandedCardId.update((actual) => (actual === card.id ? null : card.id));
   }
 
   /**

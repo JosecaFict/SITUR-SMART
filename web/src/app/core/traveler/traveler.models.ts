@@ -1,5 +1,7 @@
 /** Modelos del área del viajero (me/reservas, me/favoritos, me/itinerarios, me/notificaciones). */
 
+import { BookingPromotionSnapshot, PromotionDiscount } from '../promotions/promotions.models';
+
 export interface TravelerBooking {
   id: number;
   codigo: string;
@@ -29,6 +31,7 @@ export interface TravelerBooking {
   qr: string | null;
   creado_en: string;
   checkout_url?: string | null;
+  promocion?: BookingPromotionSnapshot | null;
 }
 
 export interface BookingRequest {
@@ -37,6 +40,8 @@ export interface BookingRequest {
   fecha_fin?: string;
   cantidad: number;
   huespedes?: number;
+  salida_id?: number;
+  promocion_id?: number;
 }
 
 export interface BookingQuote {
@@ -46,6 +51,10 @@ export interface BookingQuote {
   disponible: boolean;
   disponibles: number;
   noches?: number | null;
+  salida_id?: number | null;
+  inicio?: string | null;
+  fin?: string | null;
+  promocion?: PromotionDiscount | null;
 }
 
 export interface Itinerary {

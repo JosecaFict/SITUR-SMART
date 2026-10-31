@@ -29,6 +29,8 @@ def _request_args(request) -> dict:
         "end": data.get("fecha_fin"),
         "quantity": data["cantidad"],
         "guests": data.get("huespedes"),
+        "slot_id": data.get("salida_id"),
+        "promotion_id": data.get("promocion_id"),
     }
 
 

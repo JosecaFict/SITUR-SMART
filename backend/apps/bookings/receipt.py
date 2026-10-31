@@ -139,6 +139,11 @@ def build_receipt_pdf(booking: Booking) -> bytes:
         when = f"{_day(dates['inicio'])} al {_day(dates['fin'])} ({nights} {'noche' if nights == 1 else 'noches'})"
     else:
         when = _day(dates.get("inicio"))
+    if data.get("salida"):
+        departure = data["salida"]
+        start_time = datetime.fromisoformat(departure["inicio"]).strftime("%H:%M")
+        end_time = datetime.fromisoformat(departure["fin"]).strftime("%H:%M")
+        when = f"{when}, {start_time} a {end_time}"
 
     summary = [
         Paragraph(place, title),

@@ -13,11 +13,14 @@ from apps.rbac.views import tenant_id_from_request
 from apps.tenancy.models import City
 from apps.tenancy.subscriptions import restricted_tenant_ids
 
-from . import scheduling
+from . import departures, scheduling
 from .geocoding import GeocodingUnavailable, reverse_geocode, search_places
 from .models import Currency, LodgingType, ProductType, TourismProduct
 from .serializers import (
     CurrencySerializer,
+    DepartureQuerySerializer,
+    DepartureSerializer,
+    DepartureWriteSerializer,
     GeocodingPlaceSerializer,
     GeocodingReverseQuerySerializer,
     GeocodingSearchQuerySerializer,
@@ -620,3 +623,73 @@ class ProductScheduleView(APIView):
             actor=request.user, tenant_id=tenant_id, product_id=pk, publish_at=None, unpublish_at=None, request=request
         )
         return Response(ProductSerializer(product).data)
+
+
+class CompanyDepartureListCreateView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(parameters=[DepartureQuerySerializer], responses=DepartureSerializer(many=True))
+    def get(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        query = DepartureQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        slots = departures.list_company(
+            actor=request.user, tenant_id=tenant_id, product_id=pk,
+            day=query.validated_data.get("fecha"),
+        )
+        return Response([departures.serialize(slot) for slot in slots])
+
+    @extend_schema(request=DepartureWriteSerializer, responses={201: DepartureSerializer})
+    def post(self, request, pk):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = DepartureWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        slot = departures.create(
+            actor=request.user, tenant_id=tenant_id, product_id=pk,
+            day=data["fecha"], start_time=data["hora_inicio"], end_time=data["hora_fin"],
+            capacity=data["cupo_total"], closed=data.get("cerrado", False),
+        )
+        return Response(departures.serialize(slot), status=status.HTTP_201_CREATED)
+
+
+class CompanyDepartureDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=DepartureWriteSerializer, responses=DepartureSerializer)
+    def patch(self, request, pk, slot_id):
+        tenant_id = tenant_id_from_request(request, required=True)
+        serializer = DepartureWriteSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        slot = departures.update(
+            actor=request.user, tenant_id=tenant_id, product_id=pk, slot_id=slot_id,
+            day=data.get("fecha"), start_time=data.get("hora_inicio"),
+            end_time=data.get("hora_fin"), capacity=data.get("cupo_total"),
+            closed=data.get("cerrado"),
+        )
+        return Response(departures.serialize(slot))
+
+
+class CompanyDepartureCloseView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(request=None, responses=DepartureSerializer)
+    def post(self, request, pk, slot_id):
+        tenant_id = tenant_id_from_request(request, required=True)
+        slot = departures.update(
+            actor=request.user, tenant_id=tenant_id, product_id=pk, slot_id=slot_id,
+            closed=True,
+        )
+        return Response(departures.serialize(slot))
+
+
+class PublicDepartureListView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(parameters=[DepartureQuerySerializer], responses=DepartureSerializer(many=True))
+    def get(self, request, pk):
+        query = DepartureQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        slots = departures.list_public(product_id=pk, day=query.validated_data.get("fecha"))
+        return Response([departures.serialize(slot) for slot in slots])
