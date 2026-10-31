@@ -1,0 +1,41 @@
+<section class="mx-auto max-w-7xl space-y-5">
+  <header class="flex flex-wrap items-start justify-between gap-4">
+    <div><h1 class="font-heading text-title text-2xl font-extrabold sm:text-3xl">Gestión de descuentos</h1><p class="mt-1 text-sm text-text-secondary">Aplica descuentos a productos existentes o crea paquetes promocionales combinando servicios de tu empresa.</p></div>
+    @if (canManage()) { <button type="button" class="btn-accent inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-bold text-white" (click)="showChoice.set(!showChoice())"><svg lucidePlus class="h-4 w-4"></svg>Nueva promoción</button> }
+  </header>
+  @if (tenants.length > 1) { <label class="flex max-w-sm flex-col gap-1 text-xs font-semibold text-label">Empresa<select class="promo-control" [value]="tenantId() ?? ''" (change)="changeTenant($event)">@for (tenant of tenants; track tenant.id) { <option [value]="tenant.id">{{ tenant.name }}</option> }</select></label> }
+  @if (showChoice()) {
+    <div class="grid gap-3 sm:grid-cols-2" aria-label="Elegir modalidad de promoción">
+      <a [routerLink]="['/promociones/nueva']" [queryParams]="{ empresa: tenantId(), modalidad: 'EXISTENTE' }" class="border-demo-border hover:border-accent-dark flex items-start gap-3 rounded-2xl border bg-demo-bg p-5 transition hover:shadow-md"><svg lucideBadgePercent class="h-7 w-7 shrink-0 text-accent-dark"></svg><span><strong class="font-heading block text-title">Aplicar descuento a producto existente</strong><small class="mt-1 block text-text-secondary">Elige un producto publicado y configura su vigencia.</small></span></a>
+      <a [routerLink]="['/promociones/nueva']" [queryParams]="{ empresa: tenantId(), modalidad: 'COMBINADO' }" class="border-input-border hover:border-accent-dark flex items-start gap-3 rounded-2xl border bg-white p-5 transition hover:shadow-md"><svg lucidePackageOpen class="h-7 w-7 shrink-0 text-accent-dark"></svg><span><strong class="font-heading block text-title">Crear paquete promocional</strong><small class="mt-1 block text-text-secondary">Combina servicios de la misma empresa. Consulta pública sin reserva en línea.</small></span></a>
+    </div>
+  }
+  <div class="grid gap-3 sm:grid-cols-3">
+    <div class="border-input-border rounded-2xl border bg-white p-4 shadow-sm"><p class="text-xs text-text-secondary">Promociones registradas</p><strong class="font-heading text-2xl text-title">{{ items().length }}</strong></div>
+    <div class="border-input-border rounded-2xl border bg-white p-4 shadow-sm"><p class="text-xs text-text-secondary">Vigentes</p><strong class="font-heading text-2xl text-accent-dark">{{ activeCount() }}</strong></div>
+    <div class="border-input-border rounded-2xl border bg-white p-4 shadow-sm"><p class="text-xs text-text-secondary">Borradores</p><strong class="font-heading text-2xl text-title">{{ draftCount() }}</strong></div>
+  </div>
+  <div class="border-input-border rounded-2xl border bg-white p-4 shadow-sm sm:p-5">
+    <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_12rem]">
+      <label class="relative"><span class="sr-only">Buscar promociones</span><svg lucideSearch class="pointer-events-none absolute top-3.5 left-3 h-4 w-4 text-text-secondary"></svg><input class="promo-control w-full pl-9" type="search" placeholder="Buscar promoción o empresa" [value]="searchTerm()" (input)="changeSearch($event)" /></label>
+      <label class="sr-only" for="promo-state">Filtrar por estado</label><select id="promo-state" class="promo-control" (change)="changeState($event)"><option value="">Todos los estados</option><option value="BORRADOR">Borrador</option><option value="PROGRAMADA">Programada</option><option value="VIGENTE">Vigente</option><option value="DESACTIVADA">Desactivada</option><option value="VENCIDA">Vencida</option></select>
+      <label class="sr-only" for="promo-mode">Filtrar por modalidad</label><select id="promo-mode" class="promo-control" (change)="changeMode($event)"><option value="">Ambas modalidades</option><option value="EXISTENTE">Producto existente</option><option value="COMBINADO">Combinado</option></select>
+    </div>
+  </div>
+  @if (error(); as message) { <div role="alert" class="flex gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><svg lucideCircleAlert class="h-5 w-5 shrink-0"></svg><span>{{ message }}</span><button type="button" class="ml-auto underline" (click)="load()">Reintentar</button></div> }
+  @if (success(); as message) { <p role="status" class="rounded-xl border border-demo-border bg-demo-bg p-3 text-sm font-semibold text-accent-dark">{{ message }}</p> }
+  @if (loading()) { <div class="h-72 animate-pulse rounded-2xl bg-gray-200" aria-label="Cargando promociones"></div> }
+  @else if (!error() && visible().length === 0) { <div class="border-input-border rounded-2xl border border-dashed bg-white p-12 text-center"><svg lucideBadgePercent class="mx-auto h-10 w-10 text-accent-dark"></svg><h2 class="font-heading mt-3 text-lg font-bold text-title">No hay promociones que mostrar</h2><p class="mt-1 text-sm text-text-secondary">Cambia los filtros o crea una promoción para comenzar.</p></div> }
+  @else if (!error()) {
+    <div class="border-input-border overflow-hidden rounded-2xl border bg-white shadow-sm">
+      <div class="overflow-x-auto"><table class="w-full min-w-[850px] text-left text-sm"><thead class="bg-demo-bg text-xs text-label"><tr><th class="px-4 py-3">Promoción</th><th class="px-4 py-3">Precios</th><th class="px-4 py-3">Vigencia</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3">Acciones</th></tr></thead><tbody>
+        @for (item of visible(); track item.id) { <tr class="border-t border-input-border align-top"><td class="px-4 py-4"><div class="flex min-w-52 items-center gap-3"><div class="h-15 w-18 shrink-0 overflow-hidden rounded-xl bg-demo-bg">@if (item.imagen_url) { <img [src]="item.imagen_url" [alt]="item.nombre" class="h-full w-full object-cover" /> } @else { <svg lucidePackageOpen class="m-auto mt-4 h-6 w-6 text-accent-dark"></svg> }</div><div><strong class="font-heading block text-title">{{ item.nombre }}</strong><span class="text-xs text-text-secondary">{{ item.modalidad === 'EXISTENTE' ? 'Producto existente' : 'Combinado' }} · {{ item.empresa }}</span></div></div></td>
+          <td class="px-4 py-4"><span class="block text-xs text-text-secondary line-through">{{ item.precio_original === null ? 'Por calcular' : item.moneda_simbolo + ' ' + item.precio_original }}</span><strong class="font-heading text-accent-dark">{{ item.precio_final === null ? 'Sin precio válido' : item.moneda_simbolo + ' ' + item.precio_final }}</strong><span class="mt-1 block text-xs font-semibold text-accent-dark">{{ item.porcentaje_descuento }} % OFF</span></td>
+          <td class="px-4 py-4 text-xs text-label"><span class="block">{{ item.inicio | date:'dd/MM/yyyy HH:mm':'-0400' }}</span><span class="block">{{ item.fin | date:'dd/MM/yyyy HH:mm':'-0400' }}</span></td>
+          <td class="px-4 py-4"><span class="rounded-full border border-demo-border bg-demo-bg px-2.5 py-1 text-xs font-bold text-accent-dark">{{ stateLabel(item.estado) }}</span></td>
+          <td class="px-4 py-4"><div class="flex flex-wrap gap-2"><a class="promo-action" [routerLink]="['/promociones', item.id]" [queryParams]="{ empresa: tenantId() }"><svg lucideEye class="h-4 w-4"></svg>Detalle</a>@if (canManage()) { <a class="promo-action" [routerLink]="['/promociones', item.id, 'editar']" [queryParams]="{ empresa: tenantId() }"><svg lucidePencil class="h-4 w-4"></svg>Editar</a><button type="button" class="promo-action" [disabled]="workingId() !== null" (click)="changePublication(item)">{{ workingId() === item.id ? 'Guardando…' : item.estado_administrativo === 'HABILITADA' ? 'Desactivar' : 'Publicar' }}</button> }</div></td></tr> }
+      </tbody></table></div>
+    </div>
+    @if (pageCount() > 1) { <nav class="flex items-center justify-center gap-3" aria-label="Páginas de promociones"><button type="button" class="promo-action" (click)="previous()" [disabled]="page() === 1">Anterior</button><span class="text-sm text-label">{{ page() }} de {{ pageCount() }}</span><button type="button" class="promo-action" (click)="next()" [disabled]="page() === pageCount()">Siguiente</button></nav> }
+  }
+</section>

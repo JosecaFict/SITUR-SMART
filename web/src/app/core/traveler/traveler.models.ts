@@ -1,5 +1,7 @@
 /** Modelos del área del viajero (me/reservas, me/favoritos, me/itinerarios, me/notificaciones). */
 
+import { BookingPromotionSnapshot, PromotionDiscount } from '../promotions/promotions.models';
+
 export interface TravelerBooking {
   id: number;
   codigo: string;
@@ -33,10 +35,14 @@ export interface TravelerBooking {
   moneda_simbolo: string;
   pago: { estado: string; metodo: string; proveedor: string; referencia: string | null; monto: string; procesado_en: string | null } | null;
   datos_facturacion: { razon_social: string | null; nit: string | null } | null;
+  politica_cancelacion: CancellationPolicySummary | null;
+  politica_aceptada_en: string | null;
+  salida?: { id: number; inicio: string; fin: string } | null;
   vence_en: string | null;
   qr: string | null;
   creado_en: string;
   checkout_url?: string | null;
+  promocion?: BookingPromotionSnapshot | null;
 }
 
 export interface BookingRequest {
@@ -49,6 +55,8 @@ export interface BookingRequest {
   acepta_politica_cancelacion?: boolean;
   razon_social_facturacion?: string;
   nit_facturacion?: string;
+  salida_id?: number;
+  promocion_id?: number;
 }
 
 export interface CancellationPolicyRule {
@@ -72,6 +80,10 @@ export interface BookingQuote {
   disponibles: number;
   noches?: number | null;
   politica_cancelacion: CancellationPolicySummary | null;
+  salida_id?: number | null;
+  inicio?: string | null;
+  fin?: string | null;
+  promocion?: PromotionDiscount | null;
 }
 
 export interface CancellationQuote {

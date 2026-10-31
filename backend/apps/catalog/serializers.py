@@ -1,6 +1,8 @@
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import connection
+from django.db.models import Avg, Count
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -15,10 +17,47 @@ from .models import (
     Currency,
     LodgingEstablishment,
     LodgingType,
+    ProductReview,
     ProductType,
     Room,
     TourismProduct,
 )
+
+
+class ReviewStatsSerializerMixin(serializers.Serializer):
+    calificacion_promedio = serializers.SerializerMethodField()
+    cantidad_resenas = serializers.SerializerMethodField()
+
+    @staticmethod
+    def _review_stats(instance):
+        cached = getattr(instance, "_review_stats_cache", None)
+        if cached is not None:
+            return cached
+        if hasattr(instance, "review_count"):
+            result = (instance.review_average, instance.review_count)
+        elif connection.vendor != "postgresql":
+            # La suite unitaria usa SQLite y no crea tablas managed=False.
+            result = (None, 0)
+        else:
+            product_id = getattr(instance, "product_id", instance.pk)
+            data = ProductReview.objects.filter(product_id=product_id).aggregate(
+                average=Avg("rating"), total=Count("id")
+            )
+            result = (data["average"], data["total"])
+        instance._review_stats_cache = result
+        return result
+
+    @extend_schema_field(serializers.FloatField(allow_null=True))
+    def get_calificacion_promedio(self, instance):
+        average, _ = self._review_stats(instance)
+        if average is None:
+            return None
+        return float(Decimal(str(average)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_cantidad_resenas(self, instance):
+        _, count = self._review_stats(instance)
+        return count
 
 
 class CoordinateField(serializers.DecimalField):
@@ -86,7 +125,17 @@ class CurrencySerializer(serializers.ModelSerializer):
         fields = ("id", "codigo", "nombre", "simbolo")
 
 
-class ProductSerializer(serializers.ModelSerializer):
+class ProductListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        from apps.promotions.pricing import prefetch_product_discounts
+
+        products = list(data.all() if hasattr(data, "all") else data)
+        prefetch_product_discounts(products)
+        return super().to_representation(products)
+
+
+class ProductSerializer(ReviewStatsSerializerMixin, serializers.ModelSerializer):
+    promocion = serializers.SerializerMethodField()
     empresa_id = serializers.IntegerField(source="tenant_id")
     empresa = serializers.CharField(source="tenant.trade_name")
     tipo_codigo = serializers.CharField(source="product_type.code")
@@ -117,13 +166,15 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TourismProduct
+        list_serializer_class = ProductListSerializer
         fields = (
             "id", "empresa_id", "empresa", "tipo_codigo", "tipo", "ciudad_id", "ciudad",
             "pais_id", "pais", "moneda_codigo", "moneda_simbolo", "codigo", "nombre",
             "descripcion", "localidad", "precio_base", "precio_desde", "capacidad_maxima",
             "estado", "imagen_url", "hospedaje_id", "establecimiento",
             "publicar_en", "retirar_en", "publicado_automaticamente_en",
-            "creado_en", "actualizado_en",
+            "calificacion_promedio", "cantidad_resenas",
+            "creado_en", "actualizado_en", "promocion",
         )
 
     @staticmethod
@@ -137,6 +188,13 @@ class ProductSerializer(serializers.ModelSerializer):
             return product.room
         except ObjectDoesNotExist:
             return None
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_promocion(self, product):
+        from apps.promotions.pricing import product_discount
+
+        discount = product_discount(product)
+        return discount.data() if discount else None
 
     @staticmethod
     def _lodging(product):
@@ -215,6 +273,39 @@ class MarketplaceQuerySerializer(serializers.Serializer):
         return attrs
 
 
+class DepartureWriteSerializer(serializers.Serializer):
+    fecha = serializers.DateField(required=False)
+    hora_inicio = serializers.TimeField(required=False)
+    hora_fin = serializers.TimeField(required=False)
+    cupo_total = serializers.IntegerField(min_value=1, required=False)
+    cerrado = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        if not self.partial:
+            required = ("fecha", "hora_inicio", "hora_fin", "cupo_total")
+            missing = [field for field in required if field not in attrs]
+            if missing:
+                raise serializers.ValidationError({field: "Este campo es obligatorio." for field in missing})
+        return attrs
+
+
+class DepartureQuerySerializer(serializers.Serializer):
+    fecha = serializers.DateField(required=False)
+
+
+class DepartureSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    producto_id = serializers.IntegerField()
+    fecha = serializers.DateField()
+    hora_inicio = serializers.TimeField()
+    hora_fin = serializers.TimeField()
+    inicio = serializers.DateTimeField()
+    fin = serializers.DateTimeField()
+    cupo_total = serializers.IntegerField()
+    cupos_restantes = serializers.IntegerField()
+    cerrado = serializers.BooleanField()
+
+
 class ProductWriteSerializer(serializers.Serializer):
     tipo_codigo = serializers.CharField(max_length=50, required=False)
     ciudad_id = serializers.IntegerField(min_value=1, required=False)
@@ -273,7 +364,7 @@ class LodgingTypeSerializer(serializers.ModelSerializer):
         fields = ("id", "codigo", "nombre")
 
 
-class LodgingSerializer(serializers.ModelSerializer):
+class LodgingSerializer(ReviewStatsSerializerMixin, serializers.ModelSerializer):
     """Establecimiento con los datos comunes resueltos desde su producto."""
 
     producto_id = serializers.IntegerField(source="product_id")
@@ -333,11 +424,12 @@ class LodgingSerializer(serializers.ModelSerializer):
             "estado", "publicar_en", "retirar_en", "publicado_automaticamente_en",
             "imagen_url", "direccion", "latitud", "longitud",
             "categoria_estrellas", "hora_check_in", "hora_check_out", "servicios",
+            "calificacion_promedio", "cantidad_resenas",
             "precio_desde", "total_habitaciones", "creado_en", "actualizado_en",
         )
 
 
-class RoomSerializer(serializers.ModelSerializer):
+class RoomSerializer(ReviewStatsSerializerMixin, serializers.ModelSerializer):
     """Habitacion con su establecimiento, empresa y ubicacion heredada."""
 
     producto_id = serializers.IntegerField(source="product_id")
@@ -377,6 +469,7 @@ class RoomSerializer(serializers.ModelSerializer):
             "capacidad_maxima", "capacidad_adultos", "capacidad_ninos",
             "cantidad_habitaciones", "tipo_cama", "incluye_desayuno", "estado",
             "imagen_url", "creado_en", "actualizado_en",
+            "calificacion_promedio", "cantidad_resenas",
         )
 
 

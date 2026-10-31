@@ -47,7 +47,7 @@
       <!-- ===================== HERO ===================== -->
       <!-- Dos columnas en escritorio, una sola en móvil con la info debajo. -->
       <section class="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start">
-        <div class="relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-200">
+        <div class="relative aspect-[3/2] overflow-hidden rounded-2xl bg-gray-200">
           @if (hotel.imagen_url && !imageFailed('hotel')) {
             <img [src]="hotel.imagen_url" (error)="imageError('hotel')" [alt]="hotel.nombre" class="h-full w-full object-cover" />
           } @else {
@@ -63,6 +63,7 @@
           </div>
 
           @if (hotel.categoria_estrellas) {
+            <p class="mt-2 text-xs text-text-secondary">Categoría hotelera</p>
             <p class="mt-2 flex items-center gap-0.5 text-amber-500" [attr.aria-label]="hotel.categoria_estrellas + ' estrellas'">
               @for (star of stars(hotel.categoria_estrellas); track star) { <svg lucideStar class="h-4 w-4"></svg> }
             </p>
@@ -250,6 +251,7 @@
           }
         }
       </section>
+      <situr-resenas [productId]="hotel.producto_id" [average]="hotel.calificacion_promedio" [count]="hotel.cantidad_resenas" (changed)="refreshRating()" />
     }
   </main>
 

@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Currency, MarketplaceFilters, MarketplacePage, ProductPayload, ProductType, TourismProduct } from './products.models';
+import { Currency, DeparturePayload, MarketplaceFilters, MarketplacePage, ProductDeparture, ProductPayload, ProductType, TourismProduct } from './products.models';
 
 @Injectable({ providedIn: 'root' })
 export class ProductsService {
@@ -64,6 +64,36 @@ export class ProductsService {
   /** Ficha pública de un producto publicado (sin sesión). */
   getPublic(productId: number): Observable<TourismProduct> {
     return this.http.get<TourismProduct>(`${environment.apiUrl}/marketplace/productos/${productId}/`);
+  }
+
+  publicDepartures(productId: number, fecha: string): Observable<ProductDeparture[]> {
+    return this.http.get<ProductDeparture[]>(`${environment.apiUrl}/marketplace/productos/${productId}/salidas/`, {
+      params: { fecha },
+    });
+  }
+
+  companyDepartures(tenantId: number, productId: number): Observable<ProductDeparture[]> {
+    return this.http.get<ProductDeparture[]>(`${environment.apiUrl}/productos/${productId}/salidas/`, {
+      headers: this.tenantHeaders(tenantId),
+    });
+  }
+
+  createDeparture(tenantId: number, productId: number, payload: DeparturePayload): Observable<ProductDeparture> {
+    return this.http.post<ProductDeparture>(`${environment.apiUrl}/productos/${productId}/salidas/`, payload, {
+      headers: this.tenantHeaders(tenantId),
+    });
+  }
+
+  updateDeparture(tenantId: number, productId: number, departureId: number, payload: DeparturePayload): Observable<ProductDeparture> {
+    return this.http.patch<ProductDeparture>(`${environment.apiUrl}/productos/${productId}/salidas/${departureId}/`, payload, {
+      headers: this.tenantHeaders(tenantId),
+    });
+  }
+
+  closeDeparture(tenantId: number, productId: number, departureId: number): Observable<ProductDeparture> {
+    return this.http.post<ProductDeparture>(`${environment.apiUrl}/productos/${productId}/salidas/${departureId}/cerrar/`, {}, {
+      headers: this.tenantHeaders(tenantId),
+    });
   }
 
   listMarketplace(filters: MarketplaceFilters = {}): Observable<MarketplacePage> {

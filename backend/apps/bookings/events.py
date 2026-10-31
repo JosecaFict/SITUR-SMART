@@ -8,7 +8,7 @@ Stripe; el HTML se arma antes, asi el hilo no toca la base.
 import base64
 import logging
 import threading
-from datetime import date
+from datetime import date, datetime
 
 from django.conf import settings
 from django.utils.html import escape
@@ -46,6 +46,11 @@ def _summary(booking: Booking) -> dict:
         when = _day(dates["inicio"])
     else:
         when = ""
+    if data.get("salida"):
+        departure = data["salida"]
+        start_time = datetime.fromisoformat(departure["inicio"]).strftime("%H:%M")
+        end_time = datetime.fromisoformat(departure["fin"]).strftime("%H:%M")
+        when = f"{when}, {start_time} a {end_time}"
     return {
         "code": data["codigo"],
         "title": title,
