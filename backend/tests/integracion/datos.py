@@ -27,21 +27,13 @@ def cliente(email: str = TURISTA) -> APIClient:
 
 
 def tour_publicado() -> TourismProduct:
-    """Un producto por persona que se reserva por dia, sin ficha de tour.
+    """El primer tour publicado del seed: uno del Catalogo, sin ficha de CU20.
 
-    Desde CU20 los tours del seed tienen ficha y se reservan por salida (ver
-    ``tour_con_salidas``); este es el caso clasico de cupo diario, que siguen
-    usando las experiencias sin ficha, las atracciones y los restaurantes.
+    Las pruebas de salidas, paquetes y promociones le crean sus propias salidas.
     """
-    return (
-        TourismProduct.objects.filter(
-            status="PUBLICADO", tenant__status="ACTIVO",
-            product_type__code__in=("TOUR", "EXPERIENCIA"), tour__isnull=True,
-        )
-        .select_related("currency")
-        .order_by("id")
-        .first()
-    )
+    return TourismProduct.objects.filter(
+        status="PUBLICADO", tenant__status="ACTIVO", product_type__code="TOUR"
+    ).order_by("id").first()
 
 
 def tour_con_salidas() -> TourismProduct:

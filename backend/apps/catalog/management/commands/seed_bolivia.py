@@ -11,7 +11,6 @@ from rest_framework.exceptions import ValidationError
 from apps.accounts.models import CustomerProfile, User
 from apps.accounts.services import create_or_link_tenant_user
 from apps.audit.services import record_audit
-from apps.catalog.departures import create_recurring
 from apps.catalog.guides import create_guide
 from apps.catalog.models import Guide, TourDetail, TourismProduct
 from apps.catalog.seed import bolivia, credenciales, sql
@@ -21,6 +20,7 @@ from apps.catalog.services import (
     create_room,
     update_lodging,
 )
+from apps.catalog.tour_departures import create_recurring
 from apps.catalog.tours import update_tour
 from apps.rbac.models import Role, UserRole
 from apps.rbac.services import create_tenant_role, is_superadmin

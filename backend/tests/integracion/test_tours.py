@@ -441,16 +441,21 @@ def test_reservar_por_fecha_usa_la_unica_salida_de_ese_dia(stripe):
     assert cotizacion.json()["salida_id"] == salida["id"]
 
 
-def test_con_dos_salidas_el_mismo_dia_hay_que_elegir(stripe):
+def test_con_dos_salidas_el_mismo_dia_y_solo_la_fecha_se_usa_la_primera_con_lugar(stripe):
+    """Contrato de la app movil: solo fecha. Se toma la primera salida que tenga cupo."""
     api = _dueno(_empresa_con_tours())
     tour, salida = _tour_publicado_con_salida(api)
-    _crear_salida(api, tour["id"], _hora(5, 15))
+    tarde = _crear_salida(api, tour["id"], _hora(5, 15))
     dia = datetime.fromisoformat(salida["inicio"]).astimezone(ZONA).date()
 
     respuesta = cliente().post("/api/v1/me/reservas/cotizacion/", _pedido(tour, fecha_inicio=dia.isoformat()), format="json")
+    assert respuesta.status_code == 200, respuesta.json()
+    assert respuesta.json()["salida_id"] == salida["id"]
 
-    assert respuesta.status_code == 400
-    assert "salida_id" in _detalles(respuesta)
+    # Llena la primera: la siguiente cotizacion por fecha toma la de la tarde.
+    api.patch(f"/api/v1/salidas/{salida['id']}/", {"cupo": 1}, format="json")
+    respuesta = cliente().post("/api/v1/me/reservas/cotizacion/", _pedido(tour, fecha_inicio=dia.isoformat()), format="json")
+    assert respuesta.json()["salida_id"] == tarde["id"]
 
 
 def test_un_dia_sin_salidas_no_se_reserva(stripe):

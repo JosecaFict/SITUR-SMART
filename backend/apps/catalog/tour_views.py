@@ -12,7 +12,8 @@ from rest_framework.views import APIView
 
 from apps.rbac.views import tenant_id_from_request
 
-from . import departures, guides, tours
+from . import guides, tours
+from . import tour_departures as departures
 from .tour_serializers import (
     DepartureRangeQuerySerializer,
     DepartureSerializer,

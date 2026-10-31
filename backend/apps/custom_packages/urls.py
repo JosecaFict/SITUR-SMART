@@ -1,0 +1,27 @@
+from django.urls import path
+
+from .views import (
+                    PackageCancellationView,
+                    PackageCatalogView,
+                    PackageComponentDetailView,
+                    PackageComponentListView,
+                    PackageDetailView,
+                    PackageListView,
+                    PackagePurchaseView,
+                    PackageQuoteView,
+                    PackageReceiptView,
+                    PackageValidationView,
+)
+
+urlpatterns = [
+    path("me/paquetes/catalogo/", PackageCatalogView.as_view(), name="custom-package-catalog"),
+    path("me/paquetes/", PackageListView.as_view(), name="custom-package-list"),
+    path("me/paquetes/<int:pk>/", PackageDetailView.as_view(), name="custom-package-detail"),
+    path("me/paquetes/<int:pk>/componentes/", PackageComponentListView.as_view(), name="custom-package-components"),
+    path("me/paquetes/<int:pk>/componentes/<int:component_id>/", PackageComponentDetailView.as_view(), name="custom-package-component-detail"),
+    path("me/paquetes/<int:pk>/cotizar/", PackageQuoteView.as_view(), name="custom-package-quote"),
+    path("me/paquetes/<int:pk>/validar/", PackageValidationView.as_view(), name="custom-package-validate"),
+    path("me/paquetes/<int:pk>/comprar/", PackagePurchaseView.as_view(), name="custom-package-purchase"),
+    path("me/paquetes/compras/<int:pk>/cancelar/", PackageCancellationView.as_view(), name="custom-package-cancel"),
+    path("me/paquetes/compras/<int:pk>/comprobante/", PackageReceiptView.as_view(), name="custom-package-receipt"),
+]

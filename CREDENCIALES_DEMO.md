@@ -15,7 +15,7 @@ La cuenta del **SuperAdmin** no está aquí: se crea con `python manage.py creat
 - 18 empresas, 53 cuentas.
 - 8 hoteles con 27 tipos de habitación.
 - 37 productos más (restaurantes, tours, experiencias, atracciones y paquetes).
-- 18 tours y experiencias con ficha y recorrido; 17 con salidas para las próximas 6 semanas; 7 guías.
+- 13 tours y experiencias con ficha y recorrido; 12 con salidas para las próximas 6 semanas; 7 guías.
 - Una empresa suspendida (Red Cap Walking Tours) y una pendiente de activación (Tupiza Tours).
 
 ## Cómo cargar los datos
@@ -127,12 +127,6 @@ y se puede ejecutar más de una vez.
 - **Plan:** Max
 - **Estado:** Activa
 - **Publica:** 1 hotel, 5 tipos de habitación, 3 tours, 2 experiencias, 2 paquetes
-- **Tours con salidas:**
-  - City Tour Santa Cruz de la Sierra: lun, mar, mié, jue, vie, sáb a las 09:00 · guía: Guía 1 SczTourBo
-  - Lomas de Arena: mar, jue, sáb a las 14:00 · guía: Guía 1 SczTourBo
-  - Fuerte de Samaipata y Valles: mié, dom a las 07:00 · guía: Guía 2 SczTourBo
-  - Noche Cruceña con Show Folclórico: vie, sáb a las 20:00
-  - Avistamiento de Aves en el Jardín Botánico: sáb a las 06:30 · guía: Guía 2 SczTourBo
 
 | Rol | Email |
 |---|---|

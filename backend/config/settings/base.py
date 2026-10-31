@@ -76,6 +76,8 @@ INSTALLED_APPS = [
     "apps.payments",
     "apps.notifications",
     "apps.itineraries",
+    "apps.custom_packages",
+    "apps.promotions",
 ]
 
 MIDDLEWARE = [

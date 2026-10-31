@@ -32,6 +32,8 @@ const LUGAR: GeoPlace = {
 
 /** Respuesta del backend tras guardar, con lo mínimo que lee el componente. */
 const HOTEL_GUARDADO = {
+  calificacion_promedio: null,
+  cantidad_resenas: 0,
   id: 11,
   producto_id: 2,
   empresa_id: 3,

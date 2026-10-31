@@ -15,7 +15,8 @@ import { apiErrorMessage } from '../../../core/http/api-error';
 import { City } from '../../../core/companies/companies.models';
 import { CompaniesService } from '../../../core/companies/companies.service';
 import { MediaService } from '../../../core/media/media.service';
-import { Currency, ProductStatus, ProductType, TourismProduct } from '../../../core/products/products.models';
+import { boliviaToday } from '../../../core/products/departure-dates';
+import { Currency, DeparturePayload, ProductDeparture, ProductStatus, ProductType, TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
 import { ProgramarPublicacion } from '../shared/programar-publicacion';
 
@@ -64,6 +65,15 @@ export class Productos implements OnInit {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
   protected readonly successMessage = signal<string | null>(null);
+  protected readonly today = boliviaToday();
+  protected readonly departuresProduct = signal<TourismProduct | null>(null);
+  protected readonly departures = signal<ProductDeparture[]>([]);
+  protected readonly departuresLoading = signal(false);
+  protected readonly departureSaving = signal(false);
+  protected readonly departureEditing = signal<ProductDeparture | null>(null);
+  protected readonly departureError = signal<string | null>(null);
+  protected readonly departureMessage = signal<string | null>(null);
+  private departuresVersion = 0;
 
   // Cloudinary / Media upload states
   protected readonly currentImageUrl = signal<string>('');
@@ -76,6 +86,10 @@ export class Productos implements OnInit {
   protected readonly canManage = computed(() => {
     const user = this.auth.session()?.user;
     return !!user && (user.roles.includes('SUPER_ADMIN') || user.permisos.includes('PRODUCTOS_GESTIONAR'));
+  });
+  protected readonly canManageDepartures = computed(() => {
+    const user = this.auth.session()?.user;
+    return !!user && (user.roles.includes('SUPER_ADMIN') || user.permisos.includes('DISPONIBILIDAD_GESTIONAR'));
   });
   protected readonly selectedCompany = computed(() => this.companies().find((item) => item.id === this.selectedCompanyId()));
   /**
@@ -174,6 +188,13 @@ export class Productos implements OnInit {
     estado: ['BORRADOR' as ProductStatus, Validators.required],
   });
 
+  protected readonly departureForm = this.fb.nonNullable.group({
+    fecha: ['', Validators.required],
+    hora_inicio: ['', Validators.required],
+    hora_fin: ['', Validators.required],
+    cupo_total: [1, [Validators.required, Validators.min(1)]],
+  });
+
   ngOnInit(): void {
     const sessionCompanies = this.auth.session()?.user.tenants.map((item) => ({ id: item.id, name: item.name })) ?? [];
     forkJoin({ types: this.productsService.listTypes(), currencies: this.productsService.listCurrencies(), cities: this.companiesService.listCities() }).subscribe({
@@ -202,7 +223,120 @@ export class Productos implements OnInit {
 
   protected changeCompany(event: Event): void {
     this.selectedCompanyId.set(Number((event.target as HTMLSelectElement).value));
-    this.cancelForm(); this.loadProducts();
+    this.cancelForm(); this.closeDepartures(); this.loadProducts();
+  }
+
+  protected toggleDepartures(product: TourismProduct): void {
+    if (this.departuresProduct()?.id === product.id) {
+      this.closeDepartures();
+      return;
+    }
+    this.departuresProduct.set(product);
+    this.departures.set([]);
+    this.departureMessage.set(null);
+    this.departureError.set(null);
+    this.cancelDepartureEdit();
+    this.loadDepartures();
+  }
+
+  private closeDepartures(): void {
+    ++this.departuresVersion;
+    this.departuresProduct.set(null);
+    this.departures.set([]);
+    this.departuresLoading.set(false);
+    this.cancelDepartureEdit();
+  }
+
+  protected loadDepartures(): void {
+    const companyId = this.selectedCompanyId();
+    const product = this.departuresProduct();
+    if (!companyId || !product) return;
+    const version = ++this.departuresVersion;
+    this.departuresLoading.set(true);
+    this.departureError.set(null);
+    this.productsService.companyDepartures(companyId, product.id).subscribe({
+      next: (items) => {
+        if (version !== this.departuresVersion) return;
+        this.departures.set(items);
+        this.departuresLoading.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        if (version !== this.departuresVersion) return;
+        this.departuresLoading.set(false);
+        this.departureError.set(apiErrorMessage(error, 'No se pudieron cargar las salidas.'));
+      },
+    });
+  }
+
+  protected startDepartureEdit(departure: ProductDeparture): void {
+    if (!this.canManageDepartures() || !this.departureEditable(departure)) return;
+    this.departureEditing.set(departure);
+    this.departureForm.setValue({
+      fecha: departure.fecha, hora_inicio: departure.hora_inicio,
+      hora_fin: departure.hora_fin, cupo_total: departure.cupo_total,
+    });
+    this.departureError.set(null);
+  }
+
+  protected cancelDepartureEdit(): void {
+    this.departureEditing.set(null);
+    this.departureForm.reset({ fecha: '', hora_inicio: '', hora_fin: '', cupo_total: 1 });
+  }
+
+  protected departureEditable(departure: ProductDeparture): boolean {
+    return Date.parse(departure.inicio) > Date.now();
+  }
+
+  protected saveDeparture(): void {
+    const companyId = this.selectedCompanyId();
+    const product = this.departuresProduct();
+    if (!companyId || !product || !this.canManageDepartures()) return;
+    const payload: DeparturePayload = this.departureForm.getRawValue();
+    if (this.departureForm.invalid || payload.fecha < this.today || payload.hora_fin <= payload.hora_inicio ||
+        payload.cupo_total > product.capacidad_maxima) {
+      this.departureForm.markAllAsTouched();
+      this.departureError.set('Revisa la fecha, el horario y el cupo (máximo del producto: ' + product.capacidad_maxima + ').');
+      return;
+    }
+    const editing = this.departureEditing();
+    this.departureSaving.set(true);
+    this.departureError.set(null);
+    const request = editing
+      ? this.productsService.updateDeparture(companyId, product.id, editing.id, payload)
+      : this.productsService.createDeparture(companyId, product.id, payload);
+    request.subscribe({
+      next: () => {
+        this.departureSaving.set(false);
+        this.departureMessage.set(editing ? 'Salida actualizada.' : 'Salida creada.');
+        this.cancelDepartureEdit();
+        this.loadDepartures();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.departureSaving.set(false);
+        this.departureError.set(apiErrorMessage(error, 'No se pudo guardar la salida.'));
+      },
+    });
+  }
+
+  protected closeDeparture(departure: ProductDeparture): void {
+    const companyId = this.selectedCompanyId();
+    const product = this.departuresProduct();
+    if (!companyId || !product || !this.canManageDepartures() || departure.cerrado ||
+        !confirm(`¿Cerrar la salida del ${departure.fecha} a las ${departure.hora_inicio}? Ya no aceptará reservas.`)) return;
+    this.departureSaving.set(true);
+    this.departureError.set(null);
+    this.productsService.closeDeparture(companyId, product.id, departure.id).subscribe({
+      next: () => {
+        this.departureSaving.set(false);
+        this.departureMessage.set('Salida cerrada.');
+        this.cancelDepartureEdit();
+        this.loadDepartures();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.departureSaving.set(false);
+        this.departureError.set(apiErrorMessage(error, 'No se pudo cerrar la salida.'));
+      },
+    });
   }
 
   protected loadProducts(): void {

@@ -39,7 +39,7 @@ def drop_tour_tables(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies: ClassVar = [
-        ("catalog", "0010_default_cancellation_policy"),
+        ("catalog", "0011_merge_cancelaciones_resenas"),
         ("tenancy", "0006_suscripciones_vigencia"),
     ]
 

@@ -39,7 +39,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@hotelcortez.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@hotelcortez.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$RTN0NXFoN2lRMGJPSUFHUERndFFqOQ$ogdxJDRn612Xsbe8CZt9KEiDXyJTSeRLJU0T0vWOlbA', 'Jefe Admin', 'Hotel Cortez', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@hotelcortez.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$eEFRZEFCNG1haVVzWVpvZDI4cVh1bQ$n24uObDNvzZrE2+bpFbJbgUDlUY4oD0ONqtlTNsQqXQ', 'Jefe Admin', 'Hotel Cortez', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -52,7 +52,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@hotelcortez.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@hotelcortez.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$Mnc1Z2V3ZnB6enV2ZFVQeFVQcGoweg$+IxcuLyj31MGSMX0FEem48idhbzx87m47aGZHuhNqTY', 'Empleado 1', 'Hotel Cortez', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@hotelcortez.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$NEYwTDJGcHRTTzhTb0tSWnNlUFlXMQ$BRXrOtSkcmlrx+SanF6Kzq/bYQPrimHmNoxmypwPDEU', 'Empleado 1', 'Hotel Cortez', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -61,7 +61,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado2@hotelcortez.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado2@hotelcortez.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$bHc2emxSZ0thNGxzMk1HakxJZjEzaQ$VsUv3mCTpgoMnnRDLsaF1wtShlZqApnLcgQzHt+Toms', 'Empleado 2', 'Hotel Cortez', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado2@hotelcortez.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$RVRKMzRkM3JyWmlsdmNQQ0ZQUmt0Yw$dEl5M6KEsWmCYAlVBf2LKu58NeAkV7gmhE0W/CcBpa8', 'Empleado 2', 'Hotel Cortez', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -104,7 +104,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@hotelcupula.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@hotelcupula.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$Q2M0VEVMZHJlSFlPV2tSczRYc1ZxeA$lqzV5POEKNdN40YaVHCSEmStRrRP2PVeMS/9UOr+ax0', 'Jefe Admin', 'Hotel La Cúpula', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@hotelcupula.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$SVEzVlI2UmFDVUEyZmMxcE5WaEVlQw$LyDkto8oYdRhGuEjztc2aTTx7GZeTHor/dJWmhUXuRE', 'Jefe Admin', 'Hotel La Cúpula', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -117,7 +117,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@hotelcupula.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@hotelcupula.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$RVBwbnNWUWYxUDhsbTJXUTRCbk5HWA$mxWCw4N3RqajTAK+Y+hX+nT+7n+/b/S6K7dKhAA7ij8', 'Empleado 1', 'Hotel La Cúpula', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@hotelcupula.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$SVpwcnlTYUY4SndqdzZCTjBsYVdGVA$f3iT07yKSa9a3DcqsjXZDNfgsk9eFGzQJ9Rnfe/ii34', 'Empleado 1', 'Hotel La Cúpula', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -156,7 +156,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@hotelesrosario.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@hotelesrosario.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$b1RyblZHYW5HY09jRGFqeHl6WG5acg$vBfnClx+1v4vU5tJxXwXRVpfo0n4KU8Kc8oSxVtk+Dg', 'Jefe Admin', 'Hoteles Rosario', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@hotelesrosario.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$dVV1MExCQ013bWVZS2ZYaTJhVFF6RQ$LRfLDkIB8wG8DBYNBnasYuHMfkMi+Wl1nkSh+wbIYZE', 'Jefe Admin', 'Hoteles Rosario', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -169,7 +169,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@hotelesrosario.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@hotelesrosario.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$UGNrQzNVVUJhZFpLTmFzRnhuS0c5Mg$cjHloSXK9VZFs4Eb4fOc9r3fJk1EDnc4WD3NQR/eq5s', 'Empleado 1', 'Hoteles Rosario', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@hotelesrosario.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VVV4WHJLcGluYm1RZFg2SnFobWlpNQ$POj7lxZirQT1FK4YzazjjMJxkb79E/9d68CgiYn5mPI', 'Empleado 1', 'Hoteles Rosario', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -178,7 +178,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado2@hotelesrosario.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado2@hotelesrosario.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$dTNVMUl1dTBUOHRqeUNJVW5rU0RJMw$dJdGpBdCotDXGoyKTLDyfQNFP0LFFaw1hIMaEJIB6g4', 'Empleado 2', 'Hoteles Rosario', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado2@hotelesrosario.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$eFZBTnU2bmZMd05pS29MRmt3cE9IQw$CW9tON89meYT9snIeBaAHC8LSYkI/3v9vfCriht2W/A', 'Empleado 2', 'Hoteles Rosario', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -187,7 +187,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado3@hotelesrosario.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado3@hotelesrosario.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$aGR3aU50MmxJMk55blFMYVZvYUtLVw$F5n6kcPM3ibbRnKX+KMBMLwcBCMp7NrnioSqxSoB/Dg', 'Empleado 3', 'Hoteles Rosario', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado3@hotelesrosario.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$S05tcW5teFNncDYyY21hM2x6OWpZNQ$DVb8GVXCoLLTLIJSDUoEGo+eX3Hdv0nz2I/Adsr0eeo', 'Empleado 3', 'Hoteles Rosario', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -248,7 +248,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@palaciodesal.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@palaciodesal.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$dUdIUlZPZlpwQlZva1VWb0hpTndLNg$mHmA4kgCDLCWq0lXqUkH7iRaDVJy+HLO4vX7O+BFK40', 'Jefe Admin', 'Hotel Palacio de Sal', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@palaciodesal.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$QU91QUpqZGJxcVB1S280WXJ0bGFGSA$DcNaLO1P5gH+kbPEU5sK9IR3DOYxXuOEJ6OKe6whYYQ', 'Jefe Admin', 'Hotel Palacio de Sal', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -261,7 +261,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@palaciodesal.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@palaciodesal.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$aEVQUUp6QWU0QkRsUU9hVFJ0dExWTw$ZiFxi+0WGlQffGkwIfMcVw1EXflji1Yi7Z3Bd9C9zQE', 'Empleado 1', 'Hotel Palacio de Sal', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@palaciodesal.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$clpEeVJSZW5wclczZUFXaEhHUGdncA$/zejFOUlXi0R/hhFI3r61A9C3Ou8P8pDgmmvpeJg7i0', 'Empleado 1', 'Hotel Palacio de Sal', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -270,7 +270,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado2@palaciodesal.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado2@palaciodesal.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$Slp6ZGtmNTQwYktJVHJmQ0VoREx5Yw$bW2jGzHkWs6FuZPGzllU/XuEDhII9Ym7E+h7OmQ6qnQ', 'Empleado 2', 'Hotel Palacio de Sal', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado2@palaciodesal.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$RjVSbHpRRXYwVVJUUWZQZDhkOHdvbQ$CJsjfkSpbx3rRY7bznmF3FMs3wbWkefy4nW0wcHFiDc', 'Empleado 2', 'Hotel Palacio de Sal', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -311,7 +311,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@paradorsantamaria.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@paradorsantamaria.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VjJCekI2MmM3NElWZU8xU2RQR011cw$73OJT+8FMVBd9aquOWlJZNppWuY4/gVkHIkumSsQNc4', 'Jefe Admin', 'Parador Santa María La Real', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@paradorsantamaria.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$OGEzaENCUXA4ME1JSXI2NEhDd0daQQ$EFF97ez1wQf0s7Gj5ZaSjIzgBeVjtEKZ+4ixNd3fZs4', 'Jefe Admin', 'Parador Santa María La Real', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -324,7 +324,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@paradorsantamaria.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@paradorsantamaria.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$RGNLMm1UMjh6bDR1QzZiUG1YNkNPNg$AhW23HoZ36MNZ5hldN8AxKVvzDyTUWvpwT6oAIxluEQ', 'Empleado 1', 'Parador Santa María La Real', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@paradorsantamaria.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$SHU4RERQQXZ3SVRwMlRzaTF5a2dVNg$9dEn/xwiMYYDXs+m0dOCmDei07f3Zt90+USzNDLaFX0', 'Empleado 1', 'Parador Santa María La Real', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -365,7 +365,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@scztourbo.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$Q0RvWU9DSXBqWFNDMUtIMVZ5d3BvUg$3Uo6WnjR3jLqlZun3z6uSR6IZF2giUjITHGN9arHWsU', 'Jefe Admin', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$bHpibkViSjhHMGJRSmNxNE90RmkzWg$r+yT9LCU9UkriY1eHZeT2cJOGF0TZLjFaFe6kG5GB0I', 'Jefe Admin', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -378,7 +378,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@scztourbo.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$bHZ2VkpZeGF6OXJmODFjbHFIQXdncg$KJiYrkHbDjv6ppFpu8CxuhuZ/0Cl/YSWa6AMt5ZLJUg', 'Empleado 1', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$WVF5QVFNbFVLWGxEenBiQ1ZWeG5aNw$Ba/VhQPQk7gR/WSfalPhGEvkEWCkuLi2bep74i6QeNo', 'Empleado 1', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -387,7 +387,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado2@scztourbo.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado2@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$YXVJY0xpWE1xVFZENHI2dmdFcldPOQ$QyHxqPOi4FufcPqSjMd8lahRGgGiF0yWOO5nLyAxG8g', 'Empleado 2', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado2@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$OUdqZDJhNjgzMG0wVlRCRWxuTHl0UA$T1oCr9lWM1Xk7W7q2Sh5GWxXCjtG+Ea8USVXppt3wbI', 'Empleado 2', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -396,7 +396,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia1@scztourbo.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia1@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$QnFPb1h6SERoWlpwNjdhNDEzaFpSTQ$9PYm3KIZ87FnuRtMqjHal2mXEYHmObeiT2wOO8Zacqw', 'Guía 1', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia1@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VTBiSHJ4R3o1bURWSXJOZ0t4a0RVVg$iU8ZhcYqJJoOU8qPW+fG8jjKBOC5qv7PVZZhVCoDoL4', 'Guía 1', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -405,7 +405,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia2@scztourbo.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia2@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$cFp4bUpweU9KTE01MkFEUTF6RWlKaA$/9L+YgvcvwlZgd+KTU+EXifJsrD5L3EuT24aGs8izuc', 'Guía 2', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia2@scztourbo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$MlNvSmZWUkFac2VtNDM1RzBIUlRVQw$c2ZMsxV8PlAnkvb7pmtLOUtaEIkTYndAEqRLb35iTfw', 'Guía 2', 'SczTourBo', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -466,7 +466,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@gustu.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@gustu.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$YkZyTmxsWGdpc3dndzBIclhIeWpZcg$whLNlpTrVFpU6hc53nfJIacoofl+4ckIJ751a49zdOM', 'Jefe Admin', 'Gustu', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@gustu.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$SnU5cm93eEVYcGdkQVpJMEFvRHBMbA$eqAPFxbY5j+snJTMOZ4zjx3E095rUMzPazfsS9yRumM', 'Jefe Admin', 'Gustu', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -479,7 +479,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@gustu.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@gustu.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$TkNwUDBFWmNIVTFXUnNsdEVENmkwZw$p26FJ6aZIf1fEWRY+qpNhUoCsqSXzhqOcKBd0fiEhDs', 'Empleado 1', 'Gustu', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@gustu.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$MnljTFFiZ1BmdnQzTlZHZ1R4VUlhWA$aSwxOcyt2u4HMwmMSqCVznwiitegtaZj101RPABsiqE', 'Empleado 1', 'Gustu', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -504,7 +504,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@pacenalasaltena.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@pacenalasaltena.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$Yk5WdVdOZzU4eEN0WVlYVEtPOE5kYw$OCFPts9S/QTRHn+N/Sd9To2srbvjjQQhdPdt6pBJdXk', 'Jefe Admin', 'Paceña La Salteña', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@pacenalasaltena.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$YUxwQmU2dWJwY2hMdGFXT0lkMFRyOQ$zKrA+N2x5Onwv52LSr19vMte7iY8AJU9jDp4eKw9JMM', 'Jefe Admin', 'Paceña La Salteña', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -517,7 +517,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@pacenalasaltena.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@pacenalasaltena.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$bTUzY0g1S1EzM0NRSVBaZDZRbGNLYw$HgLU5wgZYbgqlqDltaZNoeX77xTu0+8LQ74mF/5db2g', 'Empleado 1', 'Paceña La Salteña', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@pacenalasaltena.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$RXJGSlVSckhXaGg5SUFQOTVzNzNYcA$WkLDIQ4oGnv04e57hFDagoe5J+AZIJCT1C/eKj5CgjQ', 'Empleado 1', 'Paceña La Salteña', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -526,7 +526,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado2@pacenalasaltena.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado2@pacenalasaltena.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$aTgwaWpBNk1TSVJVTzF6VkpaNGxJaA$LLFKKLeZ9GdyqCrPUpP5AlUKezqEwdtG6C9rajjvgP0', 'Empleado 2', 'Paceña La Salteña', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado2@pacenalasaltena.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$QzBjTTFucmtJc0Z6UTV6bk9xT0pkZg$F8cOoDh1n9X7Au4eSrVfSsEWQiXSLHxz0smPkt66EHQ', 'Empleado 2', 'Paceña La Salteña', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -557,7 +557,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@casadelcamba.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@casadelcamba.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$MjJuTG5xOU52Rjg1Y0p3ZnVJcFR3OQ$6kgH2p0S1q8r5tbMP59QhLEiZFaWMA9RGUK5JPwrCww', 'Jefe Admin', 'Casa del Camba', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@casadelcamba.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$cEgyYmIySEJOa1ZCZ2g4eTN6YUhWeg$FR+237a1a0/n6AIdxXy9r+kVlqupfwPlzSBkTKQO+gY', 'Jefe Admin', 'Casa del Camba', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -570,7 +570,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@casadelcamba.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@casadelcamba.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$NXRJU0pldTloU1VGYnNrckpjdzg2Ng$VRjpj5Wp2XdPpvfLq0iGF7WYXIVmNnYGU2HvvwFXL/8', 'Empleado 1', 'Casa del Camba', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@casadelcamba.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VEVxbXNGTGcyeld5aFBZY1J0TXI2bA$9p4MP6wphKIlEMHWA2vn/LGfQ7blPmlPOnh9ihJba2E', 'Empleado 1', 'Casa del Camba', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -595,7 +595,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@casadecampo.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@casadecampo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$MldIQ2VENmJYWUZ0UTNjZDQ2aDVqSg$nDWCsb+azgrDQ2KHA0y5xzP16UGCLaCDdURhpuL8szQ', 'Jefe Admin', 'Casa de Campo', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@casadecampo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$bFQ5TW4xR3JodUZ4MnQ4NGNEOEE5aQ$bzvbmuvQjsRlcWay1XD3NerpK4/Vb1ck0p/6xlXPTdQ', 'Jefe Admin', 'Casa de Campo', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -608,7 +608,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@casadecampo.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@casadecampo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$eFd0T1FjS3lhZzRyeTNaQ1ZmQklyQw$4ZzFMNDGthE8p91BMgLOFhLTohYDSXqLmntiOGAGCKo', 'Empleado 1', 'Casa de Campo', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@casadecampo.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$NW44dm5iTXZEdFRwaTBqNjJHSlVEcA$rqWuVq34hfDoljMuJdTzNYYu/r8CpsDQfb/MfhEiYvI', 'Empleado 1', 'Casa de Campo', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -633,7 +633,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@gravitybolivia.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@gravitybolivia.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$dHlzcnRJdDNhMGRyZXhJa3E5VExLQg$OfZS+Cj45a41jmooFIHLGqps6fnld8QtvMYiz8/6M5Q', 'Jefe Admin', 'Gravity Bolivia', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@gravitybolivia.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$WFdBVlR0dnM5dzJsR2ZQN3Y5ZjA2NQ$9CXBzfD3KveEj7kK5nRz5HZ29+A1zFKo/xR25DnAk0g', 'Jefe Admin', 'Gravity Bolivia', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -646,7 +646,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@gravitybolivia.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@gravitybolivia.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$ZUN6UEFtbEwwbk85YXVuM1NGTFB4TQ$Qrz/cKV5EfWVWz4ehQ+qtdHRX3SZ5vWvZIfxQE6jSF4', 'Empleado 1', 'Gravity Bolivia', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@gravitybolivia.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$NEhxeUROV2J6UnNCTUc1SldodzZwcw$IX0rv6obhfANxXUMDimvOSZm/vkHmD5Oo64nJ7fJd1U', 'Empleado 1', 'Gravity Bolivia', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -655,7 +655,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia1@gravitybolivia.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia1@gravitybolivia.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$THM2MUI1TWJvZHhJSUJ6VjZrek1PdQ$UVeSwx62NjTlMygnXTzfGCCFVsMUu9Na9+ul/ZYDaeA', 'Guía 1', 'Gravity Bolivia', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia1@gravitybolivia.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$dk91cDFIVlh6S21qOXdsTnpVWk9sdg$3wSedqM8hRQZK3j8la/FTbaeaPnvTn7mAwNvogqwYcE', 'Guía 1', 'Gravity Bolivia', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -664,7 +664,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia2@gravitybolivia.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia2@gravitybolivia.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$eTBnMUhSWkNtWFdER2RlSFR5cDM1cQ$CWbiIP5YfBqti9OhqUa0Whs2CSRG4AprYbkcY4Zd6hs', 'Guía 2', 'Gravity Bolivia', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia2@gravitybolivia.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$UVhqaEtNMWY5eVNEbEJ0akRnM0lrSA$bmUS4XGvdFmimMj8XchAbxU9UzgYocyqB/8WgPFyOSs', 'Guía 2', 'Gravity Bolivia', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -695,7 +695,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@redcapwalkingtours.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@redcapwalkingtours.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$S2lya0ZXSnNEc1o4b2l2cFQybzRnYg$2TRt5ILUfaMbJQxL1wNNItaYERMWG66rAOjNUFSd7hg', 'Jefe Admin', 'Red Cap Walking Tours', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@redcapwalkingtours.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$bU9wZlBGVmxmenM0azlweklmaWtIdg$ZPO/rS47PZCTvjSZ7RqH89Dr3eYd3hBGckdv89t7UOI', 'Jefe Admin', 'Red Cap Walking Tours', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -704,7 +704,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia1@redcapwalkingtours.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia1@redcapwalkingtours.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$UHA0RnpESlhpSTN4ZzhSa3Y2MUowMg$zR705CgkgDV1ExmM6fNtlxSVpZmDmf8pm0JMjVjp3vw', 'Guía 1', 'Red Cap Walking Tours', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia1@redcapwalkingtours.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$S1BRSTBvbm5BTVZBSllkMXE5QlE0Vw$2xRGvM3WjGJoIfEt6pWETGzwfTgxNfrmT1qDB8KO0M4', 'Guía 1', 'Red Cap Walking Tours', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -713,7 +713,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia2@redcapwalkingtours.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia2@redcapwalkingtours.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$RkJLRVJpaFE0YUNUNmQyMnYwNXMzQw$NF9BCbVho4CT2RV/s+XTeLgFsyYeC3GzUySJAEdCZ/A', 'Guía 2', 'Red Cap Walking Tours', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia2@redcapwalkingtours.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$WEJQakcxTEd1b0dWNFpmaVlqVndudA$Mu1U8HbINbztORXxkagjVzUa+5Jf79S8/x4cCfj/VTI', 'Guía 2', 'Red Cap Walking Tours', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -743,7 +743,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@redplanetexpedition.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@redplanetexpedition.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$THdVZU1KcGpmTWdFcWZXWFBEaXk5VA$H0349solr0l6zozgvzwfb01MoJlcvQ2AL8vvWX/0gt0', 'Jefe Admin', 'Red Planet Expedition', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@redplanetexpedition.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VjZOT2ZEUEpNVElpWGl1bk9zYThHWA$9vKQ7pDeLOdb6rP+cydi2N0mMw/3JG/U3o39Lh+L7AY', 'Jefe Admin', 'Red Planet Expedition', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -752,7 +752,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@redplanetexpedition.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@redplanetexpedition.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$RElvaVRmNDlLV1hyb09EYnZNWDRPVQ$VRPFsrofhBVimnuVdOSmLoUBp0xidlMP+Rx3IolRoiY', 'Empleado 1', 'Red Planet Expedition', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@redplanetexpedition.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VmJPUnhFaEdNUEpPOEhRdnFvNUtqSA$blDuVhkNsx1TPLEZJ5z/dXXtNX1hB432KHN1wJe9JMQ', 'Empleado 1', 'Red Planet Expedition', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -761,7 +761,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia1@redplanetexpedition.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia1@redplanetexpedition.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$TXN6Vkh3N2JTSVVsb0pUajBuZVRYaA$NJjrLrn7wMZwiAqtLVFffl4kqYvt83Na2UbZDMsog2c', 'Guía 1', 'Red Planet Expedition', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia1@redplanetexpedition.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VVJob1NwWHU5R1V6WjcyV29JUDNNVA$V55GE7hMgPy/CQ9ZD2Wh1bo4KW6SO1F/2MCQaZvchlQ', 'Guía 1', 'Red Planet Expedition', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -770,7 +770,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia2@redplanetexpedition.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia2@redplanetexpedition.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$dXV1VzYyVThPTEgydWRkUWU2NkZpag$QyNtT4ae7pAUA4p0QYYY1baBq7Ruv/4n90Rbc1Sc6bc', 'Guía 2', 'Red Planet Expedition', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia2@redplanetexpedition.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$UGVWQ0lyR3hITWhtMUZ6ODhvc05SZg$SBrR6kmob2lQosIQAZGIqgENoDVqeuYqwd8qOV5g7j8', 'Guía 2', 'Red Planet Expedition', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -803,7 +803,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@madidijungle.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@madidijungle.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$aVJhVUkyT0ZSTlRpdFYwdDA3RWcwdA$njNg6Kaj/MO/jse18PetAhjc3YOjAdr2gRiRO+iss3U', 'Jefe Admin', 'Madidi Jungle Ecolodge', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@madidijungle.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$UGhRRkhYeVFMekhPcHh3cWkwUXlrVw$EEGB1C2jJXF3c1ePeLQ01QGU8bnjkFsBUuNHIDMUhHY', 'Jefe Admin', 'Madidi Jungle Ecolodge', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -816,7 +816,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@madidijungle.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@madidijungle.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$MUxteTlRRzF5QjJOYVpmWUlsMmFFZA$FptsQ2I9PiEiXbcPajo2qoA9n7QyA+DObPB2aueDlYU', 'Empleado 1', 'Madidi Jungle Ecolodge', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@madidijungle.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$NkN3WHB1a2thb3lSeWZqMDJUZDhpSA$GYLVoX+0yWIeieIQRcG139UQT4CPOFJmtRzPbikz8a8', 'Empleado 1', 'Madidi Jungle Ecolodge', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -825,7 +825,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'guia1@madidijungle.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('guia1@madidijungle.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$QmcyYkVlTHNsYm1ybmpOMmZGUTdQTw$ndDEHr2hWNXH8pjjn3dNUD2zSZoSCr0NLk/Il0mKbC4', 'Guía 1', 'Madidi Jungle Ecolodge', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('guia1@madidijungle.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$amdYWWt0MW5IRHdkM2xaaWxVVXVZRw$1GRDYNmSjJ/m3AtR3uzw/xyPx2aBRHlSH4pWg3btmm4', 'Guía 1', 'Madidi Jungle Ecolodge', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -866,7 +866,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@kohlberg.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@kohlberg.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$d0tBQjgyUkZrVGlrdVlNZjdUdFJSZQ$FTqXv+sKNNsv2Iw5xX58tkdrpEbqB5sQdzVyzVgq8kQ', 'Jefe Admin', 'Bodegas Kohlberg', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@kohlberg.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$aVRSWk1Jd3FGVHh6bG16V3BmbmpCMA$P+oDs7JAUZDZpSHcvFwz8VXhq18Z2/pAb2UYnhUtndc', 'Jefe Admin', 'Bodegas Kohlberg', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -875,7 +875,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@kohlberg.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@kohlberg.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$ZFVuNTcxY1hGSE9JMTh6NTZuSEY1Vw$gb94C3LSb4sqQ6jXgXxxVQVFbnRSqecXxde023OgG18', 'Empleado 1', 'Bodegas Kohlberg', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@kohlberg.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$bVFvTXBSb2VxSG5hZnZ1MDE5Y21Odw$xJxQI2HddLI+2dn/OaQPihTDMjsOhFvQoJTcMRGY5+E', 'Empleado 1', 'Bodegas Kohlberg', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -902,7 +902,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@parquecretacico.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@parquecretacico.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VGdvNXhvd0dTa1JScXltc2ROSmFMZA$ryukwoyTs4MS2cNIRCrP7M+XLiterXAq4fcevcfPSzI', 'Jefe Admin', 'Parque Cretácico', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@parquecretacico.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$ejIzWENtTk5OdmRmVW8zQ3QyczJVVg$FHOnsRYX/nPAl2Z6UhwIq4Q1is7ilRPbagX4a2UtAOc', 'Jefe Admin', 'Parque Cretácico', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -911,7 +911,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@parquecretacico.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@parquecretacico.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$a3hHUFJFcDB1aEc5Wm1lblhPc2MxVg$vBEUaLvK98VbnKDo8nvmmaDS9IIOLbSuVMvT6//H3h8', 'Empleado 1', 'Parque Cretácico', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@parquecretacico.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$amFpb1BibjN2ZkFYbkhYeWhnNU1GSQ$7u733+660YhH2dTRaFvibqJToTjM44LHkEbYucu1uIE', 'Empleado 1', 'Parque Cretácico', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -938,7 +938,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@casadelamoneda.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@casadelamoneda.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$Q2VGM0x2MlY5Ykw4M3VLUEFrSHZPcA$UuQLLnUDd3sh22TwnSZ07ByVMNzGJSOthC2l/1jraGs', 'Jefe Admin', 'Casa Nacional de Moneda', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@casadelamoneda.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$QUNXRmhnZWNvYXJIT3JTOWE2TjVaSw$zJ1v6uheBQsLm97sSDM2fadOlwyEEmcosc6c6FKaMCE', 'Jefe Admin', 'Casa Nacional de Moneda', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -947,7 +947,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'empleado1@casadelamoneda.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('empleado1@casadelamoneda.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$SmlFd3hST2hPcXdIRUlXWVRrS3JVeA$74Vjm21liR3Fi2W2WAzqJgY3yxozzi/MNIydnXXwp8s', 'Empleado 1', 'Casa Nacional de Moneda', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('empleado1@casadelamoneda.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$SnB0Y3JDRG5XUGYzN1VkRUp6QlhQbA$f2jWBcaHM/AOlGNxsLD7dmGhkivyRttKFHKZ+yADGgE', 'Empleado 1', 'Casa Nacional de Moneda', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -972,7 +972,7 @@ BEGIN
     SELECT id INTO v_user FROM usuario WHERE email = 'jefeadmin@tupizatours.com.bo';
     IF v_user IS NULL THEN
       INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-      VALUES ('jefeadmin@tupizatours.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$ZVlIMjJLOUNQdDZjaGk2ZGh6eUQwYw$P8ZROjR/gsphioBx12rXVb8Lu2yCt98Wg52NkEmAHng', 'Jefe Admin', 'Tupiza Tours', 'ACTIVO') RETURNING id INTO v_user;
+      VALUES ('jefeadmin@tupizatours.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$UHZiTzE0dk1lZzRUdUlQbDZzNHpVaw$1kzNl77dYJg0SS0rft30NMpHDF+Xy8YQiKhgr3tnvvM', 'Jefe Admin', 'Tupiza Tours', 'ACTIVO') RETURNING id INTO v_user;
     END IF;
     INSERT INTO usuario_tenant (id_usuario, id_tenant, estado) VALUES (v_user, v_tenant, 'ACTIVO')
       ON CONFLICT (id_usuario, id_tenant) DO UPDATE SET estado = 'ACTIVO';
@@ -981,111 +981,6 @@ BEGIN
   END IF;
 
   -- Tours y experiencias (CU20): fichas, guias y salidas de las proximas semanas
-
-  -- Tours de SczTourBo
-  v_tenant := NULL; SELECT id INTO v_tenant FROM tenant WHERE nombre_comercial = 'SczTourBo' AND estado = 'ACTIVO';
-  IF v_tenant IS NOT NULL THEN
-    INSERT INTO guia (id_tenant, nombres, idiomas)
-    SELECT v_tenant, 'Guía 1 SczTourBo', '["Español", "Inglés"]'::jsonb
-    WHERE NOT EXISTS (SELECT 1 FROM guia WHERE id_tenant = v_tenant AND nombres = 'Guía 1 SczTourBo');
-    INSERT INTO guia (id_tenant, nombres, idiomas)
-    SELECT v_tenant, 'Guía 2 SczTourBo', '["Español", "Inglés"]'::jsonb
-    WHERE NOT EXISTS (SELECT 1 FROM guia WHERE id_tenant = v_tenant AND nombres = 'Guía 2 SczTourBo');
-    v_producto := NULL;
-    SELECT p.id INTO v_producto FROM producto_turistico p JOIN tipo_producto t ON t.id = p.id_tipo_producto
-     WHERE p.id_tenant = v_tenant AND p.nombre = 'City Tour Santa Cruz de la Sierra' AND t.codigo = 'TOUR';
-    IF v_producto IS NOT NULL AND NOT EXISTS (SELECT 1 FROM detalle_tour WHERE id_producto = v_producto) THEN
-      INSERT INTO detalle_tour (id_producto, id_tenant, duracion_minutos, idioma, dificultad, edad_minima, punto_encuentro, latitud, longitud, incluye, no_incluye, requisitos)
-      VALUES (v_producto, v_tenant, 240, 'Español e inglés', 'BAJA', NULL, 'Plaza 24 de Septiembre, frente a la Catedral', -17.783700, -63.182100, '["Transporte", "Guía", "Agua"]'::jsonb, '["Almuerzo"]'::jsonb, NULL);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 1, 'Plaza 24 de Septiembre', NULL, 40);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 2, 'Catedral Metropolitana', NULL, 30);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 3, 'Casco Viejo', NULL, 45);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 4, 'Parque Urbano', NULL, 30);
-      UPDATE disponibilidad SET cerrado = TRUE WHERE id_producto = v_producto AND inicio > CURRENT_TIMESTAMP AND NOT cerrado;
-    END IF;
-    IF v_producto IS NOT NULL THEN
-      INSERT INTO disponibilidad (id_producto, id_tenant, inicio, fin, cupo_total, id_guia)
-      SELECT v_producto, v_tenant, ((g.d + TIME '09:00') AT TIME ZONE 'America/La_Paz'), ((g.d + TIME '09:00') AT TIME ZONE 'America/La_Paz') + INTERVAL '240 minutes', p.capacidad_maxima, (SELECT id FROM guia WHERE id_tenant = v_tenant AND nombres = 'Guía 1 SczTourBo')
-        FROM producto_turistico p,
-             generate_series(CURRENT_DATE + 1, CURRENT_DATE + 42, INTERVAL '1 day') AS g(d)
-       WHERE p.id = v_producto AND EXTRACT(ISODOW FROM g.d) IN (1, 2, 3, 4, 5, 6)
-      ON CONFLICT (id_producto, inicio) DO NOTHING;
-    END IF;
-    v_producto := NULL;
-    SELECT p.id INTO v_producto FROM producto_turistico p JOIN tipo_producto t ON t.id = p.id_tipo_producto
-     WHERE p.id_tenant = v_tenant AND p.nombre = 'Lomas de Arena' AND t.codigo = 'TOUR';
-    IF v_producto IS NOT NULL AND NOT EXISTS (SELECT 1 FROM detalle_tour WHERE id_producto = v_producto) THEN
-      INSERT INTO detalle_tour (id_producto, id_tenant, duracion_minutos, idioma, dificultad, edad_minima, punto_encuentro, latitud, longitud, incluye, no_incluye, requisitos)
-      VALUES (v_producto, v_tenant, 240, 'Español e inglés', 'MEDIA', NULL, 'Ingreso al Parque Regional Lomas de Arena', -17.901700, -63.145000, '["Transporte 4x4", "Guía"]'::jsonb, '["Tabla de sandboard"]'::jsonb, 'Protector solar, gorra y agua.');
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 1, 'Dunas', 'Caminata y sandboard en las dunas', 90);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 2, 'Laguna', NULL, 45);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 3, 'Mirador de aves', NULL, 30);
-      UPDATE disponibilidad SET cerrado = TRUE WHERE id_producto = v_producto AND inicio > CURRENT_TIMESTAMP AND NOT cerrado;
-    END IF;
-    IF v_producto IS NOT NULL THEN
-      INSERT INTO disponibilidad (id_producto, id_tenant, inicio, fin, cupo_total, id_guia)
-      SELECT v_producto, v_tenant, ((g.d + TIME '14:00') AT TIME ZONE 'America/La_Paz'), ((g.d + TIME '14:00') AT TIME ZONE 'America/La_Paz') + INTERVAL '240 minutes', p.capacidad_maxima, (SELECT id FROM guia WHERE id_tenant = v_tenant AND nombres = 'Guía 1 SczTourBo')
-        FROM producto_turistico p,
-             generate_series(CURRENT_DATE + 1, CURRENT_DATE + 42, INTERVAL '1 day') AS g(d)
-       WHERE p.id = v_producto AND EXTRACT(ISODOW FROM g.d) IN (2, 4, 6)
-      ON CONFLICT (id_producto, inicio) DO NOTHING;
-    END IF;
-    v_producto := NULL;
-    SELECT p.id INTO v_producto FROM producto_turistico p JOIN tipo_producto t ON t.id = p.id_tipo_producto
-     WHERE p.id_tenant = v_tenant AND p.nombre = 'Fuerte de Samaipata y Valles' AND t.codigo = 'TOUR';
-    IF v_producto IS NOT NULL AND NOT EXISTS (SELECT 1 FROM detalle_tour WHERE id_producto = v_producto) THEN
-      INSERT INTO detalle_tour (id_producto, id_tenant, duracion_minutos, idioma, dificultad, edad_minima, punto_encuentro, latitud, longitud, incluye, no_incluye, requisitos)
-      VALUES (v_producto, v_tenant, 660, 'Español e inglés', 'MEDIA', 6, 'Plaza principal de Samaipata', -18.178900, -63.875600, '["Transporte", "Guía", "Entrada al Fuerte", "Almuerzo"]'::jsonb, '["Bebidas"]'::jsonb, 'Zapatos cómodos para caminar.');
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 1, 'Fuerte de Samaipata', NULL, 150);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 2, 'Almuerzo en el pueblo', NULL, 90);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 3, 'Mirador de los valles', NULL, 40);
-      UPDATE disponibilidad SET cerrado = TRUE WHERE id_producto = v_producto AND inicio > CURRENT_TIMESTAMP AND NOT cerrado;
-    END IF;
-    IF v_producto IS NOT NULL THEN
-      INSERT INTO disponibilidad (id_producto, id_tenant, inicio, fin, cupo_total, id_guia)
-      SELECT v_producto, v_tenant, ((g.d + TIME '07:00') AT TIME ZONE 'America/La_Paz'), ((g.d + TIME '07:00') AT TIME ZONE 'America/La_Paz') + INTERVAL '660 minutes', p.capacidad_maxima, (SELECT id FROM guia WHERE id_tenant = v_tenant AND nombres = 'Guía 2 SczTourBo')
-        FROM producto_turistico p,
-             generate_series(CURRENT_DATE + 1, CURRENT_DATE + 42, INTERVAL '1 day') AS g(d)
-       WHERE p.id = v_producto AND EXTRACT(ISODOW FROM g.d) IN (3, 7)
-      ON CONFLICT (id_producto, inicio) DO NOTHING;
-    END IF;
-    v_producto := NULL;
-    SELECT p.id INTO v_producto FROM producto_turistico p JOIN tipo_producto t ON t.id = p.id_tipo_producto
-     WHERE p.id_tenant = v_tenant AND p.nombre = 'Noche Cruceña con Show Folclórico' AND t.codigo = 'EXPERIENCIA';
-    IF v_producto IS NOT NULL AND NOT EXISTS (SELECT 1 FROM detalle_tour WHERE id_producto = v_producto) THEN
-      INSERT INTO detalle_tour (id_producto, id_tenant, duracion_minutos, idioma, dificultad, edad_minima, punto_encuentro, latitud, longitud, incluye, no_incluye, requisitos)
-      VALUES (v_producto, v_tenant, 180, 'Español', 'BAJA', NULL, 'Restaurante del show, Equipetrol', -17.765000, -63.196000, '["Cena", "Show"]'::jsonb, '["Bebidas alcohólicas"]'::jsonb, NULL);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 1, 'Cena típica', 'Majadito, locro y cuñapé', 90);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 2, 'Show folclórico', NULL, 60);
-      UPDATE disponibilidad SET cerrado = TRUE WHERE id_producto = v_producto AND inicio > CURRENT_TIMESTAMP AND NOT cerrado;
-    END IF;
-    IF v_producto IS NOT NULL THEN
-      INSERT INTO disponibilidad (id_producto, id_tenant, inicio, fin, cupo_total, id_guia)
-      SELECT v_producto, v_tenant, ((g.d + TIME '20:00') AT TIME ZONE 'America/La_Paz'), ((g.d + TIME '20:00') AT TIME ZONE 'America/La_Paz') + INTERVAL '180 minutes', p.capacidad_maxima, NULL
-        FROM producto_turistico p,
-             generate_series(CURRENT_DATE + 1, CURRENT_DATE + 42, INTERVAL '1 day') AS g(d)
-       WHERE p.id = v_producto AND EXTRACT(ISODOW FROM g.d) IN (5, 6)
-      ON CONFLICT (id_producto, inicio) DO NOTHING;
-    END IF;
-    v_producto := NULL;
-    SELECT p.id INTO v_producto FROM producto_turistico p JOIN tipo_producto t ON t.id = p.id_tipo_producto
-     WHERE p.id_tenant = v_tenant AND p.nombre = 'Avistamiento de Aves en el Jardín Botánico' AND t.codigo = 'EXPERIENCIA';
-    IF v_producto IS NOT NULL AND NOT EXISTS (SELECT 1 FROM detalle_tour WHERE id_producto = v_producto) THEN
-      INSERT INTO detalle_tour (id_producto, id_tenant, duracion_minutos, idioma, dificultad, edad_minima, punto_encuentro, latitud, longitud, incluye, no_incluye, requisitos)
-      VALUES (v_producto, v_tenant, 180, 'Español e inglés', 'BAJA', 8, 'Ingreso al Jardín Botánico de Santa Cruz', -17.774500, -63.071800, '["Guía especializado", "Binoculares"]'::jsonb, '[]'::jsonb, 'Ropa de colores claros y repelente.');
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 1, 'Sendero del bosque', NULL, 90);
-      INSERT INTO parada_tour (id_producto, id_tenant, orden, nombre, descripcion, duracion_minutos) VALUES (v_producto, v_tenant, 2, 'Laguna', NULL, 45);
-      UPDATE disponibilidad SET cerrado = TRUE WHERE id_producto = v_producto AND inicio > CURRENT_TIMESTAMP AND NOT cerrado;
-    END IF;
-    IF v_producto IS NOT NULL THEN
-      INSERT INTO disponibilidad (id_producto, id_tenant, inicio, fin, cupo_total, id_guia)
-      SELECT v_producto, v_tenant, ((g.d + TIME '06:30') AT TIME ZONE 'America/La_Paz'), ((g.d + TIME '06:30') AT TIME ZONE 'America/La_Paz') + INTERVAL '180 minutes', p.capacidad_maxima, (SELECT id FROM guia WHERE id_tenant = v_tenant AND nombres = 'Guía 2 SczTourBo')
-        FROM producto_turistico p,
-             generate_series(CURRENT_DATE + 1, CURRENT_DATE + 42, INTERVAL '1 day') AS g(d)
-       WHERE p.id = v_producto AND EXTRACT(ISODOW FROM g.d) IN (6)
-      ON CONFLICT (id_producto, inicio) DO NOTHING;
-    END IF;
-  END IF;
 
   -- Tours de Gravity Bolivia
   v_tenant := NULL; SELECT id INTO v_tenant FROM tenant WHERE nombre_comercial = 'Gravity Bolivia' AND estado = 'ACTIVO';
@@ -1374,28 +1269,28 @@ BEGIN
   -- Turistas
   IF NOT EXISTS (SELECT 1 FROM usuario WHERE email = 'turista1@situr.com.bo') THEN
     INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-    VALUES ('turista1@situr.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$cUlHUzBicjZSVm9OUmNqd1Z4ZUd3Yg$ar7C0gIEXORdjUHjoOCGgVaegg3Icw1sqSe/kMdVgQA', 'Lucía', 'Fernández Rojas', 'ACTIVO') RETURNING id INTO v_user;
+    VALUES ('turista1@situr.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$a2VZUmV1NDk5Y1N2OVFiMXJiSkJ2Zw$wzJYe6DKBq/E86bnIP121bwIjUxHQ1EwRzJ3ceC9E6g', 'Lucía', 'Fernández Rojas', 'ACTIVO') RETURNING id INTO v_user;
     INSERT INTO usuario_rol (id_usuario, id_rol, id_tenant) VALUES (v_user, v_rol_cliente, NULL);
     INSERT INTO perfil_cliente (id_usuario) VALUES (v_user);
     v_turistas := v_turistas + 1;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM usuario WHERE email = 'turista2@situr.com.bo') THEN
     INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-    VALUES ('turista2@situr.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$TjFsbVhkd1N5YWtqZXZFUDdFT3NFZQ$Kp+BkJxLQGNsCjSi/i/8A8J3Hu8goWy4k9cAWksfCns', 'Martín', 'Gutiérrez Vaca', 'ACTIVO') RETURNING id INTO v_user;
+    VALUES ('turista2@situr.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$Y1ZrUDV1UldpcGVPbmlDNUMyd2VveA$fDWzOsyYaUPqvrKiyxbFKg8mADooFhLXYUDhJ1OM9rA', 'Martín', 'Gutiérrez Vaca', 'ACTIVO') RETURNING id INTO v_user;
     INSERT INTO usuario_rol (id_usuario, id_rol, id_tenant) VALUES (v_user, v_rol_cliente, NULL);
     INSERT INTO perfil_cliente (id_usuario) VALUES (v_user);
     v_turistas := v_turistas + 1;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM usuario WHERE email = 'turista3@situr.com.bo') THEN
     INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-    VALUES ('turista3@situr.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$SW9rdENPWU1TbkNwaE5qd3J1U1FGUg$7mboSPE5vnDshUxhi7YdyGgQliV2hpLWZVtSJKX1oNY', 'Camila', 'Mamani Quispe', 'ACTIVO') RETURNING id INTO v_user;
+    VALUES ('turista3@situr.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$VlNoUmdyZTZXeEt0RG1BbFVSa3dpQg$F04UPV+3dcvTceR7eXXO2Esdhb+1kaDm4VaI05ysNMo', 'Camila', 'Mamani Quispe', 'ACTIVO') RETURNING id INTO v_user;
     INSERT INTO usuario_rol (id_usuario, id_rol, id_tenant) VALUES (v_user, v_rol_cliente, NULL);
     INSERT INTO perfil_cliente (id_usuario) VALUES (v_user);
     v_turistas := v_turistas + 1;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM usuario WHERE email = 'turista4@situr.com.bo') THEN
     INSERT INTO usuario (email, password_hash, nombres, apellidos, estado)
-    VALUES ('turista4@situr.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$clR1Uk5aOWlMMnhNakxRQTA3Y0JnTg$RTZSMdNhEg0rcYihGsBdi2OjMxRmKhefBsRbqGw+oJY', 'Diego', 'Torrez Salvatierra', 'ACTIVO') RETURNING id INTO v_user;
+    VALUES ('turista4@situr.com.bo', 'argon2$argon2id$v=19$m=102400,t=2,p=8$aHVvNFJEaUp3anNVeENVaUFqZGN6bw$+LJjhr+sN2DMuiavQr/uCAED4HgwCA0Us9tYa69pGXE', 'Diego', 'Torrez Salvatierra', 'ACTIVO') RETURNING id INTO v_user;
     INSERT INTO usuario_rol (id_usuario, id_rol, id_tenant) VALUES (v_user, v_rol_cliente, NULL);
     INSERT INTO perfil_cliente (id_usuario) VALUES (v_user);
     v_turistas := v_turistas + 1;

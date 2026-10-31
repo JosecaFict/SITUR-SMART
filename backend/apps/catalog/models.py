@@ -466,3 +466,36 @@ class Availability(models.Model):
     class Meta:
         managed = False
         db_table = "disponibilidad"
+
+
+class ProductReview(models.Model):
+    """Opinion de un usuario sobre un producto turistico concreto."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(
+        "accounts.User", db_column="id_usuario", on_delete=models.CASCADE,
+        related_name="product_reviews",
+    )
+    product = models.ForeignKey(
+        TourismProduct, db_column="id_producto", on_delete=models.CASCADE,
+        related_name="reviews",
+    )
+    rating = models.SmallIntegerField(db_column="calificacion")
+    comment = models.TextField(db_column="comentario")
+    created_at = models.DateTimeField(db_column="creado_en", auto_now_add=True)
+    updated_at = models.DateTimeField(db_column="actualizado_en", auto_now=True)
+
+    class Meta:
+        managed = False
+        db_table = "resena_producto"
+        ordering = ("-created_at", "-id")
+        constraints = [  # noqa: RUF012 - declaracion de Meta de Django
+            models.UniqueConstraint(fields=("user", "product"), name="uq_resena_usuario_producto"),
+            models.CheckConstraint(
+                condition=models.Q(rating__gte=1, rating__lte=5),
+                name="chk_resena_calificacion",
+            ),
+        ]
+        indexes = [  # noqa: RUF012 - declaracion de Meta de Django
+            models.Index(fields=("product", "-created_at", "-id"), name="idx_resena_producto_fecha"),
+        ]

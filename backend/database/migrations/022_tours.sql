@@ -2,7 +2,7 @@
 -- Ejecutar despues de 021_datos_facturacion_reserva.sql.
 --
 -- Este archivo es la referencia legible del esquema. La via normal para
--- aplicarlo es la migracion de Django apps/catalog/migrations/0011_tours.py,
+-- aplicarlo es la migracion de Django apps/catalog/migrations/0012_tours.py,
 -- que lleva el mismo DDL en forma idempotente y es lo unico que corre el
 -- deploy de Railway.
 --

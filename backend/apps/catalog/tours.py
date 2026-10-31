@@ -23,7 +23,6 @@ from apps.tenancy.services import (
 )
 from apps.tenancy.subscriptions import require_active_plan, restricted_tenant_ids
 
-from .departures import open_future_departures
 from .models import (
     TOUR_PRODUCT_CODES,
     Availability,
@@ -38,6 +37,7 @@ from .services import (
     _split_specifics,
     _unique_product_code,
 )
+from .tour_departures import open_future_departures
 
 MAX_STOPS = 30
 

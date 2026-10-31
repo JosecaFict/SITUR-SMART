@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 from apps.backups.scheduled import run_if_due
 from apps.bookings.services import complete_finished, expire_overdue
 from apps.catalog.scheduling import process_due as process_publications
+from apps.notifications.reminders import process_due as process_reminders
 from apps.payments.reconciliation import run as reconcile_payments
 from apps.payments.refunds import reconcile_pending as reconcile_refunds
 from apps.tenancy.subscriptions import process_due
@@ -30,6 +31,7 @@ class Command(BaseCommand):
         reconciliation = reconcile_payments()
         plans = process_due()
         published = process_publications()
+        reminders = process_reminders()
         backup = run_if_due()
 
         # El push y el correo de las reservas salen en hilos aparte; si el
@@ -47,6 +49,7 @@ class Command(BaseCommand):
                 f"Planes: {plans['avisos']} avisos, {plans['renovadas']} renovados, {plans['vencidas']} vencidos. "
                 f"Publicaciones: {published['publicados']} publicadas, {published['retirados']} retiradas, "
                 f"{published['fallidos']} fallidas. "
+                f"Recordatorios enviados: {reminders}. "
                 f"Copia de seguridad: {backup.filename if backup else 'no tocaba'}."
             )
         )

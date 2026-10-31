@@ -1,5 +1,10 @@
 from django.urls import path
 
+from .review_views import (
+    OwnProductReviewView,
+    OwnReviewDetailView,
+    ProductReviewListCreateView,
+)
 from .tour_views import (
     CompanyTourDetailView,
     CompanyTourListCreateView,
@@ -13,6 +18,9 @@ from .tour_views import (
     TourStopsView,
 )
 from .views import (
+    CompanyDepartureCloseView,
+    CompanyDepartureDetailView,
+    CompanyDepartureListCreateView,
     CompanyLodgingDetailView,
     CompanyLodgingListCreateView,
     CompanyLodgingRoomListCreateView,
@@ -25,6 +33,7 @@ from .views import (
     LodgingTypeListView,
     ProductScheduleView,
     ProductTypeListView,
+    PublicDepartureListView,
     PublicLodgingDetailView,
     PublicLodgingListView,
     PublicLodgingRoomListView,
@@ -40,6 +49,10 @@ urlpatterns = [
     path("catalogos/monedas/", CurrencyListView.as_view(), name="currency-list"),
     path("marketplace/productos/", PublicProductListView.as_view(), name="public-product-list"),
     path("marketplace/productos/<int:pk>/", PublicProductDetailView.as_view(), name="public-product-detail"),
+    path("marketplace/productos/<int:pk>/resenas/", ProductReviewListCreateView.as_view(), name="product-review-list-create"),
+    path("me/productos/<int:pk>/resena/", OwnProductReviewView.as_view(), name="own-product-review"),
+    path("me/resenas/<int:pk>/", OwnReviewDetailView.as_view(), name="own-review-detail"),
+    path("marketplace/productos/<int:pk>/salidas/", PublicDepartureListView.as_view(), name="public-departure-list"),
     path("marketplace/hospedajes/", PublicLodgingListView.as_view(), name="public-lodging-list"),
     path("marketplace/hospedajes/<int:pk>/", PublicLodgingDetailView.as_view(), name="public-lodging-detail"),
     path(
@@ -53,6 +66,9 @@ urlpatterns = [
     path("productos/<int:pk>/", CompanyProductDetailView.as_view(), name="company-product-detail"),
     # Publicacion programada de un producto o de un hospedaje (por su producto).
     path("productos/<int:pk>/programacion/", ProductScheduleView.as_view(), name="company-product-schedule"),
+    path("productos/<int:pk>/salidas/", CompanyDepartureListCreateView.as_view(), name="company-departure-list-create"),
+    path("productos/<int:pk>/salidas/<int:slot_id>/", CompanyDepartureDetailView.as_view(), name="company-departure-detail"),
+    path("productos/<int:pk>/salidas/<int:slot_id>/cerrar/", CompanyDepartureCloseView.as_view(), name="company-departure-close"),
     path("hospedajes/", CompanyLodgingListCreateView.as_view(), name="company-lodging-list-create"),
     path("hospedajes/<int:pk>/", CompanyLodgingDetailView.as_view(), name="company-lodging-detail"),
     path(
@@ -66,8 +82,8 @@ urlpatterns = [
     path("tours/<int:pk>/", CompanyTourDetailView.as_view(), name="company-tour-detail"),
     path("tours/<int:pk>/paradas/", TourStopsView.as_view(), name="company-tour-stops"),
     path("tours/<int:pk>/salidas/", TourDepartureListCreateView.as_view(), name="company-tour-departures"),
-    path("salidas/<int:pk>/", DepartureDetailView.as_view(), name="company-departure-detail"),
-    path("salidas/<int:pk>/cerrar/", DepartureCloseView.as_view(), name="company-departure-close"),
+    path("salidas/<int:pk>/", DepartureDetailView.as_view(), name="company-tour-departure-detail"),
+    path("salidas/<int:pk>/cerrar/", DepartureCloseView.as_view(), name="company-tour-departure-close"),
     path("guias/", GuideListCreateView.as_view(), name="company-guide-list-create"),
     path("guias/<int:pk>/", GuideDetailView.as_view(), name="company-guide-detail"),
     path("marketplace/tours/<int:pk>/", PublicTourDetailView.as_view(), name="public-tour-detail"),

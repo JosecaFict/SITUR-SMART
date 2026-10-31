@@ -1,22 +1,24 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   LucideArrowLeft, LucideBaby, LucideCheck, LucideClock, LucideImage, LucideLanguages, LucideMapPin,
-  LucideMountain, LucideRoute, LucideUsers, LucideX,
+  LucideMountain, LucideRoute, LucideStar, LucideUsers, LucideX,
 } from '@lucide/angular';
 import { AuthService } from '../../../core/auth/auth.service';
 import { apiErrorMessage } from '../../../core/http/api-error';
 import { TourismProduct } from '../../../core/products/products.models';
 import { ProductsService } from '../../../core/products/products.service';
-import { PublicDeparture, Tour } from '../../../core/tours/tours.models';
-import { DeparturesService, ToursService } from '../../../core/tours/tours.service';
+import { Tour } from '../../../core/tours/tours.models';
+import { ToursService } from '../../../core/tours/tours.service';
 import { LatLng } from '../../../core/geo/geo.models';
 import { MapaUbicacion } from '../../../shared/mapa-ubicacion/mapa-ubicacion';
 import { Itinerary } from '../../../core/traveler/traveler.models';
 import { TravelerService } from '../../../core/traveler/traveler.service';
 import { Favorito } from '../../../shared/favorito/favorito';
 import { Reservar } from '../../../shared/reservar/reservar';
+import { Resenas } from '../../../shared/resenas/resenas';
 
 /** Lo que se reserva por día y persona desde su ficha (un hotel se reserva por habitación). */
 const BOOKABLE = new Set(['TOUR', 'EXPERIENCIA', 'ATRACCION', 'RESTAURANTE', 'PAQUETE']);
@@ -30,8 +32,9 @@ const DIFFICULTY_LABELS: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media'
 @Component({
   selector: 'situr-producto-publico',
   imports: [
-    RouterLink, Favorito, Reservar, MapaUbicacion, LucideArrowLeft, LucideBaby, LucideCheck, LucideClock,
-    LucideImage, LucideLanguages, LucideMapPin, LucideMountain, LucideRoute, LucideUsers, LucideX,
+    DatePipe, RouterLink, Favorito, Reservar, Resenas, MapaUbicacion, LucideArrowLeft, LucideBaby, LucideCheck,
+    LucideClock, LucideImage, LucideLanguages, LucideMapPin, LucideMountain, LucideRoute, LucideStar, LucideUsers,
+    LucideX,
   ],
   templateUrl: './producto-publico.html',
 })
@@ -40,19 +43,17 @@ export class ProductoPublico implements OnInit {
   private readonly products = inject(ProductsService);
   private readonly traveler = inject(TravelerService);
   private readonly toursService = inject(ToursService);
-  private readonly departuresService = inject(DeparturesService);
   protected readonly auth = inject(AuthService);
+  protected readonly inShell = this.route.snapshot.data['inShell'] === true;
+  protected readonly imageFailed = signal(false);
 
   protected readonly product = signal<TourismProduct | null>(null);
   protected readonly loading = signal(true);
   /**
-   * Ficha del tour. Null si no es un tour, o si es uno del Catálogo genérico
-   * sin ficha: ese se sigue reservando por día.
+   * Ficha del tour (CU20): recorrido, punto de encuentro, incluye. Null si no
+   * es un tour o si todavía no tiene ficha. Las salidas las muestra Reservar.
    */
   protected readonly tour = signal<Tour | null>(null);
-  protected readonly departures = signal<PublicDeparture[]>([]);
-  /** Mientras se averigua si es un tour con salidas, el reservar espera. */
-  protected readonly tourLoading = signal(false);
   protected readonly meetingPoint = computed<LatLng | null>(() => {
     const detail = this.tour()?.detalle;
     if (!detail?.latitud || !detail.longitud) return null;
@@ -81,7 +82,7 @@ export class ProductoPublico implements OnInit {
   );
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    const id = Number(this.route.snapshot.paramMap.get('id') ?? this.route.parent?.snapshot.paramMap.get('id'));
     this.products.getPublic(id).subscribe({
       next: (product) => {
         this.product.set(product);
@@ -103,17 +104,10 @@ export class ProductoPublico implements OnInit {
   }
 
   private loadTour(id: number): void {
-    this.tourLoading.set(true);
     this.toursService.getPublic(id).subscribe({
-      next: (tour) => {
-        this.tour.set(tour);
-        this.departuresService.listPublic(id).subscribe({
-          next: (departures) => { this.departures.set(departures); this.tourLoading.set(false); },
-          error: () => { this.departures.set([]); this.tourLoading.set(false); },
-        });
-      },
-      // Sin ficha: se reserva por día, como antes.
-      error: () => { this.tour.set(null); this.tourLoading.set(false); },
+      next: (tour) => this.tour.set(tour),
+      // Sin ficha (404): la página muestra solo los datos del producto.
+      error: () => this.tour.set(null),
     });
   }
 
@@ -136,6 +130,14 @@ export class ProductoPublico implements OnInit {
     this.traveler.addActivity(itinerary.id, { fecha: this.itineraryDay(), producto_id: product.id }).subscribe({
       next: () => this.itineraryMessage.set(`Agregado a "${itinerary.nombre}".`),
       error: (error: HttpErrorResponse) => this.itineraryError.set(apiErrorMessage(error, 'No se pudo agregar.')),
+    });
+  }
+
+  protected refreshRating(): void {
+    const current = this.product();
+    if (!current) return;
+    this.products.getPublic(current.id).subscribe({
+      next: (updated) => this.product.set(updated),
     });
   }
 }

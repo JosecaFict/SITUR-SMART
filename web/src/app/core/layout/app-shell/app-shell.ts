@@ -8,6 +8,7 @@ import {
   LucideCompass,
   LucideCreditCard,
   LucideDatabaseBackup,
+  LucideGift,
   LucideLayoutDashboard,
   LucideHeart,
   LucideLogOut,
@@ -19,6 +20,7 @@ import {
   LucideMountain,
   LucideChartNoAxesCombined,
   LucideScrollText,
+  LucideBadgePercent,
   LucideShieldCheck,
   LucideUser,
   LucideUsers,
@@ -31,7 +33,7 @@ import { TravelerService } from '../../traveler/traveler.service';
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'lodging' | 'tours' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings' | 'trips' | 'itinerary' | 'favorites' | 'notifications';
+  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'packages' | 'promotions' | 'lodging' | 'tours' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings' | 'trips' | 'itinerary' | 'favorites' | 'notifications';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
@@ -56,6 +58,7 @@ interface NavItem {
   LucideCompass,
   LucideCreditCard,
     LucideDatabaseBackup,
+    LucideGift,
     LucideLayoutDashboard,
     LucideHeart,
     LucideLogOut,
@@ -67,6 +70,7 @@ interface NavItem {
     LucideMountain,
     LucideChartNoAxesCombined,
     LucideScrollText,
+    LucideBadgePercent,
     LucideShieldCheck,
     LucideUser,
     LucideUsers,
@@ -117,6 +121,7 @@ export class AppShell implements OnDestroy {
   private readonly allNavItems: NavItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard', hideForCustomer: true },
     { label: 'Explorar', path: '/', icon: 'explore' },
+    { label: 'Mis paquetes', path: '/paquetes', icon: 'packages' },
     // Área del viajero.
     { label: 'Mis viajes', path: '/mis-viajes', icon: 'trips', customerOnly: true },
     { label: 'Mis pagos', path: '/mis-pagos', icon: 'bookings', customerOnly: true },
@@ -195,6 +200,15 @@ export class AppShell implements OnDestroy {
       path: '/productos',
       icon: 'products',
       hideForCustomer: true,
+      permission: 'PRODUCTOS_LEER',
+    },
+    {
+      label: 'Paquetes con descuento',
+      path: '/promociones',
+      icon: 'promotions',
+      hideForCustomer: true,
+      hideForSuperAdmin: true,
+      tenantOnly: true,
       permission: 'PRODUCTOS_LEER',
     },
     {

@@ -28,6 +28,7 @@ from .models import (
     TourDetail,
     TourismProduct,
 )
+from .reviews import review_stat_annotations, with_review_stats
 
 
 def list_company_products(*, actor, tenant_id: int):
@@ -464,6 +465,7 @@ def with_from_price(queryset, *, published_rooms_only: bool = True):
             F("rooms__quantity") * F("rooms__product__max_capacity"),
             filter=status_filter,
         ),
+        **review_stat_annotations(product_ref="product_id"),
     )
 
 
@@ -488,7 +490,8 @@ def with_lodging_from_price(queryset):
                 lodging__rooms__product__status=TourismProduct.Status.PUBLISHED,
                 lodging__rooms__product__base_price__gt=0,
             ),
-        )
+        ),
+        **review_stat_annotations(),
     )
 
 
@@ -667,7 +670,10 @@ def deactivate_lodging(*, actor, tenant_id: int, lodging_id: int, request=None) 
 
 def list_lodging_rooms(*, actor, tenant_id: int, lodging_id: int):
     lodging = get_company_lodging(actor=actor, tenant_id=tenant_id, lodging_id=lodging_id)
-    return Room.objects.select_related(*_ROOM_RELATED).filter(establishment=lodging)
+    return with_review_stats(
+        Room.objects.select_related(*_ROOM_RELATED).filter(establishment=lodging),
+        product_ref="product_id",
+    )
 
 
 def get_company_room(*, actor, tenant_id: int, room_id: int) -> Room:
@@ -821,11 +827,11 @@ def get_public_lodging(lodging_id: int) -> LodgingEstablishment:
 
 
 def public_rooms():
-    return Room.objects.select_related(*_ROOM_RELATED).filter(
+    return with_review_stats(Room.objects.select_related(*_ROOM_RELATED).filter(
         product__status=TourismProduct.Status.PUBLISHED,
         product__tenant__status="ACTIVO",
         establishment__product__status=TourismProduct.Status.PUBLISHED,
-    ).exclude(tenant_id__in=restricted_tenant_ids())
+    ).exclude(tenant_id__in=restricted_tenant_ids()), product_ref="product_id")
 
 
 def get_public_room(room_id: int) -> Room:

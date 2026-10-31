@@ -168,48 +168,9 @@ MUELLE_RURRE = ("Muelle de Rurrenabaque, a orillas del río Beni", "-14.441300",
 DOS_NOCHES = 2 * 24 * 60
 
 FICHAS = {
-    # --- SczTourBo ----------------------------------------------------------
-    "City Tour Santa Cruz de la Sierra": ficha(
-        minutos=240, punto="Plaza 24 de Septiembre, frente a la Catedral",
-        latitud="-17.783700", longitud="-63.182100",
-        paradas=[parada("Plaza 24 de Septiembre", 40), parada("Catedral Metropolitana", 30),
-                 parada("Casco Viejo", 45), parada("Parque Urbano", 30)],
-        incluye=["Transporte", "Guía", "Agua"], no_incluye=["Almuerzo"],
-        dias=(LUN, MAR, MIE, JUE, VIE, SAB), horas=["09:00"], guia="guia1",
-    ),
-    "Lomas de Arena": ficha(
-        minutos=240, punto="Ingreso al Parque Regional Lomas de Arena",
-        latitud="-17.901700", longitud="-63.145000", dificultad="MEDIA",
-        paradas=[parada("Dunas", 90, "Caminata y sandboard en las dunas"), parada("Laguna", 45),
-                 parada("Mirador de aves", 30)],
-        incluye=["Transporte 4x4", "Guía"], no_incluye=["Tabla de sandboard"],
-        requisitos="Protector solar, gorra y agua.",
-        dias=(MAR, JUE, SAB), horas=["14:00"], guia="guia1",
-    ),
-    "Fuerte de Samaipata y Valles": ficha(
-        minutos=660, punto="Plaza principal de Samaipata", latitud="-18.178900", longitud="-63.875600",
-        dificultad="MEDIA", edad=6,
-        paradas=[parada("Fuerte de Samaipata", 150), parada("Almuerzo en el pueblo", 90),
-                 parada("Mirador de los valles", 40)],
-        incluye=["Transporte", "Guía", "Entrada al Fuerte", "Almuerzo"], no_incluye=["Bebidas"],
-        requisitos="Zapatos cómodos para caminar.",
-        dias=(MIE, DOM), horas=["07:00"], guia="guia2",
-    ),
-    "Noche Cruceña con Show Folclórico": ficha(
-        minutos=180, punto="Restaurante del show, Equipetrol", latitud="-17.765000", longitud="-63.196000",
-        idioma="Español",
-        paradas=[parada("Cena típica", 90, "Majadito, locro y cuñapé"), parada("Show folclórico", 60)],
-        incluye=["Cena", "Show"], no_incluye=["Bebidas alcohólicas"],
-        dias=(VIE, SAB), horas=["20:00"],
-    ),
-    "Avistamiento de Aves en el Jardín Botánico": ficha(
-        minutos=180, punto="Ingreso al Jardín Botánico de Santa Cruz",
-        latitud="-17.774500", longitud="-63.071800", edad=8,
-        paradas=[parada("Sendero del bosque", 90), parada("Laguna", 45)],
-        incluye=["Guía especializado", "Binoculares"],
-        requisitos="Ropa de colores claros y repelente.",
-        dias=(SAB,), horas=["06:30"], guia="guia2",
-    ),
+    # SczTourBo queda sin fichas a proposito: sus tours son los del Catalogo
+    # generico (se reservan por dia o por las salidas que la empresa programe
+    # desde Catalogo), y las pruebas de salidas, paquetes y promociones los usan.
     # --- Gravity Bolivia ------------------------------------------------------
     "Descenso en Bicicleta por el Camino de la Muerte": ficha(
         minutos=600, punto=GRAVITY_OFICINA[0], latitud=GRAVITY_OFICINA[1], longitud=GRAVITY_OFICINA[2],

@@ -35,10 +35,11 @@ def _request_args(request, *, include_policy: bool = False) -> dict:
     result = {
         "product_id": data["producto_id"],
         "start": data.get("fecha_inicio"),
-        "departure_id": data.get("salida_id"),
         "end": data.get("fecha_fin"),
         "quantity": data["cantidad"],
         "guests": data.get("huespedes"),
+        "slot_id": data.get("salida_id"),
+        "promotion_id": data.get("promocion_id"),
     }
     if include_policy:
         result.update(
