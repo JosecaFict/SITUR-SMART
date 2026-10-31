@@ -19,8 +19,10 @@ class NotificationsInboxPage extends StatefulWidget {
 }
 
 class _NotificationsInboxPageState extends State<NotificationsInboxPage> {
-  late final NotificationsService _service = widget.service ?? NotificationsService();
-  late final NotificationsStore _store = widget.store ?? NotificationsStore.instance;
+  late final NotificationsService _service =
+      widget.service ?? NotificationsService();
+  late final NotificationsStore _store =
+      widget.store ?? NotificationsStore.instance;
   final ScrollController _scroll = ScrollController();
 
   final List<AppNotification> _items = [];
@@ -34,7 +36,9 @@ class _NotificationsInboxPageState extends State<NotificationsInboxPage> {
   void initState() {
     super.initState();
     _scroll.addListener(() {
-      if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 300) _loadMore();
+      if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 300) {
+        _loadMore();
+      }
     });
     _load();
   }
@@ -66,7 +70,9 @@ class _NotificationsInboxPageState extends State<NotificationsInboxPage> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = error is ApiException ? error.message : 'No se pudieron cargar tus notificaciones.';
+        _error = error is ApiException
+            ? error.message
+            : 'No se pudieron cargar tus notificaciones.';
       });
     }
   }
@@ -112,7 +118,11 @@ class _NotificationsInboxPageState extends State<NotificationsInboxPage> {
       _store.clear();
     } catch (error) {
       messenger.showSnackBar(
-        SnackBar(content: Text(error is ApiException ? error.message : 'No se pudo actualizar.')),
+        SnackBar(
+          content: Text(
+            error is ApiException ? error.message : 'No se pudo actualizar.',
+          ),
+        ),
       );
     }
   }
@@ -145,7 +155,8 @@ class _NotificationsInboxPageState extends State<NotificationsInboxPage> {
             EmptyState(
               icon: Icons.notifications_none,
               title: 'No tienes notificaciones',
-              message: 'Aquí te avisaremos cuando se confirme o venza una reserva.',
+              message:
+                  'Aquí te avisaremos cuando se confirme o venza una reserva.',
             ),
           ],
         ),
@@ -165,7 +176,10 @@ class _NotificationsInboxPageState extends State<NotificationsInboxPage> {
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          return _NotificationTile(item: _items[index], onTap: () => _open(index));
+          return _NotificationTile(
+            item: _items[index],
+            onTap: () => _open(index),
+          );
         },
       ),
     );
@@ -183,7 +197,9 @@ class _NotificationTile extends StatelessWidget {
     final difference = now.difference(value);
     if (difference.inMinutes < 1) return 'Ahora';
     if (difference.inHours < 1) return 'Hace ${difference.inMinutes} min';
-    if (difference.inDays < 1 && now.day == value.day) return DateFormat('HH:mm').format(value);
+    if (difference.inDays < 1 && now.day == value.day) {
+      return DateFormat('HH:mm').format(value);
+    }
     return DateFormat('dd/MM/yyyy').format(value);
   }
 
@@ -192,6 +208,9 @@ class _NotificationTile extends StatelessWidget {
     final (IconData icon, Color color) = switch (item.kind) {
       'RESERVA_CONFIRMADA' => (Icons.check_circle, const Color(0xFF047857)),
       'RESERVA_VENCIDA' => (Icons.timer_off_outlined, const Color(0xFFB45309)),
+      'RESERVA_CANCELADA' => (Icons.event_busy_outlined, AppTheme.errorColor),
+      'RECORDATORIO_24H' ||
+      'RECORDATORIO_2H' => (Icons.alarm_outlined, AppTheme.accentDark),
       'PAGO_REVISION' => (Icons.report_outlined, AppTheme.errorColor),
       _ => (Icons.info_outline, AppTheme.textSecondary),
     };
@@ -211,7 +230,10 @@ class _NotificationTile extends StatelessWidget {
           ),
         ),
         subtitle: Text(item.message),
-        trailing: Text(_when(item.createdAt), style: const TextStyle(fontSize: 12)),
+        trailing: Text(
+          _when(item.createdAt),
+          style: const TextStyle(fontSize: 12),
+        ),
         isThreeLine: true,
       ),
     );

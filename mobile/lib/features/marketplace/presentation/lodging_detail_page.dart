@@ -7,6 +7,7 @@ import '../data/marketplace_service.dart';
 import '../../favoritos/presentation/favorite_button.dart';
 import '../../itinerarios/presentation/add_to_itinerary.dart';
 import '../../reservas/presentation/booking_sheet.dart';
+import '../../resenas/presentation/product_reviews.dart';
 import '../models/marketplace_models.dart';
 import 'widgets/marketplace_widgets.dart';
 
@@ -23,7 +24,8 @@ class LodgingDetailPage extends StatefulWidget {
 }
 
 class _LodgingDetailPageState extends State<LodgingDetailPage> {
-  late final MarketplaceService _service = widget.service ?? MarketplaceService();
+  late final MarketplaceService _service =
+      widget.service ?? MarketplaceService();
 
   Lodging? _lodging;
   List<Room> _rooms = const [];
@@ -80,11 +82,15 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
   Future<void> _openMap(Lodging lodging) async {
     final lat = lodging.latitud!;
     final lon = lodging.longitud!;
-    final url = Uri.parse('https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=17/$lat/$lon');
+    final url = Uri.parse(
+      'https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=17/$lat/$lon',
+    );
     final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir el mapa en este dispositivo.')),
+        const SnackBar(
+          content: Text('No se pudo abrir el mapa en este dispositivo.'),
+        ),
       );
     }
   }
@@ -115,7 +121,10 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
   Widget build(BuildContext context) {
     final lodging = _lodging;
     if (_loading) {
-      return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
     if (_notFound) {
       return Scaffold(
@@ -130,7 +139,10 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
     if (_error != null || lodging == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: ErrorRetry(message: _error ?? 'No se pudo cargar el hospedaje.', onRetry: _load),
+        body: ErrorRetry(
+          message: _error ?? 'No se pudo cargar el hospedaje.',
+          onRetry: _load,
+        ),
       );
     }
 
@@ -154,9 +166,14 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
             expandedHeight: 240,
             backgroundColor: AppTheme.accentDark,
             foregroundColor: Colors.white,
-            actions: [FavoriteButton(productId: lodging.productoId, onImage: true)],
+            actions: [
+              FavoriteButton(productId: lodging.productoId, onImage: true),
+            ],
             flexibleSpace: FlexibleSpaceBar(
-              background: ProductImage(url: lodging.imagenUrl, icon: Icons.hotel_outlined),
+              background: ProductImage(
+                url: lodging.imagenUrl,
+                icon: Icons.hotel_outlined,
+              ),
             ),
           ),
           SliverPadding(
@@ -173,10 +190,13 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(lodging.nombre, style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.titleColor,
-                    )),
+                Text(
+                  lodging.nombre,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.titleColor,
+                  ),
+                ),
                 if (lodging.estrellas != null) ...[
                   const SizedBox(height: 6),
                   StarRow(count: lodging.estrellas!, size: 18),
@@ -184,12 +204,25 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
                 const SizedBox(height: 8),
                 InfoLine(icon: Icons.place_outlined, text: location),
                 if (lodging.direccion != null)
-                  InfoLine(icon: Icons.signpost_outlined, text: lodging.direccion!),
-                InfoLine(icon: Icons.business_outlined, text: 'Operado por ${lodging.empresa}'),
-                if (schedule.isNotEmpty) InfoLine(icon: Icons.schedule, text: schedule),
+                  InfoLine(
+                    icon: Icons.signpost_outlined,
+                    text: lodging.direccion!,
+                  ),
+                InfoLine(
+                  icon: Icons.business_outlined,
+                  text: 'Operado por ${lodging.empresa}',
+                ),
+                if (schedule.isNotEmpty)
+                  InfoLine(icon: Icons.schedule, text: schedule),
                 if (lodging.descripcion != null) ...[
                   const SizedBox(height: 16),
-                  Text(lodging.descripcion!, style: const TextStyle(height: 1.5, color: AppTheme.labelColor)),
+                  Text(
+                    lodging.descripcion!,
+                    style: const TextStyle(
+                      height: 1.5,
+                      color: AppTheme.labelColor,
+                    ),
+                  ),
                 ],
                 if (lodging.servicios.isNotEmpty) ...[
                   const SizedBox(height: 20),
@@ -213,7 +246,10 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
                   const SizedBox(height: 20),
                   PriceBox(
                     label: 'Habitaciones desde',
-                    price: formatPrice(lodging.monedaSimbolo, lodging.precioDesde)!,
+                    price: formatPrice(
+                      lodging.monedaSimbolo,
+                      lodging.precioDesde,
+                    )!,
                     note: 'por habitación/noche',
                   ),
                 ],
@@ -237,7 +273,10 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
                     label: const Text('Ver en el mapa'),
                   ),
                   const SizedBox(height: 4),
-                  Text('Ubicación declarada por ${lodging.empresa}.', style: const TextStyle(fontSize: 12)),
+                  Text(
+                    'Ubicación declarada por ${lodging.empresa}.',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ],
                 const SizedBox(height: 24),
                 _SectionTitle(
@@ -250,7 +289,9 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
             ),
           ),
           if (_roomsError != null)
-            SliverToBoxAdapter(child: ErrorRetry(message: _roomsError!, onRetry: _load))
+            SliverToBoxAdapter(
+              child: ErrorRetry(message: _roomsError!, onRetry: _load),
+            )
           else if (_rooms.isEmpty)
             const SliverToBoxAdapter(
               child: EmptyState(
@@ -271,6 +312,12 @@ class _LodgingDetailPageState extends State<LodgingDetailPage> {
                 ),
               ),
             ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            sliver: SliverToBoxAdapter(
+              child: ProductReviews(productId: lodging.productoId),
+            ),
+          ),
         ],
       ),
     );
@@ -283,7 +330,8 @@ class _SectionTitle extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Text(text, style: Theme.of(context).textTheme.titleLarge);
+  Widget build(BuildContext context) =>
+      Text(text, style: Theme.of(context).textTheme.titleLarge);
 }
 
 String _guests(int count) => '$count ${count == 1 ? 'huésped' : 'huéspedes'}';
@@ -312,7 +360,10 @@ class _RoomTile extends StatelessWidget {
             SizedBox(
               width: 110,
               height: 120,
-              child: ProductImage(url: room.imagenUrl, icon: Icons.bed_outlined),
+              child: ProductImage(
+                url: room.imagenUrl,
+                icon: Icons.bed_outlined,
+              ),
             ),
             Expanded(
               child: Padding(
@@ -324,14 +375,23 @@ class _RoomTile extends StatelessWidget {
                       room.nombre,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.titleColor),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.titleColor,
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    Text('Hasta ${_guests(room.capacidadMaxima)}', style: const TextStyle(fontSize: 13)),
+                    Text(
+                      'Hasta ${_guests(room.capacidadMaxima)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
                     if (room.incluyeDesayuno)
                       const Text(
                         'Desayuno incluido',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF047857)),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF047857),
+                        ),
                       ),
                     const SizedBox(height: 6),
                     if (price != null)
@@ -346,7 +406,10 @@ class _RoomTile extends StatelessWidget {
                                 color: AppTheme.accentDark,
                               ),
                             ),
-                            const TextSpan(text: ' / noche', style: TextStyle(fontSize: 12)),
+                            const TextSpan(
+                              text: ' / noche',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ],
                         ),
                       ),
@@ -382,7 +445,10 @@ class _RoomSheet extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: ProductImage(url: room.imagenUrl, icon: Icons.bed_outlined),
+              child: ProductImage(
+                url: room.imagenUrl,
+                icon: Icons.bed_outlined,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -390,26 +456,39 @@ class _RoomSheet extends StatelessWidget {
           const SizedBox(height: 8),
           InfoLine(
             icon: Icons.bed_outlined,
-            text: '${room.cantidad} ${room.cantidad == 1 ? 'habitación' : 'habitaciones'} de este tipo',
+            text:
+                '${room.cantidad} ${room.cantidad == 1 ? 'habitación' : 'habitaciones'} de este tipo',
           ),
-          InfoLine(icon: Icons.people_outline, text: 'Hasta ${_guests(room.capacidadMaxima)} por habitación'),
+          InfoLine(
+            icon: Icons.people_outline,
+            text: 'Hasta ${_guests(room.capacidadMaxima)} por habitación',
+          ),
           InfoLine(
             icon: Icons.person_outline,
-            text: 'Máx. ${room.capacidadAdultos} ${room.capacidadAdultos == 1 ? 'adulto' : 'adultos'}'
+            text:
+                'Máx. ${room.capacidadAdultos} ${room.capacidadAdultos == 1 ? 'adulto' : 'adultos'}'
                 ' · Máx. ${room.capacidadNinos} ${room.capacidadNinos == 1 ? 'niño' : 'niños'}',
           ),
-          if (room.tipoCama != null) InfoLine(icon: Icons.king_bed_outlined, text: room.tipoCama!),
+          if (room.tipoCama != null)
+            InfoLine(icon: Icons.king_bed_outlined, text: room.tipoCama!),
           InfoLine(
             icon: Icons.free_breakfast_outlined,
             text: room.incluyeDesayuno ? 'Desayuno incluido' : 'Sin desayuno',
           ),
           if (room.descripcion != null) ...[
             const SizedBox(height: 16),
-            Text(room.descripcion!, style: const TextStyle(height: 1.5, color: AppTheme.labelColor)),
+            Text(
+              room.descripcion!,
+              style: const TextStyle(height: 1.5, color: AppTheme.labelColor),
+            ),
           ],
           if (price != null) ...[
             const SizedBox(height: 20),
-            PriceBox(label: 'Precio', price: price, note: 'por habitación/noche'),
+            PriceBox(
+              label: 'Precio',
+              price: price,
+              note: 'por habitación/noche',
+            ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: onBook,
@@ -417,6 +496,7 @@ class _RoomSheet extends StatelessWidget {
               label: const Text('Reservar esta habitación'),
             ),
           ],
+          ProductReviews(productId: room.productoId),
         ],
       ),
     );

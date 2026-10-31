@@ -6,15 +6,19 @@ import 'package:mobile/features/notificaciones/data/push_service.dart';
 import 'package:mobile/features/notificaciones/presentation/notification_bell.dart';
 import 'package:mobile/features/notificaciones/presentation/notifications_page.dart';
 
-Map<String, dynamic> _json(int id, {bool leida = false, Map<String, dynamic>? datos}) => {
-      'id': id,
-      'tipo': 'RESERVA_CONFIRMADA',
-      'titulo': '¡Reserva confirmada!',
-      'mensaje': 'Hotel Los Tajibos · 20 oct 2026. Tu código es RES-1.',
-      'datos': datos ?? {},
-      'leida': leida,
-      'creado_en': '2026-10-06T14:55:00-04:00',
-    };
+Map<String, dynamic> _json(
+  int id, {
+  bool leida = false,
+  Map<String, dynamic>? datos,
+}) => {
+  'id': id,
+  'tipo': 'RESERVA_CONFIRMADA',
+  'titulo': '¡Reserva confirmada!',
+  'mensaje': 'Hotel Los Tajibos · 20 oct 2026. Tu código es RES-1.',
+  'datos': datos ?? {},
+  'leida': leida,
+  'creado_en': '2026-10-06T14:55:00-04:00',
+};
 
 class _FakeService extends NotificationsService {
   _FakeService(this.items);
@@ -24,7 +28,8 @@ class _FakeService extends NotificationsService {
   int unread = 2;
 
   @override
-  Future<NotificationsResult> list({int page = 1}) async => NotificationsResult(items: items, hasNext: false);
+  Future<NotificationsResult> list({int page = 1}) async =>
+      NotificationsResult(items: items, hasNext: false);
 
   @override
   Future<int> unreadCount() async => unread;
@@ -35,7 +40,9 @@ class _FakeService extends NotificationsService {
 
 void main() {
   test('lee un aviso y a qué reserva lleva', () {
-    final item = AppNotification.fromJson(_json(1, datos: {'reserva_id': 12, 'codigo': 'RES-1'}));
+    final item = AppNotification.fromJson(
+      _json(1, datos: {'reserva_id': 12, 'codigo': 'RES-1'}),
+    );
     expect(item.bookingId, 12);
     expect(item.read, isFalse);
     expect(AppNotification.fromJson(_json(2)).bookingId, isNull);
@@ -56,11 +63,19 @@ void main() {
   testWidgets('la campana muestra cuántos avisos faltan leer', (tester) async {
     final store = NotificationsStore(service: _FakeService(const []));
     await store.refresh();
-    await tester.pumpWidget(MaterialApp(home: Scaffold(appBar: AppBar(actions: [NotificationBell(store: store)]))));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(actions: [NotificationBell(store: store)]),
+        ),
+      ),
+    );
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('tocar un aviso sin leer lo marca y baja el contador', (tester) async {
+  testWidgets('tocar un aviso sin leer lo marca y baja el contador', (
+    tester,
+  ) async {
     final service = _FakeService([
       AppNotification.fromJson(_json(1)),
       AppNotification.fromJson(_json(2, leida: true)),
@@ -68,7 +83,11 @@ void main() {
     final store = NotificationsStore(service: service);
     await store.refresh();
 
-    await tester.pumpWidget(MaterialApp(home: NotificationsInboxPage(service: service, store: store)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotificationsInboxPage(service: service, store: store),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Marcar todas'), findsOneWidget);
 
@@ -82,14 +101,31 @@ void main() {
 
   test('un push con reserva abre esa reserva; sin reserva no navega', () {
     // FCM entrega los datos como texto.
-    expect(PushService.routeFor({'reserva_id': '12', 'tipo': 'RESERVA_CONFIRMADA'}), '/reserva/12');
+    expect(
+      PushService.routeFor({'reserva_id': '12', 'tipo': 'RESERVA_CONFIRMADA'}),
+      '/reserva/12',
+    );
     expect(PushService.routeFor({'tipo': 'PAGO_REVISION'}), isNull);
     expect(PushService.routeFor({'reserva_id': 'x'}), isNull);
   });
 
-  test('sin Firebase iniciado, registrar o quitar el celular no hace nada', () async {
-    await PushService.instance.registerDevice();
-    await PushService.instance.unregisterDevice();
-    expect(PushService.instance.takePendingRoute(), isNull);
+  test('los recordatorios también abren el detalle de la reserva', () {
+    expect(
+      PushService.routeFor({'reserva_id': '44', 'tipo': 'RECORDATORIO_24H'}),
+      '/reserva/44',
+    );
+    expect(
+      PushService.routeFor({'reserva_id': 45, 'tipo': 'RECORDATORIO_2H'}),
+      '/reserva/45',
+    );
   });
+
+  test(
+    'sin Firebase iniciado, registrar o quitar el celular no hace nada',
+    () async {
+      await PushService.instance.registerDevice();
+      await PushService.instance.unregisterDevice();
+      expect(PushService.instance.takePendingRoute(), isNull);
+    },
+  );
 }

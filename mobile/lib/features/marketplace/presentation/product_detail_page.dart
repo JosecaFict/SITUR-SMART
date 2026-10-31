@@ -8,6 +8,7 @@ import '../../favoritos/presentation/favorite_button.dart';
 import '../../itinerarios/presentation/add_to_itinerary.dart';
 import '../../reservas/data/booking_models.dart';
 import '../../reservas/presentation/booking_sheet.dart';
+import '../../resenas/presentation/product_reviews.dart';
 import '../models/marketplace_models.dart';
 import 'widgets/marketplace_widgets.dart';
 
@@ -23,7 +24,8 @@ class ProductDetailPage extends StatefulWidget {
 }
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
-  late final MarketplaceService _service = widget.service ?? MarketplaceService();
+  late final MarketplaceService _service =
+      widget.service ?? MarketplaceService();
 
   Product? _product;
   bool _loading = true;
@@ -69,7 +71,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Widget build(BuildContext context) {
     final product = _product;
     if (_loading) {
-      return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
     if (_notFound) {
       return Scaffold(
@@ -84,7 +89,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     if (_error != null || product == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: ErrorRetry(message: _error ?? 'No se pudo cargar el producto.', onRetry: _load),
+        body: ErrorRetry(
+          message: _error ?? 'No se pudo cargar el producto.',
+          onRetry: _load,
+        ),
       );
     }
 
@@ -105,7 +113,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             foregroundColor: Colors.white,
             actions: [FavoriteButton(productId: product.id, onImage: true)],
             flexibleSpace: FlexibleSpaceBar(
-              background: ProductImage(url: product.imagenUrl, icon: Icons.landscape_outlined),
+              background: ProductImage(
+                url: product.imagenUrl,
+                icon: Icons.landscape_outlined,
+              ),
             ),
           ),
           SliverPadding(
@@ -125,22 +136,33 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Text(
                   product.nombre,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.titleColor,
-                      ),
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.titleColor,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 InfoLine(icon: Icons.place_outlined, text: location),
-                InfoLine(icon: Icons.business_outlined, text: 'Ofrecido por ${product.empresa}'),
-                if (product.capacidadMaxima != null && product.capacidadMaxima! > 0)
+                InfoLine(
+                  icon: Icons.business_outlined,
+                  text: 'Ofrecido por ${product.empresa}',
+                ),
+                if (product.capacidadMaxima != null &&
+                    product.capacidadMaxima! > 0)
                   InfoLine(
                     icon: Icons.people_outline,
-                    text: 'Hasta ${product.capacidadMaxima} '
+                    text:
+                        'Hasta ${product.capacidadMaxima} '
                         '${product.capacidadMaxima == 1 ? 'persona' : 'personas'}',
                   ),
                 if (product.descripcion != null) ...[
                   const SizedBox(height: 16),
-                  Text(product.descripcion!, style: const TextStyle(height: 1.5, color: AppTheme.labelColor)),
+                  Text(
+                    product.descripcion!,
+                    style: const TextStyle(
+                      height: 1.5,
+                      color: AppTheme.labelColor,
+                    ),
+                  ),
                 ],
                 if (price != null) ...[
                   const SizedBox(height: 20),
@@ -178,11 +200,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 if (product.hospedajeId != null) ...[
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
-                    onPressed: () => context.pushReplacement('/hospedaje/${product.hospedajeId}'),
+                    onPressed: () => context.pushReplacement(
+                      '/hospedaje/${product.hospedajeId}',
+                    ),
                     icon: const Icon(Icons.hotel_outlined),
                     label: const Text('Ver el hospedaje'),
                   ),
                 ],
+                ProductReviews(productId: product.id),
               ],
             ),
           ),
@@ -195,4 +220,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 /// Se reserva desde aquí todo lo reservable menos una habitación, que se
 /// reserva desde su hospedaje (allí están sus fechas de llegada y salida).
 bool _bookable(Product product) =>
-    bookableTypes.contains(product.tipoCodigo) && !product.esHabitacion && (product.capacidadMaxima ?? 0) > 0;
+    bookableTypes.contains(product.tipoCodigo) &&
+    !product.esHabitacion &&
+    (product.capacidadMaxima ?? 0) > 0;

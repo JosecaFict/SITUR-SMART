@@ -2,7 +2,7 @@ name: mobile
 description: "SITUR-SMART: app móvil del turista para descubrir la oferta turística de Bolivia."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.2+2
 
 environment:
   sdk: ^3.13.1
