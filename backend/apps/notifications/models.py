@@ -12,6 +12,8 @@ class Notification(models.Model):
         PAYMENT_ISSUE = "PAGO_REVISION", "Pago en revisión"
         REFUND_COMPLETED = "REEMBOLSO_COMPLETADO", "Reembolso completado"
         REFUND_FAILED = "REEMBOLSO_FALLIDO", "Reembolso fallido"
+        BOOKING_REMINDER_24H = "RECORDATORIO_24H", "Recordatorio 24 horas antes"
+        BOOKING_REMINDER_2H = "RECORDATORIO_2H", "Recordatorio 2 horas antes"
 
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(
@@ -55,3 +57,26 @@ class PushDevice(models.Model):
     class Meta:
         managed = False
         db_table = "dispositivo_push"
+
+
+class BookingReminderDelivery(models.Model):
+    """Marca idempotente de cada recordatorio programado de una reserva."""
+
+    id = models.BigAutoField(primary_key=True)
+    booking = models.ForeignKey(
+        "bookings.Booking",
+        db_column="id_reserva",
+        on_delete=models.CASCADE,
+        related_name="reminder_deliveries",
+    )
+    kind = models.CharField(db_column="tipo", max_length=40)
+    sent_at = models.DateTimeField(db_column="enviado_en", auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = "recordatorio_reserva_enviado"
+        constraints = [  # noqa: RUF012 - configuración declarativa de Django
+            models.UniqueConstraint(
+                fields=("booking", "kind"), name="uq_recordatorio_reserva_tipo"
+            )
+        ]
