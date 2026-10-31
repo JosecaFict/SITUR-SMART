@@ -1,7 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LucideArrowLeft, LucideImage, LucideMapPin, LucideUsers } from '@lucide/angular';
+import { LucideArrowLeft, LucideImage, LucideMapPin, LucideStar, LucideUsers } from '@lucide/angular';
 import { AuthService } from '../../../core/auth/auth.service';
 import { apiErrorMessage } from '../../../core/http/api-error';
 import { TourismProduct } from '../../../core/products/products.models';
@@ -10,6 +11,7 @@ import { Itinerary } from '../../../core/traveler/traveler.models';
 import { TravelerService } from '../../../core/traveler/traveler.service';
 import { Favorito } from '../../../shared/favorito/favorito';
 import { Reservar } from '../../../shared/reservar/reservar';
+import { Resenas } from '../../../shared/resenas/resenas';
 
 /** Lo que se reserva por día y persona desde su ficha (un hotel se reserva por habitación). */
 const BOOKABLE = new Set(['TOUR', 'EXPERIENCIA', 'ATRACCION', 'RESTAURANTE', 'PAQUETE']);
@@ -20,7 +22,7 @@ const BOOKABLE = new Set(['TOUR', 'EXPERIENCIA', 'ATRACCION', 'RESTAURANTE', 'PA
  */
 @Component({
   selector: 'situr-producto-publico',
-  imports: [RouterLink, Favorito, Reservar, LucideArrowLeft, LucideImage, LucideMapPin, LucideUsers],
+  imports: [DatePipe, RouterLink, Favorito, Reservar, Resenas, LucideArrowLeft, LucideImage, LucideMapPin, LucideStar, LucideUsers],
   templateUrl: './producto-publico.html',
 })
 export class ProductoPublico implements OnInit {
@@ -28,6 +30,8 @@ export class ProductoPublico implements OnInit {
   private readonly products = inject(ProductsService);
   private readonly traveler = inject(TravelerService);
   protected readonly auth = inject(AuthService);
+  protected readonly inShell = this.route.snapshot.data['inShell'] === true;
+  protected readonly imageFailed = signal(false);
 
   protected readonly product = signal<TourismProduct | null>(null);
   protected readonly loading = signal(true);
@@ -53,7 +57,7 @@ export class ProductoPublico implements OnInit {
   );
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    const id = Number(this.route.snapshot.paramMap.get('id') ?? this.route.parent?.snapshot.paramMap.get('id'));
     this.products.getPublic(id).subscribe({
       next: (product) => {
         this.product.set(product);
@@ -88,6 +92,14 @@ export class ProductoPublico implements OnInit {
     this.traveler.addActivity(itinerary.id, { fecha: this.itineraryDay(), producto_id: product.id }).subscribe({
       next: () => this.itineraryMessage.set(`Agregado a "${itinerary.nombre}".`),
       error: (error: HttpErrorResponse) => this.itineraryError.set(apiErrorMessage(error, 'No se pudo agregar.')),
+    });
+  }
+
+  protected refreshRating(): void {
+    const current = this.product();
+    if (!current) return;
+    this.products.getPublic(current.id).subscribe({
+      next: (updated) => this.product.set(updated),
     });
   }
 }

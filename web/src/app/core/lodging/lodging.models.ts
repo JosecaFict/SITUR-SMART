@@ -48,6 +48,8 @@ export interface LodgingEstablishment {
   latitud: string | null;
   longitud: string | null;
   categoria_estrellas: number | null;
+  calificacion_promedio: number | null;
+  cantidad_resenas: number;
   hora_check_in: string | null;
   hora_check_out: string | null;
   servicios: string[];
@@ -62,6 +64,8 @@ export interface LodgingEstablishment {
 export interface Room {
   id: number;
   producto_id: number;
+  calificacion_promedio: number | null;
+  cantidad_resenas: number;
   establecimiento_id: number;
   establecimiento: string;
   empresa_id: number;

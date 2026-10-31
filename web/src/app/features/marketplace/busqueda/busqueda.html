@@ -40,7 +40,7 @@
             <div class="relative"><select formControlName="ciudad" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todas las ciudades</option>@for (city of filteredCities(); track city.id) { <option [value]="city.id">{{ city.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
           </label>
           <label class="flex flex-col gap-1.5 text-xs font-semibold text-label xl:col-span-3">Categoría
-            <div class="relative"><select formControlName="tipo" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todas las categorías</option>@for (type of visibleTypes(); track type.id) { <option [value]="type.codigo">{{ type.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
+            <div class="relative"><select formControlName="tipo" class="bg-input-bg border-input-border w-full appearance-none rounded-xl border py-2.5 pr-9 pl-3 text-sm font-normal text-title outline-none focus:border-accent-dark focus:ring-4 focus:ring-accent/15"><option value="">Todas las categorías</option><option value="PROMOCIONES">Promociones</option>@for (type of visibleTypes(); track type.id) { <option [value]="type.codigo">{{ type.nombre }}</option> }</select><svg lucideChevronDown class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg></div>
           </label>
           <label class="flex flex-col gap-1.5 text-xs font-semibold text-label xl:col-span-3">Localidad
             <div class="relative"><svg lucideMapPin class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"></svg><input formControlName="localidad" type="search" placeholder="Zona, barrio o localidad" class="bg-input-bg border-input-border w-full rounded-xl border py-2.5 pr-3 pl-9 text-sm font-normal text-title outline-none placeholder:text-text-secondary focus:border-accent-dark focus:ring-4 focus:ring-accent/15" /></div>
@@ -64,52 +64,50 @@
     <section class="w-full px-5 pt-7 sm:px-10">
       <div class="flex flex-wrap items-center gap-2.5">
         <button type="button" (click)="selectType()" class="font-heading min-h-10 rounded-full px-4 py-2 text-[13px] font-semibold transition" [class.bg-accent]="selectedType() === ''" [class.text-white]="selectedType() === ''" [class.border]="selectedType() !== ''" [class.border-input-border]="selectedType() !== ''" [class.bg-white]="selectedType() !== ''">Todos</button>
+        <button type="button" (click)="selectType('PROMOCIONES')" class="font-heading min-h-10 rounded-full px-4 py-2 text-[13px] font-semibold transition" [class.bg-accent]="selectedType() === 'PROMOCIONES'" [class.text-white]="selectedType() === 'PROMOCIONES'" [class.border]="selectedType() !== 'PROMOCIONES'" [class.border-input-border]="selectedType() !== 'PROMOCIONES'" [class.bg-white]="selectedType() !== 'PROMOCIONES'">Promociones</button>
         @for (type of visibleTypes(); track type.id) { <button type="button" (click)="selectType(type.codigo)" class="font-heading min-h-10 rounded-full px-4 py-2 text-[13px] font-semibold transition" [class.bg-accent]="selectedType() === type.codigo" [class.text-white]="selectedType() === type.codigo" [class.border]="selectedType() !== type.codigo" [class.border-input-border]="selectedType() !== type.codigo" [class.bg-white]="selectedType() !== type.codigo">{{ type.nombre }}</button> }
       </div>
     </section>
 
     <section class="w-full px-5 py-7 sm:px-10">
-      <div class="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-heading text-title text-xl font-bold">Experiencias y hospedajes disponibles</h2><p class="mt-1 text-sm text-text-secondary">{{ total() }} {{ total() === 1 ? 'resultado encontrado' : 'resultados encontrados' }}</p></div><button type="button" (click)="clearFilters()" class="flex min-h-10 items-center gap-1.5 text-sm font-semibold text-accent-dark hover:underline"><svg lucideX class="h-4 w-4"></svg>Limpiar filtros</button></div>
+      <div class="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-heading text-title text-xl font-bold">{{ selectedType() === 'PROMOCIONES' ? 'Promociones disponibles' : 'Experiencias y hospedajes disponibles' }}</h2><p class="mt-1 text-sm text-text-secondary">{{ total() }} {{ total() === 1 ? 'resultado encontrado' : 'resultados encontrados' }}</p></div><button type="button" (click)="clearFilters()" class="flex min-h-10 items-center gap-1.5 text-sm font-semibold text-accent-dark hover:underline"><svg lucideX class="h-4 w-4"></svg>Limpiar filtros</button></div>
 
       @if (errorMessage(); as message) { <div class="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><svg lucideCircleAlert class="mt-0.5 h-5 w-5 shrink-0"></svg><div><p class="font-semibold">No pudimos cargar el Marketplace</p><p>{{ message }}</p></div></div> }
       @else if (loading()) { <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">@for (_ of [1,2,3,4,5,6]; track _) { <div class="h-80 animate-pulse rounded-2xl bg-gray-200"></div> }</div> }
       @else if (cards().length === 0) { <div class="rounded-2xl border border-dashed border-input-border bg-white px-6 py-16 text-center"><p class="font-heading text-lg font-bold text-title">No encontramos resultados</p><p class="mt-1 text-sm text-text-secondary">Prueba otra búsqueda, ubicación, categoría o rango de precios.</p><button type="button" (click)="clearFilters()" class="btn-accent mt-5 min-h-10 rounded-xl px-5 py-2.5 text-sm font-semibold text-white">Ver todo el catálogo</button></div> }
-      @else { <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">@for (card of cards(); track card.id) {
+      @else { <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">@for (card of cards(); track card.promocionId ? 'promocion-' + card.promocionId : 'producto-' + card.id) {
         <!-- Enlace estirado: el ::after del <a> del titulo cubre el article, asi
              que la foto, el nombre y cualquier punto de la tarjeta navegan. Es el
              unico elemento interactivo: un tab stop, un anuncio. Un control
              futuro con accion propia debe ir en z-10, por encima del overlay. -->
         <article class="border-input-border group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-white transition duration-200 focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2 hover:-translate-y-0.5 hover:shadow-xl">
-          <div class="relative h-52 overflow-hidden bg-gray-100"><img [src]="card.imagen" (error)="imageError($event)" [alt]="card.nombre" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" /><span class="bg-demo-bg text-accent-dark border-demo-border font-heading absolute top-3 left-3 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide">{{ card.tipo }}</span>
-            @if (card.estrellas) { <span class="absolute top-3 right-3 flex items-center gap-0.5 rounded-full bg-white/95 px-2 py-1 text-amber-500 shadow-sm">@for (star of stars(card.estrellas); track star) { <svg lucideStar class="h-3 w-3"></svg> }</span> }
+          <div class="relative h-52 overflow-hidden bg-gray-100"><img [src]="card.imagen" (error)="imageError($event)" [alt]="card.nombre" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" /><span class="bg-demo-bg text-accent-dark border-demo-border font-heading absolute top-3 left-3 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide">{{ card.tipo }}</span>@if (card.porcentajeDescuento) { <span class="absolute top-3 right-3 rounded-full bg-accent-dark px-2.5 py-1 text-xs font-bold text-white shadow-sm">{{ card.porcentajeDescuento }} % OFF</span> }
+            @if (card.estrellas) { <span class="absolute top-3 right-3 flex items-center gap-0.5 rounded-full bg-white/95 px-2 py-1 text-amber-500 shadow-sm" [attr.aria-label]="'Categoría hotelera: ' + card.estrellas + ' estrellas'">@for (star of stars(card.estrellas); track star) { <svg lucideStar class="h-3 w-3"></svg> }</span> }
           </div>
           <div class="flex flex-1 flex-col gap-2 p-4.5">
             <h3 class="font-heading text-title text-base leading-tight font-bold">
               @if (card.esHospedaje && card.hospedajeId !== null) {
                 <a [routerLink]="['/marketplace/hospedajes', card.hospedajeId]" class="after:absolute after:inset-0 after:content-[''] focus:outline-none">{{ card.nombre }}<span class="sr-only"> &mdash; ver habitaciones</span></a>
+              } @else if (card.promocionId) {
+                <a [routerLink]="['/marketplace/promociones', card.promocionId]" class="after:absolute after:inset-0 after:content-[''] focus:outline-none">{{ card.nombre }}<span class="sr-only"> &mdash; ver promoción</span></a>
               } @else {
-                {{ card.nombre }}
+                <a [routerLink]="['/marketplace/productos', card.id]" class="after:absolute after:inset-0 after:content-[''] focus:outline-none">{{ card.nombre }}<span class="sr-only"> &mdash; ver detalles</span></a>
               }
             </h3>
-            <div class="flex items-start gap-1.5 text-[13px] text-text-secondary"><svg lucideMapPin class="mt-0.5 h-3.5 w-3.5 shrink-0"></svg><span>{{ card.localidad ? card.localidad + ' · ' : '' }}{{ card.ciudad }}, {{ card.pais }}</span></div>
+            @if (card.ciudad) { <div class="flex items-start gap-1.5 text-[13px] text-text-secondary"><svg lucideMapPin class="mt-0.5 h-3.5 w-3.5 shrink-0"></svg><span>{{ card.localidad ? card.localidad + ' · ' : '' }}{{ card.ciudad }}{{ card.pais ? ', ' + card.pais : '' }}</span></div> }
             <div class="text-xs text-text-secondary">Por {{ card.empresa }}</div>
-
-            <!-- Un producto que no es hospedaje no tiene pagina propia, asi que
-                 su descripcion se despliega aqui mismo. Crece a lo alto: sin
-                 col-span, para no descuadrar la grilla. -->
-            @if (!card.esHospedaje && expandedCardId() === card.id) {
-              <div class="mt-1 space-y-1 border-t border-gray-100 pt-2">
-                <p class="text-sm leading-relaxed text-label">{{ card.descripcion || 'La empresa todavía no agregó una descripción.' }}</p>
-                @if (card.capacidad) {
-                  <p class="text-xs text-text-secondary">Capacidad: {{ card.capacidad }} persona(s)</p>
-                }
-                <a [routerLink]="['/marketplace/productos', card.id]" class="text-accent-dark inline-flex min-h-10 items-center text-sm font-semibold hover:underline">Ver y reservar &rarr;</a>
-              </div>
-            }
+            @if (!card.promocionId) { <div class="flex items-center gap-1.5 text-xs text-label" [attr.aria-label]="card.cantidadResenas ? 'Valoración de clientes: ' + card.calificacionPromedio + ' de 5, ' + card.cantidadResenas + ' reseñas' : 'Aún sin reseñas'">
+              @if (card.cantidadResenas && card.calificacionPromedio !== null) {
+                <svg lucideStar class="h-4 w-4 fill-current text-amber-500"></svg>
+                <strong>{{ card.calificacionPromedio.toFixed(1) }}</strong>
+                <span class="text-text-secondary">({{ card.cantidadResenas }} {{ card.cantidadResenas === 1 ? 'reseña' : 'reseñas' }})</span>
+              } @else { <span class="text-text-secondary">Aún sin reseñas</span> }
+            </div> }
 
             <div class="mt-auto flex items-end justify-between gap-3 border-t border-gray-100 pt-3">
               <div>
                 <span class="text-[11px] text-text-secondary">{{ card.precioEtiqueta }}</span>
+                @if (card.precioOriginal) { <span class="block text-xs text-text-secondary line-through">{{ card.precioOriginal }}</span> }
                 @if (card.precio) {
                   <div class="font-heading text-accent-dark text-lg font-bold">{{ card.precio }}</div>
                 } @else {
@@ -121,14 +119,8 @@
                      que un boton real daria un segundo tab stop al mismo destino. -->
                 <span aria-hidden="true" class="text-accent-dark group-hover:text-accent flex min-h-11 items-center text-[13px] font-semibold">Ver habitaciones &rarr;</span>
               } @else {
-                <!-- Boton real: en estas tarjetas no hay enlace estirado que lo
-                     tape, asi que es el unico interactivo y no se solapa. -->
-                <button
-                  type="button"
-                  (click)="toggleDetails(card)"
-                  [attr.aria-expanded]="expandedCardId() === card.id"
-                  class="text-accent-dark flex min-h-11 items-center rounded-lg px-1 text-[13px] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark"
-                >{{ expandedCardId() === card.id ? 'Ocultar' : 'Ver detalles' }} &rarr;</button>
+                <!-- El enlace del título cubre toda la tarjeta. -->
+                <span aria-hidden="true" class="text-accent-dark group-hover:text-accent flex min-h-11 items-center text-[13px] font-semibold">{{ card.promocionId ? 'Ver promoción' : 'Ver detalles' }} &rarr;</span>
               }
             </div>
           </div>

@@ -1,0 +1,137 @@
+<section class="mt-10" aria-labelledby="resenas-titulo">
+  <h2 id="resenas-titulo" class="font-heading text-title text-2xl font-bold">Calificaciones y reseñas</h2>
+  <div class="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)] lg:items-start">
+    <div class="min-w-0 rounded-2xl border border-input-border bg-white p-5 shadow-sm sm:p-6">
+      <div class="grid gap-6 rounded-2xl border border-demo-border bg-demo-bg p-4 sm:p-5 md:grid-cols-[minmax(10rem,0.8fr)_minmax(0,1.2fr)] md:items-center">
+        <div class="text-center md:border-r md:border-demo-border md:pr-5">
+          @if (count() > 0 && average() !== null) {
+            <strong class="font-heading text-accent-dark text-4xl">{{ average()!.toFixed(1) }}</strong>
+            <div class="mt-2 flex justify-center gap-1 text-amber-500" [attr.aria-label]="'Calificación promedio: ' + average() + ' de 5'">
+              @for (star of stars; track star) { <svg lucideStar class="h-5 w-5" [class.fill-current]="star <= Math.round(average()!)"></svg> }
+            </div>
+            <p class="mt-2 text-sm font-semibold text-accent-dark">{{ count() }} {{ count() === 1 ? 'reseña' : 'reseñas' }}</p>
+          } @else {
+            <p class="font-heading text-accent-dark text-xl font-bold">Aún sin reseñas</p>
+            <p class="mt-2 text-sm leading-relaxed text-label">Comparte tu experiencia para ayudar a otros viajeros.</p>
+          }
+        </div>
+        <div class="space-y-2.5" aria-label="Distribución de calificaciones">
+          @if (distribution()) {
+            @for (star of distributionStars; track star) {
+              <div class="grid grid-cols-[4.5rem_minmax(0,1fr)_1.5rem] items-center gap-2 text-xs text-label sm:grid-cols-[5rem_minmax(0,1fr)_1.5rem]">
+                <span>{{ star }} {{ star === 1 ? 'estrella' : 'estrellas' }}</span>
+                <div class="h-2.5 overflow-hidden rounded-full bg-white" role="meter" [attr.aria-label]="star + ' estrellas'" [attr.aria-valuenow]="ratingCount(star)" [attr.aria-valuemin]="0" [attr.aria-valuemax]="Math.max(total(), 1)">
+                  <div class="h-full rounded-full bg-accent-gradient-to transition-[width]" [style.width.%]="barWidth(star)"></div>
+                </div>
+                <strong class="text-right text-title">{{ ratingCount(star) }}</strong>
+              </div>
+            }
+          } @else if (loading()) { <p class="text-sm text-text-secondary" role="status">Cargando distribución…</p> }
+          @else if (listError()) { <p class="text-xs text-text-secondary">No se pudo cargar el desglose por estrellas.</p> }
+        </div>
+      </div>
+
+      <h3 class="font-heading text-title mt-6 text-lg font-bold">Opiniones de visitantes @if (total() > 0) { <span class="text-text-secondary">({{ total() }})</span> }</h3>
+      @if (loading()) {
+        <p class="mt-4 text-sm text-text-secondary" role="status">Cargando reseñas…</p>
+      } @else if (listError(); as message) {
+        <div class="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+          <p>{{ message }}</p>
+          <button type="button" class="mt-2 font-semibold underline" (click)="loadReviews()">Reintentar</button>
+        </div>
+      } @else if (reviews().length === 0) {
+        <p class="mt-4 rounded-xl border border-dashed border-input-border p-5 text-sm text-text-secondary">Todavía no hay opiniones publicadas.</p>
+      } @else {
+        <ul class="mt-4 space-y-3">
+          @for (review of reviews(); track review.id) {
+            <li class="rounded-2xl border border-input-border bg-white p-4 transition hover:border-demo-border hover:shadow-sm sm:p-5">
+              <div class="flex items-start gap-3">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-demo-bg text-xs font-bold text-accent-dark" aria-hidden="true">{{ initials(review.autor) }}</span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <p class="font-semibold text-title">{{ review.autor }} @if (review.es_propia) { <span class="ml-1 rounded-full border border-demo-border bg-demo-bg px-2 py-0.5 text-xs font-bold text-accent-dark">Tu reseña</span> }</p>
+                    <time class="text-xs text-text-secondary" [attr.datetime]="review.creado_en">{{ dateLabel(review.creado_en) }}</time>
+                  </div>
+                  <div class="mt-1.5 flex gap-0.5 text-amber-500" [attr.aria-label]="review.calificacion + ' de 5 estrellas'">
+                    @for (star of stars; track star) { <svg lucideStar class="h-4 w-4" [class.fill-current]="star <= review.calificacion"></svg> }
+                  </div>
+                  <p class="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-label">{{ review.comentario }}</p>
+                </div>
+              </div>
+              @if (review.es_propia && ownReview()?.id === review.id) {
+                <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-input-border pt-3 text-sm">
+                  <button type="button" class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-input-border px-3 font-semibold text-accent-dark transition hover:bg-demo-bg focus-visible:outline-2 focus-visible:outline-accent-dark disabled:opacity-50" [disabled]="saving()" (click)="startEdit()"><svg lucidePencil class="h-4 w-4"></svg>Editar</button>
+                  <button type="button" class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-200 px-3 font-semibold text-red-700 transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-red-700 disabled:opacity-50" [disabled]="saving()" (click)="remove()"><svg lucideTrash2 class="h-4 w-4"></svg>Eliminar</button>
+                </div>
+              }
+            </li>
+          }
+        </ul>
+        @if (pageCount() > 1) {
+          <nav aria-label="Páginas de reseñas" class="mt-5 flex items-center justify-center gap-3 text-sm">
+            <button type="button" class="rounded-xl border border-input-border px-3 py-2 text-label disabled:opacity-40" [disabled]="page() === 1 || loading()" (click)="selectPage(page() - 1)">Anterior</button>
+            <span>Página {{ page() }} de {{ pageCount() }}</span>
+            <button type="button" class="rounded-xl border border-input-border px-3 py-2 text-label disabled:opacity-40" [disabled]="page() === pageCount() || loading()" (click)="selectPage(page() + 1)">Siguiente</button>
+          </nav>
+        }
+      }
+    </div>
+
+    <div class="min-w-0 rounded-2xl border border-input-border bg-white p-5 shadow-sm sm:p-6">
+      <h3 class="font-heading text-title text-lg font-bold">{{ editing() ? 'Editar tu reseña' : ownReview() ? 'Tu reseña' : 'Escribir una reseña' }}</h3>
+      <p class="mt-1 text-sm leading-relaxed text-text-secondary">{{ editing() ? 'Actualiza tu valoración y comentario.' : 'Comparte tu experiencia con otros viajeros.' }}</p>
+      @if (!auth.isAuthenticated()) {
+        <div class="mt-6 space-y-4">
+          <div>
+            <p class="text-sm font-semibold text-label">Tu valoración</p>
+            <div class="mt-2 flex gap-1.5 text-gray-300" aria-hidden="true">@for (star of stars; track star) { <svg lucideStar class="h-7 w-7"></svg> }</div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-label" for="resena-invitado-{{ productId() }}">Tu comentario</label>
+            <textarea id="resena-invitado-{{ productId() }}" rows="6" disabled class="mt-2 min-h-40 w-full resize-none rounded-xl border border-input-border bg-input-bg px-4 py-3 text-sm leading-relaxed text-label placeholder:text-text-secondary" placeholder="Cuéntanos qué te gustó de esta experiencia y qué podría mejorar..."></textarea>
+          </div>
+          <a [routerLink]="loginUrl()" [queryParams]="returnUrl()" class="btn-accent inline-flex min-h-11 w-full items-center justify-center rounded-xl px-5 text-sm font-bold text-white">Iniciar sesión para reseñar</a>
+        </div>
+      } @else if (ownLoading()) {
+        <p class="mt-4 text-sm text-text-secondary" role="status">Comprobando tu reseña…</p>
+      } @else if (ownError(); as message) {
+        <div class="mt-4 text-sm text-red-700" role="alert">{{ message }} <button type="button" class="font-semibold underline" (click)="loadOwn()">Reintentar</button></div>
+      } @else if (ownReview() && !editing()) {
+        <div class="mt-6 rounded-xl border border-demo-border bg-demo-bg p-4">
+          <p class="text-sm font-bold text-accent-dark">Tu opinión publicada</p>
+          <div class="mt-2 flex gap-1 text-amber-500" [attr.aria-label]="ownReview()!.calificacion + ' de 5 estrellas'">@for (star of stars; track star) { <svg lucideStar class="h-5 w-5" [class.fill-current]="star <= ownReview()!.calificacion"></svg> }</div>
+          <p class="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-label">{{ ownReview()!.comentario }}</p>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button type="button" class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-input-border px-4 text-sm font-semibold text-accent-dark hover:bg-demo-bg disabled:opacity-50" [disabled]="saving()" (click)="startEdit()"><svg lucidePencil class="h-4 w-4"></svg>Editar mi reseña</button>
+          <button type="button" class="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 px-4 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50" [disabled]="saving()" (click)="remove()"><svg lucideTrash2 class="h-4 w-4"></svg>Eliminar</button>
+        </div>
+      } @else {
+        <form class="mt-6 space-y-5" (submit)="$event.preventDefault(); submit()">
+          <fieldset>
+            <legend class="text-sm font-semibold text-label">Tu calificación</legend>
+            <div class="mt-2 flex gap-1.5" role="group" aria-label="Seleccionar estrellas">
+              @for (star of stars; track star) {
+                <button type="button" class="rounded-lg p-1 text-amber-500 hover:bg-amber-50 focus-visible:outline-2 focus-visible:outline-accent-dark disabled:opacity-50" [attr.aria-label]="star + (star === 1 ? ' estrella' : ' estrellas')" [attr.aria-pressed]="rating() === star" [disabled]="saving()" (click)="rating.set(star)">
+                  <svg lucideStar class="h-7 w-7" [class.fill-current]="star <= rating()"></svg>
+                </button>
+              }
+            </div>
+          </fieldset>
+          <div>
+            <label class="block text-sm font-semibold text-label" for="resena-comentario-{{ productId() }}">Tu comentario</label>
+            <textarea id="resena-comentario-{{ productId() }}" rows="7" class="mt-2 min-h-44 w-full resize-y rounded-xl border border-input-border bg-input-bg px-4 py-3 text-sm leading-relaxed text-title outline-none transition placeholder:text-text-secondary focus:border-accent-dark focus:ring-4 focus:ring-accent/15 disabled:opacity-60" [value]="comment()" [disabled]="saving()" (input)="comment.set($any($event.target).value)" placeholder="Cuéntanos qué te gustó de esta experiencia y qué podría mejorar..."></textarea>
+            <p class="mt-1 text-right text-xs text-text-secondary">{{ comment().length }} caracteres</p>
+          </div>
+          @if (formError(); as message) { <p class="text-sm text-red-700" role="alert">{{ message }}</p> }
+          <div class="flex flex-wrap items-center gap-3 border-t border-input-border pt-4">
+            <button type="submit" class="btn-accent min-h-11 flex-1 rounded-xl px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" [disabled]="saving()">{{ saving() ? 'Guardando…' : editing() ? 'Guardar cambios' : 'Publicar reseña' }}</button>
+            @if (editing()) { <button type="button" class="text-sm font-semibold text-label hover:underline" [disabled]="saving()" (click)="cancelEdit()">Cancelar</button> }
+          </div>
+        </form>
+      }
+      @if (notice(); as message) { <p class="mt-4 text-sm font-semibold text-accent-dark" role="status">{{ message }}</p> }
+      @if (formError() && ownReview() && !editing()) { <p class="mt-4 text-sm text-red-700" role="alert">{{ formError() }}</p> }
+    </div>
+  </div>
+</section>

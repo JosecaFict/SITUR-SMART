@@ -124,12 +124,13 @@
             </a>
           </div>
 
-          <div class="mt-5">
-            <situr-reservar [productId]="habitacion.producto_id" [isRoom]="true"
-              [maxQuantity]="habitacion.cantidad_habitaciones" [capacityPerUnit]="habitacion.capacidad_maxima" />
-          </div>
         </div>
       </section>
+      <section class="mt-6 max-w-3xl" aria-label="Reserva de habitación">
+        <situr-reservar [productId]="habitacion.producto_id" [isRoom]="true"
+          [maxQuantity]="habitacion.cantidad_habitaciones" [capacityPerUnit]="habitacion.capacidad_maxima" />
+      </section>
+      <situr-resenas [productId]="habitacion.producto_id" [average]="habitacion.calificacion_promedio" [count]="habitacion.cantidad_resenas" (changed)="refreshRating()" />
     }
   </main>
 

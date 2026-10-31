@@ -1,0 +1,223 @@
+<section class="mx-auto max-w-7xl space-y-5">
+  <a routerLink="/paquetes" class="inline-flex min-h-9 items-center gap-2 rounded-lg text-sm font-semibold text-accent-dark transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark"><svg lucideArrowLeft class="h-4 w-4"></svg>Mis paquetes <span class="text-text-secondary" aria-hidden="true">›</span> Crear paquete</a>
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="font-heading text-title text-2xl font-extrabold tracking-tight sm:text-3xl">Crear paquete turístico personalizado</h1>
+      <p class="text-text-secondary mt-1.5 max-w-2xl text-sm">Combina tours, experiencias, hospedajes y otros servicios para organizar tu viaje ideal.</p>
+    </div>
+    @if (package(); as current) { <span class="rounded-full border border-demo-border bg-demo-bg px-3 py-1.5 text-xs font-bold text-accent-dark">{{ current.estado === 'GUARDADO' ? 'Paquete guardado' : 'Borrador en curso' }}</span> }
+  </header>
+  <ol class="border-input-border grid overflow-hidden rounded-2xl border bg-white text-xs shadow-sm sm:grid-cols-3" aria-label="Etapas del paquete">
+    <li class="flex items-center gap-3 border-b border-input-border px-4 py-3 sm:border-r sm:border-b-0" [class]="step() === 1 ? 'bg-demo-bg text-accent-dark' : 'text-text-secondary'" [attr.aria-current]="step() === 1 ? 'step' : null">
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold" [class]="step() >= 1 ? 'bg-accent-dark text-white shadow-sm' : 'bg-gray-100 text-label'">1</span>
+      <span><strong class="block font-heading text-sm text-title">Seleccionar servicios</strong>Explora y agrega productos</span>
+    </li>
+    <li class="flex items-center gap-3 border-b border-input-border px-4 py-3 sm:border-r sm:border-b-0" [class]="step() === 2 ? 'bg-demo-bg text-accent-dark' : 'text-text-secondary'" [attr.aria-current]="step() === 2 ? 'step' : null">
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold" [class]="step() >= 2 ? 'bg-accent-dark text-white shadow-sm' : 'bg-gray-100 text-label'">2</span>
+      <span><strong class="block font-heading text-sm text-title">Revisar paquete</strong>Verifica fechas y precios</span>
+    </li>
+    <li class="flex items-center gap-3 px-4 py-3" [class]="step() === 3 ? 'bg-demo-bg text-accent-dark' : 'text-text-secondary'" [attr.aria-current]="step() === 3 ? 'step' : null">
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold" [class]="step() >= 3 ? 'bg-accent-dark text-white shadow-sm' : 'bg-gray-100 text-label'">3</span>
+      <span><strong class="block font-heading text-sm text-title">Guardar</strong>Conserva tu configuración</span>
+    </li>
+  </ol>
+
+  @if (error(); as message) { <div class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert"><svg lucideCircleAlert class="h-5 w-5 shrink-0"></svg>{{ message }}</div> }
+  @if (success(); as message) { <p class="rounded-xl border border-demo-border bg-demo-bg p-4 text-sm font-semibold text-accent-dark" role="status">{{ message }}</p> }
+  @if (loading()) { <p class="text-text-secondary">Cargando paquete…</p> }
+
+  <div class="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.9fr)_minmax(19rem,0.9fr)] xl:items-start">
+    <div class="min-w-0 space-y-5">
+      <div class="border-input-border rounded-2xl border bg-white p-4 shadow-sm sm:p-5">
+        <div class="mb-3 flex items-center justify-between gap-2">
+          <div><h2 class="font-heading text-title text-base font-bold">Configura tu viaje</h2><p class="text-text-secondary text-xs">Define las fechas y viajeros antes de agregar servicios.</p></div>
+        </div>
+        <form class="grid gap-3 sm:grid-cols-2" (submit)="$event.preventDefault(); saveTrip()">
+          <label class="relative flex min-w-0 flex-col gap-1 text-xs font-semibold text-label">Nombre del paquete
+            <span class="field-icon"><svg lucidePackageOpen class="h-4 w-4"></svg></span>
+            <input class="field-control has-icon" maxlength="120" placeholder="Mi viaje" [value]="name()" (input)="name.set($any($event.target).value)" required />
+          </label>
+          <label class="relative flex min-w-0 flex-col gap-1 text-xs font-semibold text-label">Destino
+            <span class="field-icon"><svg lucideMapPin class="h-4 w-4"></svg></span>
+            <select class="field-control has-icon" [value]="cityId() ?? ''" (change)="cityId.set(+$any($event.target).value || null)">
+              <option value="">Varios destinos</option>
+              @for (city of cities(); track city.id) { <option [value]="city.id">{{ city.nombre }}</option> }
+            </select>
+          </label>
+          <label class="relative flex min-w-0 flex-col gap-1 text-xs font-semibold text-label">Fecha de inicio
+            <span class="field-icon"><svg lucideCalendarDays class="h-4 w-4"></svg></span>
+            <input type="date" class="field-control has-icon" [value]="start()" (change)="start.set($any($event.target).value)" required />
+          </label>
+          <label class="relative flex min-w-0 flex-col gap-1 text-xs font-semibold text-label">Fecha de fin
+            <span class="field-icon"><svg lucideCalendarDays class="h-4 w-4"></svg></span>
+            <input type="date" class="field-control has-icon" [min]="start()" [value]="end()" (change)="end.set($any($event.target).value)" required />
+          </label>
+          <label class="relative flex min-w-0 flex-col gap-1 text-xs font-semibold text-label">Personas
+            <span class="field-icon"><svg lucideUsers class="h-4 w-4"></svg></span>
+            <input type="number" class="field-control has-icon" min="1" max="100" [value]="travelers()" (input)="travelers.set(+$any($event.target).value)" required />
+          </label>
+          <div class="flex items-end"><button type="submit" class="btn-accent flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark disabled:opacity-60" [disabled]="working()"><svg lucideCheckCircle2 class="h-4 w-4"></svg>{{ package() ? 'Actualizar viaje' : 'Crear borrador' }}</button></div>
+        </form>
+        <div class="mt-4 grid gap-3 border-t border-input-border pt-4 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.65fr)_auto] sm:items-end">
+          <label class="relative flex min-w-0 flex-col gap-1 text-xs font-semibold text-label">Buscar servicios
+            <span class="field-icon"><svg lucideSearch class="h-4 w-4"></svg></span>
+            <input class="field-control has-icon" placeholder="Nombre o empresa" [value]="search()" (input)="search.set($any($event.target).value)" (keyup.enter)="searchCatalog()" />
+          </label>
+          <label class="relative flex min-w-0 flex-col gap-1 text-xs font-semibold text-label">Categoría
+            <span class="field-icon"><svg lucideTag class="h-4 w-4"></svg></span>
+            <select class="field-control has-icon" [value]="category()" (change)="selectCategory($any($event.target).value)">
+              <option value="">Todas</option>
+              @for (type of categoryOptions(); track type.id) { <option [value]="type.codigo">{{ type.nombre }}</option> }
+            </select>
+          </label>
+          <button type="button" class="btn-accent inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark" (click)="searchCatalog()"><svg lucideSearch class="h-4 w-4"></svg>Buscar</button>
+        </div>
+      </div>
+
+      <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar por categoría">
+        <button type="button" class="category-chip" [class.is-active]="category() === ''" [attr.aria-pressed]="category() === ''" (click)="selectCategory('')">Todos</button>
+        @for (type of categoryOptions(); track type.id) {
+          <button type="button" class="category-chip" [class.is-active]="category() === type.codigo" [attr.aria-pressed]="category() === type.codigo" (click)="selectCategory(type.codigo)">{{ type.nombre }}</button>
+        }
+      </nav>
+
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div><h2 class="font-heading text-title text-xl font-bold">Productos para tu paquete</h2><p class="text-text-secondary mt-0.5 text-xs">{{ totalProducts() }} resultados · Comprueba fecha y cupo antes de agregarlos.</p></div>
+        <label class="flex items-center gap-2 text-xs font-semibold text-label">Ordenar esta página
+          <select class="field-control w-auto min-w-36" [value]="sortOrder()" (change)="setSort($any($event.target).value)">
+            <option value="recientes">Más recientes</option>
+            <option value="precio_asc">Menor precio</option>
+            <option value="precio_desc">Mayor precio</option>
+            <option value="nombre">Nombre</option>
+          </select>
+        </label>
+      </div>
+      @if (catalogLoading()) { <p class="text-text-secondary text-sm">Buscando productos…</p> }
+      @else if (products().length === 0) { <p class="border-input-border rounded-2xl border bg-white p-6 text-sm text-text-secondary">No hay productos que coincidan con la búsqueda.</p> }
+      @else {
+        <div class="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+          @for (product of sortedProducts(); track product.id) {
+            <article class="border-input-border group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+              <div class="relative aspect-[16/9] overflow-hidden bg-demo-bg">
+                @if (product.imagen_url) { <img [src]="product.imagen_url" [alt]="product.nombre" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> }
+                @else { <div class="flex h-full items-center justify-center text-accent-dark/40"><svg lucidePackageOpen class="h-9 w-9"></svg></div> }
+                <span class="absolute top-2 left-2 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-accent-dark shadow-sm">{{ product.tipo_codigo === 'HABITACION' ? 'Hospedaje' : product.tipo }}</span>
+                @if (inPackage(product.id)) { <span class="absolute top-2 right-2 rounded-full bg-accent-dark px-2 py-1 text-[10px] font-bold text-white shadow-sm">En mi paquete</span> }
+              </div>
+              <div class="flex flex-1 flex-col p-3.5">
+                <h3 class="font-heading text-title min-h-10 text-sm leading-snug font-bold">{{ product.nombre }}</h3>
+                <p class="text-text-secondary mt-1 flex items-start gap-1 text-xs"><svg lucideMapPin class="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-dark"></svg><span>{{ product.ciudad }}, {{ product.pais }}</span></p>
+                <p class="text-text-secondary mt-1 truncate text-xs" [title]="product.empresa">Por {{ product.empresa }}</p>
+                @if (product.calificacion_promedio !== null && product.cantidad_resenas) {
+                  <p class="mt-2 flex items-center gap-1 text-xs font-semibold text-label"><svg lucideStar class="h-3.5 w-3.5 fill-current text-amber-500"></svg>{{ product.calificacion_promedio }} <span class="font-normal text-text-secondary">({{ product.cantidad_resenas }} reseñas)</span></p>
+                } @else { <p class="text-text-secondary mt-2 text-xs">Aún sin reseñas</p> }
+                <div class="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-input-border pt-3">
+                  <div><p class="text-text-secondary text-[11px]">{{ product.tipo_codigo === 'HABITACION' ? 'Por noche' : 'Precio base' }}</p><p class="font-heading text-accent-dark text-lg font-bold">{{ product.moneda_simbolo }} {{ product.precio_base }}</p></div>
+                  <button type="button" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-accent bg-demo-bg px-3 text-xs font-bold text-accent-dark transition hover:bg-accent-dark hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark disabled:cursor-not-allowed disabled:border-input-border disabled:bg-gray-50 disabled:text-text-secondary" (click)="choose(product)" [disabled]="!package()"><svg lucidePlus class="h-4 w-4"></svg>Agregar</button>
+                </div>
+                <a [routerLink]="productLink(product)" target="_blank" rel="noopener" class="mt-2 inline-flex min-h-7 items-center gap-1 text-xs font-semibold text-accent-dark hover:underline">Ver información <svg lucideArrowRight class="h-3.5 w-3.5"></svg></a>
+              </div>
+            </article>
+          }
+        </div>
+        <div class="flex justify-between gap-3">
+          <button type="button" class="secondary-button" [disabled]="page() <= 1" (click)="previousPage()">Anterior</button>
+          <span class="self-center text-xs text-text-secondary">Página {{ page() }}</span>
+          <button type="button" class="secondary-button" [disabled]="page() * 12 >= totalProducts()" (click)="nextPage()">Siguiente</button>
+        </div>
+      }
+    </div>
+
+    <aside class="border-input-border min-w-0 rounded-2xl border bg-white p-4 shadow-sm sm:p-5 xl:sticky xl:top-5 xl:flex xl:max-h-[calc(100dvh-2.5rem)] xl:flex-col">
+      <div class="flex items-center justify-between gap-3 border-b border-input-border pb-4">
+        <div class="flex items-center gap-2.5"><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-demo-bg text-accent-dark"><svg lucidePackageOpen class="h-5 w-5"></svg></span><h2 class="font-heading text-title text-lg font-bold">Mi paquete</h2></div>
+        <span class="rounded-full bg-demo-bg px-2.5 py-1 text-xs font-bold text-accent-dark">{{ package()?.cantidad_servicios || 0 }} servicios</span>
+      </div>
+      @if (!package()) { <p class="text-text-secondary mt-4 rounded-xl bg-demo-bg p-5 text-sm">Crea el borrador con tus fechas para comenzar a agregar servicios.</p> }
+      @else if (!(package()?.componentes?.length)) { <div class="mt-5 rounded-xl border border-dashed border-demo-border bg-demo-bg p-5 text-center"><svg lucidePackageOpen class="mx-auto h-8 w-8 text-accent-dark"></svg><p class="text-title mt-2 text-sm font-semibold">Tu paquete está vacío</p><p class="text-text-secondary mt-1 text-xs">Elige un producto del catálogo y comprueba su disponibilidad.</p></div> }
+      @else {
+        <div class="mt-4 space-y-2.5 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-1">
+          @for (part of package()?.componentes || []; track part.id) {
+            <article class="border-input-border min-w-0 rounded-xl border bg-white p-3 transition hover:shadow-sm">
+              <div class="flex min-w-0 gap-3">
+                @if (part.imagen_url) { <img [src]="part.imagen_url" [alt]="part.nombre" class="h-18 w-18 shrink-0 rounded-lg object-cover" /> }
+                @else { <div class="flex h-18 w-18 shrink-0 items-center justify-center rounded-lg bg-demo-bg text-accent-dark"><svg lucidePackageOpen class="h-6 w-6"></svg></div> }
+                <div class="min-w-0 flex-1">
+                  <span class="inline-flex rounded-full bg-demo-bg px-2 py-0.5 text-[10px] font-bold text-accent-dark">{{ part.tipo_codigo === 'HABITACION' ? 'Hospedaje' : part.tipo }}</span>
+                  <h3 class="text-title mt-1 text-sm leading-snug font-bold">{{ part.nombre }}</h3>
+                  <p class="text-text-secondary mt-0.5 truncate text-xs">{{ part.empresa }}</p>
+                </div>
+                <button type="button" class="icon-action is-danger shrink-0" [disabled]="working()" [attr.aria-label]="'Quitar ' + part.nombre" [title]="'Quitar ' + part.nombre" (click)="remove(part.id)"><svg lucideTrash2 class="h-4 w-4"></svg></button>
+              </div>
+              <div class="text-text-secondary mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                <span class="inline-flex items-center gap-1"><svg lucideCalendarDays class="h-3.5 w-3.5"></svg>{{ part.fecha_inicio | date: 'dd/MM/yyyy' }}@if (part.fecha_fin) { – {{ part.fecha_fin | date: 'dd/MM/yyyy' }} }</span>
+                @if (part.hora_inicio) { <span>{{ part.hora_inicio }}</span> }
+                <span class="inline-flex items-center gap-1"><svg lucideUsers class="h-3.5 w-3.5"></svg>{{ part.cantidad }} {{ part.tipo_codigo === 'HABITACION' ? 'habitaciones' : 'personas' }}</span>
+                @if (part.tipo_codigo === 'HABITACION' && part.fecha_fin) { <span>{{ nights(part.fecha_inicio, part.fecha_fin) }} noches</span> }
+              </div>
+              <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                @if (part.requiere_revalidacion) { <span class="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800">Revalidar</span> }
+                @else if (part.disponible) { <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700"><svg lucideCheckCircle2 class="h-3 w-3"></svg>Disponible y compatible</span> }
+              </div>
+              <div class="mt-2 flex items-center justify-between gap-2 border-t border-input-border pt-2"><strong class="font-heading text-accent-dark text-base">Bs {{ part.total }}</strong><button type="button" class="secondary-button min-h-9 px-2.5 text-xs" [disabled]="working()" (click)="choose(part, part.id)"><svg lucidePencil class="h-3.5 w-3.5"></svg>Editar</button></div>
+            </article>
+          }
+        </div>
+        <div class="mt-4 rounded-xl border border-demo-border bg-demo-bg p-4">
+          <div class="flex justify-between gap-2 text-sm text-label"><span>Subtotal ({{ package()?.cantidad_servicios }} servicios)</span><span>Bs {{ package()?.total }}</span></div>
+          <div class="mt-3 flex items-end justify-between gap-2 border-t border-demo-border pt-3"><strong class="text-title text-sm">{{ package()?.requiere_revalidacion ? 'Último total calculado' : 'Total estimado' }}</strong><strong class="font-heading text-accent-dark text-xl sm:text-2xl">Bs {{ package()?.total }}</strong></div>
+        </div>
+        @if (package()?.requiere_revalidacion) { <p class="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Algún servicio cambió o ya no tiene cupo. Corrígelo antes de guardar.</p> }
+        <button type="button" class="secondary-button mt-3 w-full" [disabled]="working()" (click)="revalidate()"><svg lucideCheckCircle2 class="h-4 w-4"></svg>Revalidar precios y cupos</button>
+        <p class="text-text-secondary mt-3 text-xs">Guardar no realiza reservas ni pagos. Los cupos pueden cambiar después.</p>
+        @if (step() === 1) { <button type="button" class="btn-accent mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark" (click)="review()"><svg lucideCheckCircle2 class="h-4 w-4"></svg>Revisar paquete</button> }
+        @else { <button type="button" class="btn-accent mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark disabled:opacity-50" [disabled]="working() || !!package()?.requiere_revalidacion" (click)="save()"><svg lucideSave class="h-4 w-4"></svg>{{ working() ? 'Validando…' : 'Guardar paquete' }}</button> }
+        <a [routerLink]="['/paquetes', package()?.id]" class="secondary-button mt-2 w-full"><span>Ver detalle del paquete</span><svg lucideArrowRight class="h-4 w-4"></svg></a>
+      }
+    </aside>
+  </div>
+
+  @if (selected(); as item) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3" role="presentation" (click)="selected.set(null)">
+      <div class="border-input-border max-h-[95vh] w-full max-w-xl overflow-y-auto rounded-2xl border bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="servicio-titulo" (click)="$event.stopPropagation()">
+        <div class="flex items-start justify-between gap-3"><div><p class="text-accent-dark text-xs font-bold uppercase">{{ item.tipo }}</p><h2 id="servicio-titulo" class="font-heading text-title mt-1 text-xl font-bold">{{ item.nombre }}</h2></div><button type="button" class="secondary-button" (click)="selected.set(null)">Cerrar</button></div>
+        <p class="text-text-secondary mt-2 text-sm">Configura este servicio y comprueba su precio y cupo reales antes de agregarlo.</p>
+        <div class="mt-5 grid gap-3 sm:grid-cols-2">
+          <label class="flex flex-col gap-1 text-xs font-semibold text-label">{{ item.tipo_codigo === 'HABITACION' ? 'Llegada' : 'Fecha' }}
+            <input type="date" class="field-control" [min]="package()?.fecha_inicio" [max]="package()?.fecha_fin" [value]="itemStart()" (change)="dateChanged($any($event.target).value)" />
+          </label>
+          @if (item.tipo_codigo === 'HABITACION') {
+            <label class="flex flex-col gap-1 text-xs font-semibold text-label">Salida
+              <input type="date" class="field-control" [min]="itemStart()" [value]="itemEnd()" (change)="itemEnd.set($any($event.target).value); selectionChanged()" />
+            </label>
+          }
+          <label class="flex flex-col gap-1 text-xs font-semibold text-label">{{ item.tipo_codigo === 'HABITACION' ? 'Habitaciones' : 'Personas' }}
+            <input type="number" class="field-control" min="1" max="100" [value]="quantity()" (input)="quantity.set(+$any($event.target).value); selectionChanged()" />
+          </label>
+          @if (item.tipo_codigo === 'HABITACION') {
+            <label class="flex flex-col gap-1 text-xs font-semibold text-label">Huéspedes
+              <input type="number" class="field-control" min="1" max="100" [value]="guests()" (input)="guests.set(+$any($event.target).value); selectionChanged()" />
+            </label>
+          }
+        </div>
+        @if (item.tipo_codigo === 'TOUR' || item.tipo_codigo === 'EXPERIENCIA') {
+          <div class="mt-4"><p class="text-label text-xs font-semibold">Horario</p>
+            @if (departuresLoading()) { <p class="text-text-secondary mt-2 text-sm">Consultando salidas…</p> }
+            @else if (departures().length) {
+              <div class="mt-2 flex flex-wrap gap-2">
+                @for (departure of departures(); track departure.id) {
+                  <button type="button" class="rounded-full border px-3 py-2 text-xs font-semibold disabled:opacity-50" [class]="departureId() === departure.id ? 'border-accent-dark bg-demo-bg text-accent-dark' : 'border-input-border text-label'" [disabled]="departure.cerrado || departure.cupos_restantes < quantity()" (click)="departureId.set(departure.id); selectionChanged()">
+                    {{ departure.hora_inicio }}–{{ departure.hora_fin }} · {{ departure.cupos_restantes }} cupos
+                  </button>
+                }
+              </div>
+            } @else { <p class="text-text-secondary mt-2 text-xs">No hay salidas horarias. La comprobación indicará si existe disponibilidad diaria heredada.</p> }
+          </div>
+        }
+        @if (error(); as message) { <p class="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">{{ message }}</p> }
+        @if (quote(); as current) { <div class="mt-4 rounded-xl bg-demo-bg p-3 text-sm text-accent-dark"><p>Disponible para esta configuración.</p><p class="font-heading mt-1 text-xl font-bold">Total: {{ current.moneda_simbolo }} {{ current.total }}</p></div> }
+        <div class="mt-5 flex flex-wrap gap-2"><button type="button" class="secondary-button" [disabled]="working() || departuresLoading()" (click)="check()">{{ working() ? 'Comprobando…' : 'Comprobar disponibilidad y precio' }}</button><button type="button" class="btn-accent min-h-11 rounded-xl px-5 text-sm font-bold text-white disabled:opacity-50" [disabled]="!quote() || working()" (click)="addOrUpdate()">{{ editingId() ? 'Guardar cambios' : 'Agregar al paquete' }}</button></div>
+      </div>
+    </div>
+  }
+</section>
