@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -7,12 +8,15 @@ from rest_framework.views import APIView
 from apps.catalog.serializers import ProductSerializer
 from apps.catalog.views import MarketplacePagination
 
+from . import purchase as purchases
 from . import services
 from .models import CustomPackage
 from .purchase import create_purchase
+from .receipt import build as build_receipt
 from .serializers import (
     CatalogQuerySerializer,
     ComponentWriteSerializer,
+    PackageCancellationSerializer,
     PackagePurchaseSerializer,
     PackageWriteSerializer,
 )
@@ -129,3 +133,38 @@ class PackagePurchaseView(APIView):
             "checkout_url": getattr(purchase, "checkout_url", None),
             "reservas": list(purchase.allocations.values_list("booking_id", flat=True)),
         }, status=status.HTTP_201_CREATED)
+
+
+class PackageCancellationView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, pk):
+        return Response(purchases.cancellation_quote(user=request.user, purchase_id=pk))
+
+    def post(self, request, pk):
+        serializer = PackageCancellationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(purchases.cancel_purchase(
+            user=request.user, purchase_id=pk,
+            reason=serializer.validated_data["motivo"],
+            idempotency_key=request.headers.get("Idempotency-Key"),
+        ))
+
+
+class PackageReceiptView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, pk):
+        purchase = purchases.PackagePurchase.objects.select_related(
+            "package", "order", "currency"
+        ).filter(id=pk, package__user=request.user).first()
+        if purchase is None:
+            raise ValidationError("Compra de paquete no encontrada.")
+        if purchase.status not in (
+            purchases.PackagePurchase.Status.CONFIRMED,
+            purchases.PackagePurchase.Status.REFUNDED,
+        ):
+            raise ValidationError("El comprobante estará disponible después de confirmar el pago.")
+        response = HttpResponse(build_receipt(purchase), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="paquete-{purchase.id}.pdf"'
+        return response

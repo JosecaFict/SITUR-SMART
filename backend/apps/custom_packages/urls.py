@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+                    PackageCancellationView,
                     PackageCatalogView,
                     PackageComponentDetailView,
                     PackageComponentListView,
@@ -8,6 +9,7 @@ from .views import (
                     PackageListView,
                     PackagePurchaseView,
                     PackageQuoteView,
+                    PackageReceiptView,
                     PackageValidationView,
 )
 
@@ -20,4 +22,6 @@ urlpatterns = [
     path("me/paquetes/<int:pk>/cotizar/", PackageQuoteView.as_view(), name="custom-package-quote"),
     path("me/paquetes/<int:pk>/validar/", PackageValidationView.as_view(), name="custom-package-validate"),
     path("me/paquetes/<int:pk>/comprar/", PackagePurchaseView.as_view(), name="custom-package-purchase"),
+    path("me/paquetes/compras/<int:pk>/cancelar/", PackageCancellationView.as_view(), name="custom-package-cancel"),
+    path("me/paquetes/compras/<int:pk>/comprobante/", PackageReceiptView.as_view(), name="custom-package-receipt"),
 ]

@@ -62,3 +62,7 @@ class PackagePurchaseSerializer(serializers.Serializer):
     nit_facturacion = serializers.CharField(max_length=40, required=False, allow_blank=True)
     success_url = serializers.URLField()
     cancel_url = serializers.URLField()
+
+
+class PackageCancellationSerializer(serializers.Serializer):
+    motivo = serializers.CharField(min_length=5, max_length=1000)

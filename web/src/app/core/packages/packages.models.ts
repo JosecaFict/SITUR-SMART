@@ -79,3 +79,11 @@ export interface PackagePurchaseResult {
   checkout_url: string | null;
   reservas: number[];
 }
+
+export interface PackageCancellationQuote {
+  compra_id: number;
+  pagado: string;
+  penalizacion: string;
+  reembolso: string;
+  componentes: { reserva_id: number; empresa: string; pagado: string; penalizacion: string; reembolso: string; porcentaje_penalizacion: string; politica: string }[];
+}

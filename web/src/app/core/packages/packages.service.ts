@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ComponentPayload, CustomPackage, PackageCatalogPage, PackagePayload, PackagePurchaseResult, PackageQuote } from './packages.models';
+import { ComponentPayload, CustomPackage, PackageCancellationQuote, PackageCatalogPage, PackagePayload, PackagePurchaseResult, PackageQuote } from './packages.models';
 
 @Injectable({ providedIn: 'root' })
 export class PackagesService {
@@ -42,4 +42,11 @@ export class PackagesService {
       headers: { 'Idempotency-Key': key },
     });
   }
+  cancellationQuote(id: number): Observable<PackageCancellationQuote> {
+    return this.http.get<PackageCancellationQuote>(`${this.base}compras/${id}/cancelar/`);
+  }
+  cancelPurchase(id: number, reason: string, key: string): Observable<{ estado: string }> {
+    return this.http.post<{ estado: string }>(`${this.base}compras/${id}/cancelar/`, { motivo: reason }, { headers: { 'Idempotency-Key': key } });
+  }
+  receipt(id: number): Observable<Blob> { return this.http.get(`${this.base}compras/${id}/comprobante/`, { responseType: 'blob' }); }
 }

@@ -14,7 +14,7 @@ from apps.catalog.models import ROOM_PRODUCT_CODE, TourismProduct
 from apps.catalog.reviews import with_review_stats
 from apps.tenancy.subscriptions import restricted_tenant_ids
 
-from .models import CustomPackage, PackageComponent
+from .models import CustomPackage, PackageComponent, PackagePurchase
 
 MAX_COMPONENTS = 20
 COMPONENT_CODES = bookings.BOOKABLE_CODES - {"PAQUETE"}
@@ -53,6 +53,11 @@ def owned_package(user, package_id, *, lock=False):
     if package is None:
         raise NotFound("Paquete no encontrado.")
     return package
+
+
+def ensure_editable(package):
+    if PackagePurchase.objects.filter(package=package).exists():
+        raise ValidationError("El paquete ya tiene una compra y no puede modificarse.")
 
 
 def _configuration(package, values, *, exclude_id=None):
@@ -189,6 +194,7 @@ def create_package(user, data):
 @transaction.atomic
 def update_package(user, package_id, data):
     package = owned_package(user, package_id, lock=True)
+    ensure_editable(package)
     mapping = {"nombre": "name", "ciudad_id": "city_id", "fecha_inicio": "start_date",
                "fecha_fin": "end_date", "personas": "travelers"}
     for field, value in data.items():
@@ -219,6 +225,7 @@ def _refresh_if_valid(package):
 @transaction.atomic
 def add_component(user, package_id, values):
     package = owned_package(user, package_id, lock=True)
+    ensure_editable(package)
     if package.components.count() >= MAX_COMPONENTS:
         raise ValidationError({"componentes": f"El máximo es {MAX_COMPONENTS} servicios."})
     if package.components.filter(product_id=values["product_id"], start_date=values["start_date"],
@@ -239,6 +246,7 @@ def add_component(user, package_id, values):
 @transaction.atomic
 def update_component(user, package_id, component_id, changes):
     package = owned_package(user, package_id, lock=True)
+    ensure_editable(package)
     component = package.components.filter(id=component_id).first()
     if component is None:
         raise NotFound("Servicio no encontrado en este paquete.")
@@ -268,6 +276,7 @@ def update_component(user, package_id, component_id, changes):
 @transaction.atomic
 def remove_component(user, package_id, component_id):
     package = owned_package(user, package_id, lock=True)
+    ensure_editable(package)
     if not package.components.filter(id=component_id).exists():
         raise NotFound("Servicio no encontrado en este paquete.")
     package.components.filter(id=component_id).delete()

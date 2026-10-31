@@ -183,3 +183,75 @@ def expire_purchase(purchase_id: int, *, cancelled=False) -> PackagePurchase:
 def expire_session(session_id: str) -> PackagePurchase | None:
     purchase = PackagePurchase.objects.filter(provider_reference=session_id).first()
     return expire_purchase(purchase.id) if purchase else None
+
+
+def cancellation_quote(*, user, purchase_id: int) -> dict:
+    purchase = PackagePurchase.objects.filter(id=purchase_id, package__user=user).first()
+    if purchase is None:
+        raise ValidationError("Compra de paquete no encontrada.")
+    if purchase.status != PackagePurchase.Status.CONFIRMED:
+        raise ValidationError("Solo se puede cancelar un paquete pagado y confirmado.")
+    items = []
+    for allocation in purchase.allocations.select_related("booking__tenant"):
+        quote = bookings.quote_paid_cancellation(user=user, booking_id=allocation.booking_id)
+        items.append({
+            "reserva_id": quote.booking_id,
+            "empresa": allocation.booking.tenant.trade_name,
+            "pagado": str(quote.paid_amount),
+            "penalizacion": str(quote.penalty_amount),
+            "reembolso": str(quote.refund_amount),
+            "porcentaje_penalizacion": str(quote.penalty_percentage),
+            "politica": quote.policy_name,
+        })
+    return {
+        "compra_id": purchase.id,
+        "pagado": str(sum((Decimal(item["pagado"]) for item in items), Decimal("0.00"))),
+        "penalizacion": str(sum((Decimal(item["penalizacion"]) for item in items), Decimal("0.00"))),
+        "reembolso": str(sum((Decimal(item["reembolso"]) for item in items), Decimal("0.00"))),
+        "componentes": items,
+    }
+
+
+def cancel_purchase(*, user, purchase_id: int, reason: str, idempotency_key: str | None) -> dict:
+    from apps.payments import refunds
+
+    purchase = PackagePurchase.objects.filter(id=purchase_id, package__user=user).first()
+    if purchase is None:
+        raise ValidationError("Compra de paquete no encontrada.")
+    if purchase.status == PackagePurchase.Status.REFUNDED:
+        return {"compra_id": purchase.id, "estado": purchase.status, "reembolsos": []}
+    if purchase.status != PackagePurchase.Status.CONFIRMED:
+        raise ValidationError("La compra ya no se puede cancelar.")
+    reason = (reason or "").strip()
+    if len(reason) < 5:
+        raise ValidationError({"motivo": "Explica el motivo (al menos 5 caracteres)."})
+    base_key = idempotency_key or f"cancelar-paquete-{purchase.id}"
+    results = []
+    for allocation in purchase.allocations.order_by("id"):
+        cancellation, refund = refunds.request_booking_cancellation(
+            user=user, booking_id=allocation.booking_id, reason=reason,
+            idempotency_key=f"{base_key}:{allocation.booking_id}",
+        )
+        results.append({
+            "reserva_id": allocation.booking_id,
+            "cancelacion_id": cancellation.id,
+            "reembolso_id": refund.id if refund else None,
+            "estado": refund.status if refund else "COMPLETADO",
+            "monto": str(cancellation.refund_amount),
+        })
+    if all(item["estado"] == "COMPLETADO" for item in results):
+        PackagePurchase.objects.filter(id=purchase.id).update(status=PackagePurchase.Status.REFUNDED)
+        purchase.status = PackagePurchase.Status.REFUNDED
+    return {"compra_id": purchase.id, "estado": purchase.status, "reembolsos": results}
+
+
+def refresh_refund_status(booking_id: int) -> None:
+    allocation = PackagePurchaseAllocation.objects.filter(booking_id=booking_id).select_related("purchase").first()
+    if allocation is None:
+        return
+    purchase = allocation.purchase
+    pending = purchase.allocations.exclude(
+        booking__cancellation__refunds__status="COMPLETADO"
+    ).exists()
+    if not pending:
+        PackagePurchase.objects.filter(id=purchase.id).update(status=PackagePurchase.Status.REFUNDED)

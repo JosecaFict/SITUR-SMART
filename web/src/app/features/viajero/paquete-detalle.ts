@@ -4,7 +4,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LucideArrowLeft, LucideCircleAlert, LucideCreditCard, LucidePencil } from '@lucide/angular';
 import { apiErrorMessage } from '../../core/http/api-error';
-import { CustomPackage } from '../../core/packages/packages.models';
+import { CustomPackage, PackageCancellationQuote } from '../../core/packages/packages.models';
 import { PackagesService } from '../../core/packages/packages.service';
 
 @Component({
@@ -27,6 +27,8 @@ import { PackagesService } from '../../core/packages/packages.service';
           <p class="text-text-secondary mt-3 text-xs">Los precios y cupos pueden cambiar. Este paquete no aparta inventario ni genera un pago.</p>
           @if (item.compra) {
             <p class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Compra {{ item.compra.estado.toLowerCase() }} · Bs {{ item.compra.total }} · {{ item.compra.reservas.length }} reservas asociadas.</p>
+            @if (item.compra.estado === 'CONFIRMADA' || item.compra.estado === 'REEMBOLSADA') { <button type="button" class="secondary-button mt-3 inline-flex" (click)="downloadReceipt(item.compra.id)">Descargar comprobante PDF</button> }
+            @if (item.compra.estado === 'CONFIRMADA') { <button type="button" class="mt-3 ml-2 rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-700" [disabled]="cancelling()" (click)="quoteCancellation(item.compra.id)">Cancelar paquete</button> }
           } @else if (item.estado === 'GUARDADO' && !item.requiere_revalidacion) {
             <section class="mt-5 rounded-xl border border-demo-border bg-demo-bg p-4">
               <label class="flex items-start gap-3 text-sm text-label"><input type="checkbox" class="mt-1" [checked]="accepted()" (change)="accepted.set($any($event.target).checked)" /><span>Acepto las políticas de cancelación de todos los servicios y el total definitivo mostrado antes de pagar.</span></label>
@@ -39,6 +41,9 @@ import { PackagesService } from '../../core/packages/packages.service';
           <div class="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <svg lucideCircleAlert class="h-5 w-5 shrink-0"></svg><span>Hay servicios que requieren nueva validación de precio o disponibilidad. Abre el editor para revisarlos.</span>
           </div>
+        }
+        @if (cancellation(); as quote) {
+          <section class="rounded-2xl border border-amber-200 bg-amber-50 p-5"><h2 class="font-heading text-lg font-bold">Reembolso del paquete</h2><p class="mt-2 text-sm">Pagado: Bs {{ quote.pagado }} · Penalización: Bs {{ quote.penalizacion }} · Recibirás: <strong>Bs {{ quote.reembolso }}</strong></p>@for (part of quote.componentes; track part.reserva_id) { <p class="mt-2 text-xs">{{ part.empresa }} · {{ part.politica }} · reembolso Bs {{ part.reembolso }}</p> }<textarea class="field-control mt-4" maxlength="1000" placeholder="Motivo de cancelación" [value]="cancelReason()" (input)="cancelReason.set($any($event.target).value)"></textarea><div class="mt-3 flex gap-2"><button class="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white" [disabled]="cancelReason().trim().length < 5 || cancelling()" (click)="confirmCancellation(quote.compra_id)">Confirmar cancelación</button><button class="secondary-button" (click)="cancellation.set(null)">Volver</button></div></section>
         }
         <div class="space-y-3">
           @for (part of item.componentes || []; track part.id) {
@@ -62,7 +67,7 @@ import { PackagesService } from '../../core/packages/packages.service';
 })
 export class PaqueteDetalle implements OnInit {
   private readonly route = inject(ActivatedRoute);
-  private readonly service = inject(PackagesService);
+  protected readonly service = inject(PackagesService);
   protected readonly package = signal<CustomPackage | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -71,6 +76,10 @@ export class PaqueteDetalle implements OnInit {
   protected readonly billingTaxId = signal('');
   protected readonly purchasing = signal(false);
   private purchaseKey: string | null = null;
+  protected readonly cancellation = signal<PackageCancellationQuote | null>(null);
+  protected readonly cancelReason = signal('');
+  protected readonly cancelling = signal(false);
+  private cancelKey: string | null = null;
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -102,5 +111,19 @@ export class PaqueteDetalle implements OnInit {
         this.error.set(apiErrorMessage(error, 'No se pudo iniciar el pago del paquete.'));
       },
     });
+  }
+
+  protected quoteCancellation(id: number): void {
+    this.cancelling.set(true);
+    this.service.cancellationQuote(id).subscribe({ next: (quote) => { this.cancellation.set(quote); this.cancelling.set(false); }, error: (error: HttpErrorResponse) => { this.error.set(apiErrorMessage(error)); this.cancelling.set(false); } });
+  }
+
+  protected confirmCancellation(id: number): void {
+    this.cancelKey ??= crypto.randomUUID(); this.cancelling.set(true);
+    this.service.cancelPurchase(id, this.cancelReason().trim(), this.cancelKey).subscribe({ next: () => { this.cancelling.set(false); this.cancellation.set(null); this.ngOnInit(); }, error: (error: HttpErrorResponse) => { this.error.set(apiErrorMessage(error)); this.cancelling.set(false); } });
+  }
+
+  protected downloadReceipt(id: number): void {
+    this.service.receipt(id).subscribe({ next: (blob) => { const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `paquete-${id}.pdf`; link.click(); URL.revokeObjectURL(url); }, error: (error: HttpErrorResponse) => this.error.set(apiErrorMessage(error, 'No se pudo descargar el comprobante.')) });
   }
 }

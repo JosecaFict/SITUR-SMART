@@ -97,6 +97,8 @@ def complete_refund(*, refund_id: int, provider_reference: str | None = None) ->
         },
     )
     transaction.on_commit(lambda: _notify(refund, completed=True))
+    from apps.custom_packages.purchase import refresh_refund_status
+    refresh_refund_status(refund.payment.booking_id)
     return refund
 
 
