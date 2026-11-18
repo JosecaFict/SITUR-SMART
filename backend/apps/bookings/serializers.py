@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -152,6 +153,7 @@ class BookingSerializer(serializers.ModelSerializer):
     datos_facturacion = serializers.SerializerMethodField()
     salida = serializers.SerializerMethodField()
     promocion = serializers.SerializerMethodField()
+    punto_encuentro = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -159,7 +161,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "id", "codigo", "orden", "estado", "estado_nombre", "empresa", "producto",
             "fechas", "importe", "huespedes", "moneda_codigo", "moneda_simbolo",
             "pago", "politica_cancelacion", "politica_aceptada_en", "datos_facturacion",
-            "vence_en", "qr", "salida", "creado_en", "promocion",
+            "vence_en", "qr", "salida", "creado_en", "promocion", "punto_encuentro",
         )
 
     @staticmethod
@@ -231,6 +233,24 @@ class BookingSerializer(serializers.ModelSerializer):
         slot = details[0].slot
         return {"id": slot.id, "inicio": serializers.DateTimeField().to_representation(slot.start),
                 "fin": serializers.DateTimeField().to_representation(slot.end)}
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_punto_encuentro(self, booking) -> dict | None:
+        """Donde empieza el tour o la experiencia. Los hoteles no tienen."""
+        details = self._details(booking)
+        if not details:
+            return None
+        try:
+            tour = details[0].slot.product.tour
+        except ObjectDoesNotExist:
+            return None
+        if not (tour.meeting_point or "").strip() and tour.latitude is None:
+            return None
+        return {
+            "descripcion": tour.meeting_point,
+            "latitud": str(tour.latitude) if tour.latitude is not None else None,
+            "longitud": str(tour.longitude) if tour.longitude is not None else None,
+        }
 
     @extend_schema_field(serializers.DictField())
     def get_importe(self, booking) -> dict:

@@ -10,6 +10,7 @@ import { ProductsService } from '../../../core/products/products.service';
 import { fromBoliviaInput, toBoliviaInput } from '../../../core/promotions/promotion-dates';
 import { Promotion, PromotionComponent, PromotionComponentInput, PromotionEvaluation, PromotionMode, PromotionPayload } from '../../../core/promotions/promotions.models';
 import { promotionApiError, PromotionsService } from '../../../core/promotions/promotions.service';
+import { publishedMessage } from '../../../core/promotions/published-message';
 
 const CATALOG_PAGE_SIZE = 9;
 
@@ -207,7 +208,7 @@ export class PromocionEditor implements OnInit, OnDestroy {
     if (!tenant || !item || !this.canManage() || this.changed() || this.working()) return;
     this.working.set(true); this.error.set(null); this.success.set(null);
     this.service.publish(tenant, item.id).subscribe({
-      next: (updated) => { this.accept(updated, false); this.working.set(false); this.success.set('Promoción publicada.'); },
+      next: (updated) => { this.accept(updated, false); this.working.set(false); this.success.set(publishedMessage(updated.notificados)); },
       error: (error: HttpErrorResponse) => { this.working.set(false); this.error.set(promotionApiError(error, 'No se pudo publicar.')); },
     });
   }

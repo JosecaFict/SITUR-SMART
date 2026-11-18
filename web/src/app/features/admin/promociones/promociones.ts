@@ -6,6 +6,7 @@ import { LucideBadgePercent, LucideCircleAlert, LucideEye, LucidePackageOpen, Lu
 import { AuthService } from '../../../core/auth/auth.service';
 import { Promotion, PromotionMode, PromotionState } from '../../../core/promotions/promotions.models';
 import { promotionApiError, PromotionsService } from '../../../core/promotions/promotions.service';
+import { publishedMessage } from '../../../core/promotions/published-message';
 
 const PAGE_SIZE = 10;
 
@@ -90,7 +91,7 @@ export class Promociones implements OnInit {
       next: (updated) => {
         this.items.update((items) => items.map((current) => current.id === updated.id ? updated : current));
         this.workingId.set(null);
-        this.success.set(disabling ? 'Promoción desactivada.' : 'Promoción publicada.');
+        this.success.set(disabling ? 'Promoción desactivada.' : publishedMessage(updated.notificados));
       },
       error: (error: HttpErrorResponse) => { this.workingId.set(null); this.error.set(promotionApiError(error, 'No se pudo cambiar el estado.')); },
     });

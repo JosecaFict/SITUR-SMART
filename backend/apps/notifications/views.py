@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import services
+from . import interests, services
 from .models import Notification, PushDevice
 
 
@@ -110,3 +110,24 @@ class MarkAllReadView(APIView):
     def post(self, request):
         services.mark_all_read(user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class InterestSerializer(serializers.Serializer):
+    nombre = serializers.CharField()
+    puntaje = serializers.IntegerField()
+
+
+class InterestProfileSerializer(serializers.Serializer):
+    ciudades = InterestSerializer(many=True)
+    tipos = InterestSerializer(many=True)
+    basado_en = serializers.DictField(child=serializers.IntegerField())
+
+
+class InterestsView(APIView):
+    """Lo que el sistema detecto que le interesa al turista (ciudades y tipos)."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(responses=InterestProfileSerializer)
+    def get(self, request):
+        return Response(interests.customer_interests(request.user))

@@ -11,6 +11,7 @@ import {
   VoucherCheck,
 } from '../../../core/company-bookings/company-bookings.service';
 import { apiErrorMessage } from '../../../core/http/api-error';
+import { EscanerQr } from '../../../shared/escaner-qr/escaner-qr';
 
 const STATES: Record<string, string> = {
   CREADA: 'Pendiente de pago',
@@ -28,7 +29,7 @@ const STATES: Record<string, string> = {
  */
 @Component({
   selector: 'situr-reservas',
-  imports: [DatePipe, LucideCalendarCheck, LucideFileText, LucideFlag, LucideScanLine, LucideSearch, LucideX],
+  imports: [DatePipe, EscanerQr, LucideCalendarCheck, LucideFileText, LucideFlag, LucideScanLine, LucideSearch, LucideX],
   templateUrl: './reservas.html',
 })
 export class Reservas implements OnInit {
@@ -54,6 +55,7 @@ export class Reservas implements OnInit {
   protected readonly voucher = signal<VoucherCheck | null>(null);
   protected readonly voucherError = signal<string | null>(null);
   protected readonly checking = signal(false);
+  protected readonly scanning = signal(false);
 
   protected readonly selected = signal<CompanyBooking | null>(null);
   protected readonly reporting = signal(false);
@@ -148,6 +150,13 @@ export class Reservas implements OnInit {
         this.voucherError.set(apiErrorMessage(error, 'No se pudo validar el código.'));
       },
     });
+  }
+
+  /** El escáner leyó un QR: lo pone en el campo y lo valida como si se hubiera escrito. */
+  protected onScanned(content: string): void {
+    this.scanning.set(false);
+    this.voucherCode.set(content);
+    this.checkVoucher();
   }
 
   protected checkIn(booking: CompanyBooking): void {

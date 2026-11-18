@@ -60,6 +60,8 @@ export interface Promotion extends PromotionEvaluation {
   cotizacion?: PromotionDiscount;
   creado_en: string;
   actualizado_en: string;
+  /** Solo al publicar: turistas avisados por afinidad con la oferta. */
+  notificados?: number;
 }
 
 /** Summary returned by ProductSerializer, quote and booking responses. */
