@@ -1,12 +1,14 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import QRCode from 'qrcode';
-import { LucideArrowLeft, LucideFileText } from '@lucide/angular';
+import { LucideArrowLeft, LucideFileText, LucideMapPin } from '@lucide/angular';
+import { LatLng } from '../../core/geo/geo.models';
 import { apiErrorMessage } from '../../core/http/api-error';
 import { CancellationQuote, PaidCancellationResult, TravelerBooking } from '../../core/traveler/traveler.models';
 import { TravelerService, newIdempotencyKey } from '../../core/traveler/traveler.service';
+import { MapaUbicacion } from '../../shared/mapa-ubicacion/mapa-ubicacion';
 
 /**
  * Una reserva del turista: estado, voucher con QR, comprobante PDF, y pagar o
@@ -15,7 +17,7 @@ import { TravelerService, newIdempotencyKey } from '../../core/traveler/traveler
  */
 @Component({
   selector: 'situr-viaje-detalle',
-  imports: [DatePipe, RouterLink, LucideArrowLeft, LucideFileText],
+  imports: [DatePipe, RouterLink, LucideArrowLeft, LucideFileText, LucideMapPin, MapaUbicacion],
   template: `
     <section class="mx-auto max-w-3xl space-y-5">
       <a routerLink="/mis-viajes" class="text-label inline-flex items-center gap-2 text-sm font-semibold hover:text-title">
@@ -48,6 +50,23 @@ import { TravelerService, newIdempotencyKey } from '../../core/traveler/traveler
             <div class="col-span-2"><dt class="text-text-secondary text-xs">{{ item.estado === 'CREADA' ? 'Total' : 'Total pagado' }}</dt>
               <dd class="text-accent-dark text-xl font-bold">{{ item.moneda_simbolo }} {{ item.importe.total }}</dd></div>
           </dl>
+
+          @if (item.punto_encuentro; as meeting) {
+            <section class="mt-5" aria-label="Punto de encuentro">
+              <h2 class="text-title flex items-center gap-2 text-sm font-bold"><svg lucideMapPin class="h-4 w-4"></svg>Punto de encuentro</h2>
+              @if (item.salida) {
+                <p class="text-text-secondary mt-1 text-xs">Preséntate el {{ item.salida.inicio | date: 'dd/MM/yyyy' }} a las {{ item.salida.inicio | date: 'HH:mm' }}.</p>
+              }
+              @if (meeting.descripcion) { <p class="text-label mt-1 text-sm">{{ meeting.descripcion }}</p> }
+              @if (meetingPoint(); as point) {
+                <div class="mt-3"><situr-mapa-ubicacion [value]="point" [center]="point" [editable]="false" /></div>
+                <a class="text-accent-dark mt-2 inline-flex items-center gap-1.5 text-sm font-semibold hover:underline" target="_blank" rel="noopener"
+                  [href]="'https://www.google.com/maps/dir/?api=1&destination=' + point.lat + ',' + point.lng">
+                  <svg lucideMapPin class="h-4 w-4"></svg>Cómo llegar
+                </a>
+              }
+            </section>
+          }
 
           @if (item.estado === 'CREADA') {
             @if (item.vence_en) {
@@ -127,6 +146,13 @@ export class ViajeDetalle implements OnInit, OnDestroy {
   protected readonly cancellationQuote = signal<CancellationQuote | null>(null);
   protected readonly cancellationResult = signal<PaidCancellationResult | null>(null);
   protected readonly cancellationReason = signal('');
+  /** Coordenadas del punto de encuentro, si la empresa lo marcó en el mapa. */
+  protected readonly meetingPoint = computed<LatLng | null>(() => {
+    const meeting = this.booking()?.punto_encuentro;
+    if (!meeting?.latitud || !meeting.longitud) return null;
+    const point = { lat: Number(meeting.latitud), lng: Number(meeting.longitud) };
+    return Number.isFinite(point.lat) && Number.isFinite(point.lng) ? point : null;
+  });
   private cancellationKey: string | null = null;
   private poll: ReturnType<typeof setTimeout> | null = null;
   private id = 0;

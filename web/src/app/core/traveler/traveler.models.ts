@@ -38,6 +38,8 @@ export interface TravelerBooking {
   politica_cancelacion: CancellationPolicySummary | null;
   politica_aceptada_en: string | null;
   salida?: { id: number; inicio: string; fin: string } | null;
+  /** Solo tours y experiencias: dónde empieza. */
+  punto_encuentro?: { descripcion: string | null; latitud: string | null; longitud: string | null } | null;
   vence_en: string | null;
   qr: string | null;
   creado_en: string;
@@ -158,9 +160,16 @@ export interface AppNotification {
   tipo: string;
   titulo: string;
   mensaje: string;
-  datos: { reserva_id?: number; codigo?: string };
+  datos: { reserva_id?: number; codigo?: string; promocion_id?: number; motivo?: string; afinidad?: number };
   leida: boolean;
   creado_en: string;
+}
+
+/** Lo que el sistema detectó que le interesa al turista (me/intereses). */
+export interface CustomerInterests {
+  ciudades: { nombre: string; puntaje: number }[];
+  tipos: { nombre: string; puntaje: number }[];
+  basado_en: { favoritos: number; reservas: number; resenas: number };
 }
 
 export interface Paged<T> {

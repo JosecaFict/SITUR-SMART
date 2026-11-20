@@ -8,6 +8,7 @@ import {
   BookingQuote,
   BookingRequest,
   CancellationQuote,
+  CustomerInterests,
   Itinerary,
   ItineraryDetail,
   Paged,
@@ -117,6 +118,11 @@ export class TravelerService {
   }
 
   // --- Notificaciones ---------------------------------------------------------
+
+  /** Intereses detectados a partir de favoritos, reservas y reseñas. */
+  interests(): Observable<CustomerInterests> {
+    return this.http.get<CustomerInterests>(`${this.api}/me/intereses/`);
+  }
 
   notifications(page = 1): Observable<Paged<AppNotification>> {
     return this.http.get<Paged<AppNotification>>(`${this.api}/me/notificaciones/`, { params: { page } });

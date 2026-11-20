@@ -1,3 +1,5 @@
+import logging
+
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound
@@ -8,6 +10,7 @@ from rest_framework.views import APIView
 
 from apps.catalog.serializers import ProductSerializer
 from apps.catalog.services import with_lodging_from_price
+from apps.notifications import interests
 from apps.rbac.views import tenant_id_from_request
 
 from . import services
@@ -20,6 +23,9 @@ from .serializers import (
     PromotionWriteSerializer,
     PublicQuerySerializer,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class PromotionPagination(PageNumberPagination):
@@ -94,13 +100,20 @@ class PromotionPublishView(CompanyView):
 
     @extend_schema(request=None)
     def post(self, request, pk):
-        return Response(
-            _result(
-                services.set_enabled(
-                    *self.scope(request), pk, self.enabled, request=request
-                )
-            )
-        )
+        promotion = services.set_enabled(*self.scope(request), pk, self.enabled, request=request)
+        data = _result(promotion)
+        if self.enabled:
+            data["notificados"] = _notify_interested(promotion)
+        return Response(data)
+
+
+def _notify_interested(promotion) -> int:
+    """Avisa a los turistas interesados. Publicar nunca falla por un aviso."""
+    try:
+        return interests.notify_interested(services.queryset().get(id=promotion.id))
+    except Exception:
+        logger.exception("No se pudo avisar a los interesados en la promocion %s", promotion.id)
+        return 0
 
 
 class PromotionDisableView(PromotionPublishView):
