@@ -11,7 +11,13 @@ Hay dos perfiles:
 
 Cada perfil tiene al otro como respaldo: si su proveedor responde 429 (cuota
 agotada) o falla, se reintenta con el otro. El que respondio 429 queda en pausa
-``IA_COOLDOWN_SECONDS`` para no gastar un intento fallido en cada mensaje.
+``IA_COOLDOWN_SECONDS`` para no gastar un intento fallido en cada mensaje. Un
+503 (proveedor saturado) se reintenta una vez antes de pasar al respaldo.
+
+Un mensaje del turista puede necesitar varias llamadas (pedir una herramienta,
+recibir su resultado, responder). ``Session`` fija el proveedor que respondio
+la primera llamada para el resto del mensaje: Gemini 3 rechaza (400) una
+llamada a herramienta que no pidio el mismo, porque le falta su firma.
 
 La voz (``/audio/transcriptions``) usa siempre el proveedor de empresa: Whisper
 de Groq.
@@ -19,13 +25,14 @@ de Groq.
 Se usa ``urllib`` y no el SDK de OpenAI, igual que ``apps/catalog/geocoding.py``
 y ``apps/accounts/brevo.py``: son dos llamadas y no justifican una dependencia.
 
-Las claves solo se leen aqui. Nada de lo que se registra incluye la clave, el
-mensaje del usuario ni el cuerpo de la respuesta: solo el proveedor, el
-endpoint y el estado.
+Las claves solo se leen aqui. Nada de lo que se registra incluye la clave ni el
+mensaje del usuario: solo el proveedor, el endpoint, el estado y, si hubo error,
+el motivo que dio el proveedor, recortado.
 """
 
 import json
 import logging
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -44,11 +51,19 @@ EMPRESA = "empresa"
 PROFILES = (CLIENTE, EMPRESA)
 
 
+REASON_LIMIT = 200
+
+
 class AssistantUnavailable(Exception):
     """El proveedor no esta configurado, alcanzo su limite o no respondio.
 
-    Se traduce a un 503 con un mensaje que no culpa al usuario.
+    Se traduce a un 503 con un mensaje que no culpa al usuario. ``status`` es
+    el codigo HTTP del proveedor, si lo hubo.
     """
+
+    def __init__(self, *args, status: int | None = None):
+        super().__init__(*args)
+        self.status = status
 
 
 class AssistantRateLimited(AssistantUnavailable):
@@ -128,6 +143,26 @@ def voice_configured() -> bool:
     return provider(EMPRESA).configured and bool(_setting("IA_STT_MODEL"))
 
 
+def _error_reason(exc: urllib.error.HTTPError) -> str:
+    """Solo ``error.message`` del proveedor, recortado: explica el rechazo.
+
+    No se registra el cuerpo completo porque podria repetir lo que escribio el
+    usuario. Gemini a veces envuelve el error en una lista.
+    """
+    try:
+        payload = json.loads(exc.read().decode("utf-8", errors="replace"))
+    except (OSError, ValueError, AttributeError):
+        return "sin detalle"
+    if isinstance(payload, list) and payload:
+        payload = payload[0]
+    error = payload.get("error") if isinstance(payload, dict) else None
+    message = error.get("message") if isinstance(error, dict) else None
+    if not isinstance(message, str) or not message.strip():
+        return "sin detalle"
+    reason = " ".join(message.split())
+    return reason if len(reason) <= REASON_LIMIT else reason[:REASON_LIMIT] + "..."
+
+
 def _send(target: Provider, path: str, body: bytes, content_type: str) -> dict:
     request = urllib.request.Request(
         f"{target.base_url}{path}",
@@ -145,11 +180,16 @@ def _send(target: Provider, path: str, body: bytes, content_type: str) -> dict:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        # Solo el codigo: el cuerpo puede repetir el mensaje del usuario.
-        logger.error("El proveedor de IA (%s) respondio %d en %s", target.profile, exc.code, path)
+        logger.error(
+            "El proveedor de IA (%s) respondio %d en %s: %s",
+            target.profile,
+            exc.code,
+            path,
+            _error_reason(exc),
+        )
         if exc.code == 429:
-            raise AssistantRateLimited from exc
-        raise AssistantUnavailable from exc
+            raise AssistantRateLimited(status=429) from exc
+        raise AssistantUnavailable(status=exc.code) from exc
     except urllib.error.URLError as exc:
         logger.error(
             "No se pudo contactar al proveedor de IA (%s) en %s: %s", target.profile, path, exc.reason
@@ -194,37 +234,76 @@ def _chat_once(target: Provider, messages: list[dict], tools: list[dict] | None)
     return message
 
 
-def chat(messages: list[dict], tools: list[dict] | None = None, *, profile: str = CLIENTE) -> dict:
-    """Devuelve el mensaje del asistente: ``{"content": ..., "tool_calls": [...]}``.
+def _chat_with_retry(target: Provider, messages: list[dict], tools: list[dict] | None) -> dict:
+    """Un 503 suele ser una saturacion de segundos: se reintenta una vez."""
+    try:
+        return _chat_once(target, messages, tools)
+    except AssistantUnavailable as exc:
+        if exc.status != 503:
+            raise
+    delay = float(getattr(settings, "IA_RETRY_DELAY_SECONDS", 1) or 0)
+    if delay > 0:
+        time.sleep(delay)
+    logger.warning("Asistente IA (%s): se reintenta tras un 503.", target.profile)
+    return _chat_once(target, messages, tools)
 
-    Prueba el proveedor del perfil y, si falla, el de respaldo. Los que estan
-    en pausa por un 429 reciente van al final: solo se intentan si no queda otro.
+
+class Session:
+    """Llamadas de un mismo mensaje, todas con el mismo proveedor.
+
+    La primera llamada elige proveedor (el del perfil o, si falla, el de
+    respaldo) y las siguientes lo reutilizan. Si ese proveedor falla a mitad
+    del mensaje no se cambia de proveedor: la conversacion ya tiene llamadas a
+    herramientas que el otro no reconoceria, y es mejor un error claro.
     """
-    candidates = _candidates(profile)
-    if not candidates:
-        logger.warning("Asistente IA solicitado sin ningun proveedor configurado.")
-        raise AssistantUnavailable
 
-    resting = [c for c in candidates if cache.get(c.cooldown_key)]
-    ordered = [c for c in candidates if c not in resting] + resting
+    def __init__(self, profile: str = CLIENTE):
+        self.profile = profile
+        self.provider: Provider | None = None
 
-    all_rate_limited = True
-    last_error: AssistantUnavailable | None = None
-    for index, target in enumerate(ordered):
-        if index:
-            logger.warning("Asistente IA (%s): se usa el proveedor de respaldo (%s).", profile, target.profile)
-        try:
-            return _chat_once(target, messages, tools)
-        except AssistantRateLimited as exc:
-            cache.set(target.cooldown_key, True, _int_setting("IA_COOLDOWN_SECONDS", 300))
-            last_error = exc
-        except AssistantUnavailable as exc:
-            all_rate_limited = False
-            last_error = exc
+    def chat(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
+        """Devuelve el mensaje del asistente: ``{"content": ..., "tool_calls": [...]}``."""
+        if self.provider is not None:
+            return _chat_with_retry(self.provider, messages, tools)
 
-    if all_rate_limited:
-        raise AssistantRateLimited from last_error
-    raise AssistantUnavailable from last_error
+        candidates = _candidates(self.profile)
+        if not candidates:
+            logger.warning("Asistente IA solicitado sin ningun proveedor configurado.")
+            raise AssistantUnavailable
+
+        # Los que estan en pausa por un 429 reciente van al final: solo se
+        # intentan si no queda otro.
+        resting = [c for c in candidates if cache.get(c.cooldown_key)]
+        ordered = [c for c in candidates if c not in resting] + resting
+
+        all_rate_limited = True
+        last_error: AssistantUnavailable | None = None
+        for index, target in enumerate(ordered):
+            if index:
+                logger.warning(
+                    "Asistente IA (%s): se usa el proveedor de respaldo (%s).", self.profile, target.profile
+                )
+            try:
+                answer = _chat_with_retry(target, messages, tools)
+            except AssistantRateLimited as exc:
+                cache.set(target.cooldown_key, True, _int_setting("IA_COOLDOWN_SECONDS", 300))
+                last_error = exc
+                continue
+            except AssistantUnavailable as exc:
+                all_rate_limited = False
+                last_error = exc
+                continue
+            self.provider = target
+            return answer
+
+        if all_rate_limited:
+            raise AssistantRateLimited from last_error
+        raise AssistantUnavailable from last_error
+
+
+def chat(messages: list[dict], tools: list[dict] | None = None, *, profile: str = CLIENTE) -> dict:
+    """Una llamada suelta, con respaldo. Para un mensaje con herramientas usar ``Session``."""
+    return Session(profile).chat(messages, tools)
 
 
 def transcribe(*, audio: bytes, filename: str, content_type: str, language: str = "es") -> str:

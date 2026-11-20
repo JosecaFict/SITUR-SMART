@@ -32,7 +32,7 @@ def _pedir(email, argumentos, *, tenant_id=None, respuesta="Listo, aquí está t
         "function": {"name": "generar_reporte", "arguments": json.dumps(argumentos)},
     }
     with patch(
-        "apps.assistant.services.llm.chat",
+        "apps.assistant.llm.Session.chat",
         side_effect=[{"content": None, "tool_calls": [llamada]}, {"content": respuesta}],
     ) as chat:
         headers = {"HTTP_X_TENANT_ID": str(tenant_id)} if tenant_id else {}

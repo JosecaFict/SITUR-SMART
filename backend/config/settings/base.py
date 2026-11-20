@@ -258,6 +258,8 @@ IA_EMPRESA_MAX_TOKENS = int(os.getenv("IA_EMPRESA_MAX_TOKENS", str(IA_MAX_TOKENS
 IA_EMPRESA_REASONING_EFFORT = os.getenv("IA_EMPRESA_REASONING_EFFORT", "")
 # Segundos que un proveedor que respondio 429 queda en pausa antes de reintentarlo.
 IA_COOLDOWN_SECONDS = int(os.getenv("IA_COOLDOWN_SECONDS", "300"))
+# Espera antes de reintentar una vez un 503 (proveedor saturado).
+IA_RETRY_DELAY_SECONDS = float(os.getenv("IA_RETRY_DELAY_SECONDS", "1"))
 
 # Pagos con Stripe Checkout (reservas del turista)
 #

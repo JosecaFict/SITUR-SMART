@@ -138,13 +138,15 @@ DOS_PROVEEDORES = {
     "IA_CLIENTE_API_KEY": CLAVE_CLIENTE,
     "IA_CLIENTE_MODEL": "modelo-cliente",
     "IA_COOLDOWN_SECONDS": 300,
+    "IA_RETRY_DELAY_SECONDS": 0,
 }
 URL_CLIENTE = "https://cliente.test/openai/chat/completions"
 URL_EMPRESA = "https://proveedor.test/v1/chat/completions"
 
 
-def _error(code: int):
-    return urllib.error.HTTPError("u", code, "x", {}, BytesIO(b"{}"))
+def _error(code: int, body=None):
+    raw = json.dumps(body).encode() if body is not None else b"{}"
+    return urllib.error.HTTPError("u", code, "x", {}, BytesIO(raw))
 
 
 def _urls(urlopen) -> list[str]:
@@ -240,6 +242,59 @@ class ProviderFallbackTests(SimpleTestCase):
             llm.transcribe(audio=b"x", filename="a.webm", content_type="audio/webm")
         self.assertEqual(_urls(urlopen), ["https://proveedor.test/v1/audio/transcriptions"])
 
+    # Un mensaje con herramientas: varias llamadas en la misma Session.
+
+    def _session(self, side_effect, profile=llm.CLIENTE, calls=2):
+        session = llm.Session(profile)
+        answers = []
+        with patch("apps.assistant.llm.urllib.request.urlopen", side_effect=side_effect) as urlopen:
+            for _ in range(calls):
+                answers.append(session.chat([{"role": "user", "content": "hola"}]))
+        return answers, urlopen
+
+    def test_si_responde_el_respaldo_el_resto_del_mensaje_sigue_con_el(self):
+        answers, urlopen = self._session(
+            [_error(503), _error(503), respuesta(mensaje("uno")), respuesta(mensaje("dos"))]
+        )
+        self.assertEqual([a["content"] for a in answers], ["uno", "dos"])
+        # Gemini: intento + reintento; despues todo el mensaje con Groq.
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE, URL_CLIENTE, URL_EMPRESA, URL_EMPRESA])
+
+    def test_si_responde_el_principal_el_resto_del_mensaje_sigue_con_el(self):
+        _, urlopen = self._session([respuesta(mensaje("uno")), respuesta(mensaje("dos"))])
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE, URL_CLIENTE])
+
+    def test_a_mitad_del_mensaje_no_se_cambia_de_proveedor(self):
+        with self.assertRaises(llm.AssistantUnavailable):
+            self._session([respuesta(mensaje("uno")), _error(400), respuesta(mensaje("no"))])
+
+    def test_el_siguiente_mensaje_vuelve_a_intentar_el_principal(self):
+        self._session([_error(500), respuesta(mensaje("a")), respuesta(mensaje("b"))])
+        _, urlopen = self._session([respuesta(mensaje("c"))], calls=1)
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE])
+
+    def test_503_se_reintenta_una_vez_con_el_mismo_proveedor(self):
+        answer, urlopen = self._chat([_error(503), respuesta(mensaje("ok"))], llm.CLIENTE)
+        self.assertEqual(answer["content"], "ok")
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE, URL_CLIENTE])
+
+    def test_otros_errores_no_se_reintentan(self):
+        _, urlopen = self._chat([_error(400), respuesta(mensaje("ok"))], llm.CLIENTE)
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE, URL_EMPRESA])
+
+    def test_el_log_muestra_el_motivo_del_proveedor(self):
+        body = [{"error": {"code": 400, "message": "Function call is missing a\nthought_signature."}}]
+        with self.assertLogs("apps.assistant.llm", level="ERROR") as logs:
+            self._chat([_error(400, body), respuesta(mensaje("ok"))], llm.CLIENTE)
+        self.assertIn("respondio 400 en /chat/completions: Function call is missing a thought_signature.", logs.output[0])
+
+    def test_el_motivo_se_recorta(self):
+        body = {"error": {"message": "x" * 500}}
+        with self.assertLogs("apps.assistant.llm", level="ERROR") as logs:
+            self._chat([_error(400, body), respuesta(mensaje("ok"))], llm.CLIENTE)
+        self.assertIn("x" * llm.REASON_LIMIT + "...", logs.output[0])
+        self.assertNotIn("x" * (llm.REASON_LIMIT + 1), logs.output[0])
+
     def test_los_registros_no_incluyen_claves(self):
         with self.assertLogs("apps.assistant.llm", level="WARNING") as logs:
             self._chat([_error(429), respuesta(mensaje("ok"))], llm.CLIENTE)
@@ -326,7 +381,7 @@ class ConversationTests(SimpleTestCase):
             {"content": "Te recomiendo Hotel de prueba."},
         ]
         with (
-            patch("apps.assistant.services.llm.chat", side_effect=answers) as chat,
+            patch("apps.assistant.llm.Session.chat", side_effect=answers) as chat,
             patch("apps.assistant.tools.recommend", return_value=[{"id": 11, "nombre": "Hotel de prueba"}]),
         ):
             result = services.reply(message="hotel en Uyuni", history=[])
@@ -343,7 +398,7 @@ class ConversationTests(SimpleTestCase):
             {"rol": "usuario", "contenido": "hola"},
             {"rol": "asistente", "contenido": "¡Hola!"},
         ]
-        with patch("apps.assistant.services.llm.chat", return_value={"content": "ok"}) as chat:
+        with patch("apps.assistant.llm.Session.chat", return_value={"content": "ok"}) as chat:
             services.reply(message="gracias", history=history)
         sent = chat.call_args.args[0]
         self.assertEqual([m["role"] for m in sent], ["system", "user", "assistant", "user"])
@@ -353,30 +408,42 @@ class ConversationTests(SimpleTestCase):
         call = {"id": "c", "function": {"name": "listar_ciudades", "arguments": "{}"}}
         loop = [{"content": None, "tool_calls": [call]}] * services.MAX_TOOL_ROUNDS
         with (
-            patch("apps.assistant.services.llm.chat", side_effect=[*loop, {"content": "Listo"}]) as chat,
+            patch("apps.assistant.llm.Session.chat", side_effect=[*loop, {"content": "Listo"}]) as chat,
             patch("apps.assistant.tools.public_lodgings"),
         ):
             result = services.reply(message="ciudades", history=[])
         self.assertEqual(result["respuesta"], "Listo")
         self.assertNotIn("tools", chat.call_args.kwargs)
-        self.assertEqual(chat.call_args.kwargs["profile"], llm.CLIENTE)
 
-    def test_turista_conversa_con_el_perfil_de_clientes(self):
-        with (
-            patch("apps.assistant.services.report_tool.context_for", return_value=None),
-            patch("apps.assistant.services.llm.chat", return_value={"content": "ok"}) as chat,
-        ):
-            services.reply(message="hola", history=[], user=MagicMock())
-        self.assertEqual(chat.call_args.kwargs["profile"], llm.CLIENTE)
-
-    def test_quien_ve_reportes_conversa_con_el_perfil_de_empresa(self):
-        reports = MagicMock(global_scope=False, reports=[])
+    def _profile(self, reports):
         with (
             patch("apps.assistant.services.report_tool.context_for", return_value=reports),
-            patch("apps.assistant.services.llm.chat", return_value={"content": "ok"}) as chat,
+            patch("apps.assistant.services.llm.Session") as session,
         ):
-            services.reply(message="reporte", history=[], user=MagicMock())
-        self.assertEqual(chat.call_args.kwargs["profile"], llm.EMPRESA)
+            session.return_value.chat.return_value = {"content": "ok"}
+            services.reply(message="hola", history=[], user=MagicMock())
+        session.assert_called_once()
+        return session.call_args.args[0]
+
+    def test_turista_conversa_con_el_perfil_de_clientes(self):
+        self.assertEqual(self._profile(None), llm.CLIENTE)
+
+    def test_quien_ve_reportes_conversa_con_el_perfil_de_empresa(self):
+        self.assertEqual(self._profile(MagicMock(global_scope=False, reports=[])), llm.EMPRESA)
+
+    def test_todas_las_llamadas_del_mensaje_usan_la_misma_sesion(self):
+        call = {"id": "c1", "function": {"name": "listar_ciudades", "arguments": "{}"}}
+        with (
+            patch("apps.assistant.services.llm.Session") as session,
+            patch("apps.assistant.tools.public_lodgings"),
+        ):
+            session.return_value.chat.side_effect = [
+                {"content": None, "tool_calls": [call]},
+                {"content": "Listo"},
+            ]
+            services.reply(message="ciudades", history=[])
+        session.assert_called_once()
+        self.assertEqual(session.return_value.chat.call_count, 2)
 
 
 # --- Vistas ------------------------------------------------------------------
