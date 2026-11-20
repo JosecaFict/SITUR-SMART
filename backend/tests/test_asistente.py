@@ -60,6 +60,9 @@ def lodging(**kwargs):
 
 @override_settings(**CONFIGURADO)
 class LlmClientTests(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+
     @override_settings(IA_API_KEY="")
     def test_sin_clave_no_llama_al_proveedor(self):
         with patch("apps.assistant.llm.urllib.request.urlopen") as urlopen:
@@ -124,6 +127,125 @@ class LlmClientTests(SimpleTestCase):
         self.assertFalse(llm.voice_configured())
         with self.assertRaises(llm.AssistantUnavailable):
             llm.transcribe(audio=b"x", filename="a.webm", content_type="audio/webm")
+
+
+# --- Perfiles y respaldo entre proveedores -----------------------------------
+
+CLAVE_CLIENTE = "AIza-clave-de-prueba-no-real-cliente"
+DOS_PROVEEDORES = {
+    **CONFIGURADO,
+    "IA_CLIENTE_BASE_URL": "https://cliente.test/openai/",
+    "IA_CLIENTE_API_KEY": CLAVE_CLIENTE,
+    "IA_CLIENTE_MODEL": "modelo-cliente",
+    "IA_COOLDOWN_SECONDS": 300,
+}
+URL_CLIENTE = "https://cliente.test/openai/chat/completions"
+URL_EMPRESA = "https://proveedor.test/v1/chat/completions"
+
+
+def _error(code: int):
+    return urllib.error.HTTPError("u", code, "x", {}, BytesIO(b"{}"))
+
+
+def _urls(urlopen) -> list[str]:
+    return [call.args[0].full_url for call in urlopen.call_args_list]
+
+
+@override_settings(**DOS_PROVEEDORES)
+class ProviderFallbackTests(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+
+    def _chat(self, side_effect, profile):
+        with patch("apps.assistant.llm.urllib.request.urlopen", side_effect=side_effect) as urlopen:
+            answer = llm.chat([{"role": "user", "content": "hola"}], profile=profile)
+        return answer, urlopen
+
+    def test_turista_usa_el_proveedor_de_clientes_con_su_clave(self):
+        answer, urlopen = self._chat([respuesta(mensaje("Hola"))], llm.CLIENTE)
+        self.assertEqual(answer["content"], "Hola")
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE])
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.get_header("Authorization"), f"Bearer {CLAVE_CLIENTE}")
+        self.assertEqual(json.loads(request.data)["model"], "modelo-cliente")
+
+    def test_empresa_usa_las_variables_ia_de_siempre(self):
+        _, urlopen = self._chat([respuesta(mensaje("Hola"))], llm.EMPRESA)
+        self.assertEqual(_urls(urlopen), [URL_EMPRESA])
+        self.assertEqual(urlopen.call_args.args[0].get_header("Authorization"), f"Bearer {CLAVE}")
+
+    @override_settings(
+        IA_EMPRESA_BASE_URL="https://empresa.test/v1", IA_EMPRESA_API_KEY="k", IA_EMPRESA_MODEL="m"
+    )
+    def test_ia_empresa_tiene_prioridad_sobre_ia(self):
+        _, urlopen = self._chat([respuesta(mensaje("Hola"))], llm.EMPRESA)
+        self.assertEqual(_urls(urlopen), ["https://empresa.test/v1/chat/completions"])
+
+    def test_cuota_agotada_pasa_al_respaldo_y_deja_en_pausa_al_principal(self):
+        answer, urlopen = self._chat([_error(429), respuesta(mensaje("Respaldo"))], llm.CLIENTE)
+        self.assertEqual(answer["content"], "Respaldo")
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE, URL_EMPRESA])
+
+        # El siguiente mensaje va directo al respaldo, sin gastar un intento.
+        _, urlopen = self._chat([respuesta(mensaje("Otra"))], llm.CLIENTE)
+        self.assertEqual(_urls(urlopen), [URL_EMPRESA])
+
+    def test_empresa_agotada_responde_el_proveedor_de_clientes(self):
+        answer, urlopen = self._chat([_error(429), respuesta(mensaje("Gemini"))], llm.EMPRESA)
+        self.assertEqual(answer["content"], "Gemini")
+        self.assertEqual(_urls(urlopen), [URL_EMPRESA, URL_CLIENTE])
+
+    def test_caida_del_principal_usa_el_respaldo_sin_pausarlo(self):
+        self._chat([_error(500), respuesta(mensaje("ok"))], llm.CLIENTE)
+        _, urlopen = self._chat([respuesta(mensaje("ok"))], llm.CLIENTE)
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE])
+
+    def test_ambos_agotados_es_limite_de_cuota(self):
+        with self.assertRaises(llm.AssistantRateLimited):
+            self._chat([_error(429), _error(429)], llm.CLIENTE)
+
+    def test_si_uno_cae_y_otro_se_agota_no_es_limite_de_cuota(self):
+        with self.assertRaises(llm.AssistantUnavailable) as ctx:
+            self._chat([_error(500), _error(429)], llm.CLIENTE)
+        self.assertNotIsInstance(ctx.exception, llm.AssistantRateLimited)
+
+    def test_en_pausa_se_reintenta_si_no_queda_otro(self):
+        cache.set(llm.provider(llm.CLIENTE).cooldown_key, True)
+        cache.set(llm.provider(llm.EMPRESA).cooldown_key, True)
+        answer, urlopen = self._chat([respuesta(mensaje("volvio"))], llm.CLIENTE)
+        self.assertEqual(answer["content"], "volvio")
+        self.assertEqual(_urls(urlopen), [URL_CLIENTE])
+
+    @override_settings(IA_CLIENTE_REASONING_EFFORT="none")
+    def test_reasoning_effort_solo_se_envia_si_se_define(self):
+        _, urlopen = self._chat([respuesta(mensaje("a"))], llm.CLIENTE)
+        self.assertEqual(json.loads(urlopen.call_args.args[0].data)["reasoning_effort"], "none")
+        _, urlopen = self._chat([respuesta(mensaje("b"))], llm.EMPRESA)
+        self.assertNotIn("reasoning_effort", json.loads(urlopen.call_args.args[0].data))
+
+    @override_settings(IA_CLIENTE_API_KEY="")
+    def test_sin_gemini_el_turista_usa_groq_como_antes(self):
+        _, urlopen = self._chat([respuesta(mensaje("Hola"))], llm.CLIENTE)
+        self.assertEqual(_urls(urlopen), [URL_EMPRESA])
+
+    @override_settings(IA_API_KEY="")
+    def test_solo_con_gemini_el_chat_sigue_disponible_pero_la_voz_no(self):
+        self.assertTrue(llm.is_configured())
+        self.assertFalse(llm.voice_configured())
+
+    def test_la_voz_usa_siempre_el_proveedor_de_empresa(self):
+        with patch(
+            "apps.assistant.llm.urllib.request.urlopen", return_value=respuesta({"text": "hola"})
+        ) as urlopen:
+            llm.transcribe(audio=b"x", filename="a.webm", content_type="audio/webm")
+        self.assertEqual(_urls(urlopen), ["https://proveedor.test/v1/audio/transcriptions"])
+
+    def test_los_registros_no_incluyen_claves(self):
+        with self.assertLogs("apps.assistant.llm", level="WARNING") as logs:
+            self._chat([_error(429), respuesta(mensaje("ok"))], llm.CLIENTE)
+        salida = "\n".join(logs.output)
+        self.assertNotIn(CLAVE, salida)
+        self.assertNotIn(CLAVE_CLIENTE, salida)
 
 
 # --- Recomendaciones ---------------------------------------------------------
@@ -237,6 +359,24 @@ class ConversationTests(SimpleTestCase):
             result = services.reply(message="ciudades", history=[])
         self.assertEqual(result["respuesta"], "Listo")
         self.assertNotIn("tools", chat.call_args.kwargs)
+        self.assertEqual(chat.call_args.kwargs["profile"], llm.CLIENTE)
+
+    def test_turista_conversa_con_el_perfil_de_clientes(self):
+        with (
+            patch("apps.assistant.services.report_tool.context_for", return_value=None),
+            patch("apps.assistant.services.llm.chat", return_value={"content": "ok"}) as chat,
+        ):
+            services.reply(message="hola", history=[], user=MagicMock())
+        self.assertEqual(chat.call_args.kwargs["profile"], llm.CLIENTE)
+
+    def test_quien_ve_reportes_conversa_con_el_perfil_de_empresa(self):
+        reports = MagicMock(global_scope=False, reports=[])
+        with (
+            patch("apps.assistant.services.report_tool.context_for", return_value=reports),
+            patch("apps.assistant.services.llm.chat", return_value={"content": "ok"}) as chat,
+        ):
+            services.reply(message="reporte", history=[], user=MagicMock())
+        self.assertEqual(chat.call_args.kwargs["profile"], llm.EMPRESA)
 
 
 # --- Vistas ------------------------------------------------------------------
