@@ -1,8 +1,9 @@
 """Herramientas que el modelo puede pedir que ejecutemos (function calling).
 
 El modelo nunca toca la base: describe que quiere buscar y este modulo hace la
-consulta con los mismos filtros publicos del Marketplace. Solo ve hospedajes
-publicados de empresas activas, igual que un visitante anonimo.
+consulta con los mismos filtros publicos del Marketplace. Solo ve la oferta
+publicada de empresas activas, igual que un visitante anonimo. Las herramientas
+de tours, promociones, intereses y paquetes estan en ``travel_tools.py``.
 
 Cada herramienta valida y acota sus argumentos: lo que llega lo escribio un
 modelo de lenguaje y puede venir con tipos equivocados o valores absurdos.
@@ -14,7 +15,9 @@ from decimal import Decimal, InvalidOperation
 
 from apps.catalog.services import public_lodgings, public_rooms
 
+from . import travel_tools
 from .recommendations import Criteria, as_card, recommend
+from .travel_tools import Collected
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +67,87 @@ DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "listar_ciudades",
-            "description": "Lista las ciudades donde hay hospedajes publicados.",
+            "description": (
+                "Lista las unicas ciudades con oferta publicada en SITUR-SMART y cuantos "
+                "hospedajes y tours tiene cada una. Usala antes de sugerir un destino."
+            ),
             "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "buscar_tours",
+            "description": (
+                "Busca tours y experiencias publicados con salidas abiertas. Usala siempre "
+                "antes de mencionar cualquier tour, actividad, precio u horario."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ciudad": {"type": "string", "description": "Ciudad o localidad, ej. 'Uyuni'."},
+                    "tipo": {"type": "string", "enum": ["TOUR", "EXPERIENCIA"]},
+                    "presupuesto": {"type": "number", "description": "Precio maximo por persona."},
+                    "dificultad": {"type": "string", "enum": ["BAJA", "MEDIA", "ALTA"]},
+                    "buscar": {"type": "string", "description": "Texto libre, ej. 'salar' o 'vino'."},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "detalle_tour",
+            "description": (
+                "Detalle de un tour o experiencia: recorrido, que incluye, punto de encuentro "
+                "y proximas salidas con lugares libres."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"id": {"type": "integer", "description": "id del tour."}},
+                "required": ["id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "promociones_vigentes",
+            "description": "Lista las promociones y ofertas vigentes, con su descuento y precio final.",
+            "parameters": {
+                "type": "object",
+                "properties": {"ciudad": {"type": "string", "description": "Filtra por ciudad (opcional)."}},
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "mis_intereses",
+            "description": (
+                "Ciudades y tipos de servicio que le interesan al viajero segun sus favoritos, "
+                "reservas y resenas. Usala para personalizar recomendaciones."
+            ),
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "estimar_paquete",
+            "description": (
+                "Calcula el costo estimado de un paquete con un hospedaje y/o tours para N "
+                "personas y noches. Usala en vez de sumar precios tu mismo."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "hospedaje_id": {"type": "integer"},
+                    "noches": {"type": "integer"},
+                    "personas": {"type": "integer"},
+                    "tour_ids": {"type": "array", "items": {"type": "integer"}},
+                },
+            },
         },
     },
 ]
@@ -83,7 +165,7 @@ def _text(value, limit: int = 80) -> str | None:
     return str(value).strip()[:limit] or None if value is not None else None
 
 
-def _buscar_hospedajes(args: dict, cards: dict) -> dict:
+def _buscar_hospedajes(args: dict, collected: Collected, **_) -> dict:
     presupuesto = None
     if args.get("presupuesto") is not None:
         try:
@@ -108,20 +190,20 @@ def _buscar_hospedajes(args: dict, cards: dict) -> dict:
         )
     )
     for card in results:
-        cards[card["id"]] = card
+        collected.hospedajes[card["id"]] = card
     if not results:
         return {"resultados": [], "nota": "No hay hospedajes publicados que cumplan esos criterios."}
     return {"resultados": results}
 
 
-def _detalle_hospedaje(args: dict, cards: dict) -> dict:
+def _detalle_hospedaje(args: dict, collected: Collected, **_) -> dict:
     lodging_id = _int(args.get("id"), low=1, high=2**62)
     lodging = public_lodgings().filter(id=lodging_id).first() if lodging_id else None
     if lodging is None:
         return {"error": "Ese hospedaje no existe o no esta publicado."}
 
     card = as_card(lodging)
-    cards[card["id"]] = card
+    collected.hospedajes[card["id"]] = card
     rooms = public_rooms().filter(establishment=lodging).order_by("product__base_price", "id")[:10]
     return {
         **card,
@@ -142,28 +224,24 @@ def _detalle_hospedaje(args: dict, cards: dict) -> dict:
     }
 
 
-def _listar_ciudades(args: dict, cards: dict) -> dict:
-    names = (
-        public_lodgings()
-        .order_by()
-        .values_list("product__city__name", flat=True)
-        .distinct()
-    )
-    return {"ciudades": sorted(set(names))}
-
-
 HANDLERS = {
     "buscar_hospedajes": _buscar_hospedajes,
     "detalle_hospedaje": _detalle_hospedaje,
-    "listar_ciudades": _listar_ciudades,
+    "listar_ciudades": travel_tools.listar_ciudades,
+    "buscar_tours": travel_tools.buscar_tours,
+    "detalle_tour": travel_tools.detalle_tour,
+    "promociones_vigentes": travel_tools.promociones_vigentes,
+    "mis_intereses": travel_tools.mis_intereses,
+    "estimar_paquete": travel_tools.estimar_paquete,
 }
 
 
-def run(name: str, raw_arguments: str | None, cards: dict) -> str:
+def run(name: str, raw_arguments: str | None, collected: Collected, user=None) -> str:
     """Ejecuta una herramienta y devuelve su resultado como JSON para el modelo.
 
-    ``cards`` acumula los hospedajes que aparecieron, para que la respuesta de
-    la API los devuelva como tarjetas enlazables ademas del texto.
+    ``collected`` acumula los hospedajes, tours y promociones que aparecieron,
+    para que la respuesta de la API los devuelva como tarjetas enlazables
+    ademas del texto. ``user`` es el viajero, para ``mis_intereses``.
     """
     handler = HANDLERS.get(name)
     if handler is None:
@@ -175,7 +253,7 @@ def run(name: str, raw_arguments: str | None, cards: dict) -> str:
     if not isinstance(args, dict):
         args = {}
     try:
-        result = handler(args, cards)
+        result = handler(args, collected, user=user)
     except Exception:
         # Una herramienta que falla no tiene que tumbar la conversacion: el
         # modelo recibe el error y puede disculparse o reformular.

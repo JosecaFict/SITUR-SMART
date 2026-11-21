@@ -84,7 +84,10 @@ class LlmClientTests(SimpleTestCase):
         self.assertEqual(body["tool_choice"], "auto")
         self.assertEqual(
             {t["function"]["name"] for t in body["tools"]},
-            {"buscar_hospedajes", "detalle_hospedaje", "listar_ciudades"},
+            {
+                "buscar_hospedajes", "detalle_hospedaje", "listar_ciudades", "buscar_tours",
+                "detalle_tour", "promociones_vigentes", "mis_intereses", "estimar_paquete",
+            },
         )
 
     def test_429_se_distingue_como_limite_de_cuota(self):
@@ -203,14 +206,14 @@ class RecommendationScoreTests(SimpleTestCase):
 
 class ToolRunTests(SimpleTestCase):
     def test_herramienta_desconocida(self):
-        self.assertIn("desconocida", tools.run("borrar_todo", "{}", {}))
+        self.assertIn("desconocida", tools.run("borrar_todo", "{}", tools.Collected()))
 
     def test_argumentos_invalidos_se_sanean(self):
         with patch("apps.assistant.tools.recommend", return_value=[]) as recommend:
             tools.run(
                 "buscar_hospedajes",
                 '{"presupuesto": "abc", "huespedes": 9999, "estrellas": 9, "servicios": "wifi"}',
-                {},
+                tools.Collected(),
             )
         criteria = recommend.call_args.args[0]
         self.assertIsNone(criteria.presupuesto)
@@ -220,20 +223,20 @@ class ToolRunTests(SimpleTestCase):
 
     def test_json_roto_no_rompe(self):
         with patch("apps.assistant.tools.recommend", return_value=[]):
-            result = json.loads(tools.run("buscar_hospedajes", "{no es json", {}))
+            result = json.loads(tools.run("buscar_hospedajes", "{no es json", tools.Collected()))
         self.assertEqual(result["resultados"], [])
 
     def test_fallo_interno_se_devuelve_como_error_al_modelo(self):
         with patch("apps.assistant.tools.recommend", side_effect=RuntimeError("db")):
             with self.assertLogs("apps.assistant.tools", level="ERROR"):
-                result = json.loads(tools.run("buscar_hospedajes", "{}", {}))
+                result = json.loads(tools.run("buscar_hospedajes", "{}", tools.Collected()))
         self.assertIn("error", result)
 
     def test_resultados_se_acumulan_como_tarjetas(self):
-        cards = {}
+        collected = tools.Collected()
         with patch("apps.assistant.tools.recommend", return_value=[{"id": 7, "nombre": "H"}]):
-            tools.run("buscar_hospedajes", '{"ciudad": "Uyuni"}', cards)
-        self.assertEqual(cards, {7: {"id": 7, "nombre": "H"}})
+            tools.run("buscar_hospedajes", '{"ciudad": "Uyuni"}', collected)
+        self.assertEqual(collected.hospedajes, {7: {"id": 7, "nombre": "H"}})
 
 
 # --- Conversacion ------------------------------------------------------------
@@ -321,12 +324,12 @@ class AssistantViewTests(_ViewCase):
             response = self._post(
                 AssistantChatView,
                 "/api/v1/asistente/chat/",
-                {"mensaje": " hola ", "historial": [{"rol": "usuario", "contenido": "x"}] * 15},
+                {"mensaje": " hola ", "historial": [{"rol": "usuario", "contenido": "x"}] * 20},
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["respuesta"], "Hola")
         self.assertEqual(reply.call_args.kwargs["message"], "hola")
-        self.assertEqual(len(reply.call_args.kwargs["history"]), 10)
+        self.assertEqual(len(reply.call_args.kwargs["history"]), 16)
 
     def test_chat_vacio_es_400(self):
         response = self._post(AssistantChatView, "/api/v1/asistente/chat/", {"mensaje": "   "})

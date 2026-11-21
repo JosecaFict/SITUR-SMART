@@ -5,7 +5,7 @@ from rest_framework import serializers
 MAX_MESSAGE_LENGTH = 1000
 # Solo los ultimos mensajes viajan al proveedor: el historial completo gastaria
 # cuota en cada pedido sin mejorar mucho la respuesta.
-MAX_HISTORY = 10
+MAX_HISTORY = 16
 MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10 MB, ~5 min de voz comprimida
 ALLOWED_AUDIO_EXTENSIONS = {".webm", ".ogg", ".mp3", ".m4a", ".mp4", ".wav", ".flac", ".aac"}
 
@@ -53,9 +53,47 @@ class GeneratedReportSerializer(serializers.Serializer):
     filas = serializers.IntegerField()
 
 
+class TourCardSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+    tipo = serializers.CharField()
+    ciudad = serializers.CharField()
+    localidad = serializers.CharField(allow_null=True)
+    empresa = serializers.CharField()
+    precio_por_persona = serializers.CharField()
+    moneda = serializers.CharField()
+    duracion = serializers.CharField(allow_null=True)
+    dificultad = serializers.CharField(allow_null=True)
+    edad_minima = serializers.IntegerField(allow_null=True)
+    idioma = serializers.CharField(allow_null=True)
+    proxima_salida = serializers.CharField(allow_null=True)
+    salidas_disponibles = serializers.IntegerField(allow_null=True)
+    imagen_url = serializers.CharField(allow_null=True)
+    url = serializers.CharField()
+
+
+class PromotionCardSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+    empresa = serializers.CharField()
+    modalidad = serializers.CharField()
+    descuento_porcentaje = serializers.CharField()
+    precio_original = serializers.CharField(allow_null=True)
+    precio_final = serializers.CharField(allow_null=True)
+    moneda = serializers.CharField(allow_null=True)
+    incluye = serializers.ListField(child=serializers.CharField())
+    ciudades = serializers.ListField(child=serializers.CharField())
+    vence = serializers.CharField(allow_null=True)
+    se_puede_reservar = serializers.BooleanField()
+    imagen_url = serializers.CharField(allow_null=True)
+    url = serializers.CharField()
+
+
 class ChatResponseSerializer(serializers.Serializer):
     respuesta = serializers.CharField()
     hospedajes = LodgingCardSerializer(many=True)
+    tours = TourCardSerializer(many=True)
+    promociones = PromotionCardSerializer(many=True)
     reportes = GeneratedReportSerializer(many=True)
 
 
