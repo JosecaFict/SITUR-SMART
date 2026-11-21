@@ -17,139 +17,65 @@ from apps.catalog.services import public_lodgings, public_rooms
 
 from . import travel_tools
 from .recommendations import Criteria, as_card, recommend
+from .schema import for_model, nullable_optionals
 from .travel_tools import Collected
 
 logger = logging.getLogger(__name__)
 
+def _tool(name: str, description: str, properties: dict | None = None, required=()) -> dict:
+    parameters = {"type": "object", "properties": properties or {}}
+    if required:
+        parameters["required"] = list(required)
+    return {"type": "function", "function": {"name": name, "description": description, "parameters": parameters}}
+
+
+_ID = {"id": {"type": "integer"}}
+_CIUDAD = {"type": "string", "description": "Ciudad o localidad"}
+
+# Descripciones cortas a proposito: viajan en cada llamada y cuentan contra la
+# cuota de tokens por minuto del proveedor. Las reglas de uso estan en el prompt.
 DEFINITIONS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_hospedajes",
-            "description": (
-                "Busca y recomienda hospedajes publicados en SITUR-SMART, ordenados por "
-                "afinidad con lo que pide el viajero. Usala siempre antes de mencionar "
-                "cualquier hotel, precio o disponibilidad."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "ciudad": {"type": "string", "description": "Ciudad o localidad, ej. 'Uyuni'."},
-                    "presupuesto": {
-                        "type": "number",
-                        "description": "Precio maximo por noche en la moneda del hospedaje.",
-                    },
-                    "huespedes": {"type": "integer", "description": "Cantidad de personas."},
-                    "estrellas": {"type": "integer", "description": "Categoria minima, 1 a 5."},
-                    "servicios": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Servicios deseados, ej. ['wifi', 'desayuno'].",
-                    },
-                    "buscar": {"type": "string", "description": "Texto libre: nombre o zona."},
-                },
+    nullable_optionals(definition)
+    for definition in (
+        _tool(
+            "buscar_hospedajes",
+            "Hospedajes publicados, ordenados por afinidad.",
+            {
+                "ciudad": _CIUDAD,
+                "presupuesto": {"type": "number", "description": "Maximo por noche"},
+                "huespedes": {"type": "integer"},
+                "estrellas": {"type": "integer", "description": "Minimo, 1 a 5"},
+                "servicios": {"type": "array", "items": {"type": "string"}},
+                "buscar": {"type": "string", "description": "Nombre o zona"},
             },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "detalle_hospedaje",
-            "description": "Devuelve el detalle de un hospedaje y sus habitaciones con precio por noche.",
-            "parameters": {
-                "type": "object",
-                "properties": {"id": {"type": "integer", "description": "id del hospedaje."}},
-                "required": ["id"],
+        ),
+        _tool("detalle_hospedaje", "Detalle de un hospedaje y sus habitaciones.", _ID, ["id"]),
+        _tool("listar_ciudades", "Ciudades con oferta publicada y cuantos hospedajes y tours tiene cada una."),
+        _tool(
+            "buscar_tours",
+            "Tours y experiencias publicados con salidas abiertas.",
+            {
+                "ciudad": _CIUDAD,
+                "tipo": {"type": "string", "enum": ["TOUR", "EXPERIENCIA"]},
+                "presupuesto": {"type": "number", "description": "Maximo por persona"},
+                "dificultad": {"type": "string", "enum": ["BAJA", "MEDIA", "ALTA"]},
+                "buscar": {"type": "string", "description": "Texto libre"},
             },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "listar_ciudades",
-            "description": (
-                "Lista las unicas ciudades con oferta publicada en SITUR-SMART y cuantos "
-                "hospedajes y tours tiene cada una. Usala antes de sugerir un destino."
-            ),
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_tours",
-            "description": (
-                "Busca tours y experiencias publicados con salidas abiertas. Usala siempre "
-                "antes de mencionar cualquier tour, actividad, precio u horario."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "ciudad": {"type": "string", "description": "Ciudad o localidad, ej. 'Uyuni'."},
-                    "tipo": {"type": "string", "enum": ["TOUR", "EXPERIENCIA"]},
-                    "presupuesto": {"type": "number", "description": "Precio maximo por persona."},
-                    "dificultad": {"type": "string", "enum": ["BAJA", "MEDIA", "ALTA"]},
-                    "buscar": {"type": "string", "description": "Texto libre, ej. 'salar' o 'vino'."},
-                },
+        ),
+        _tool("detalle_tour", "Recorrido, que incluye y proximas salidas con lugares libres.", _ID, ["id"]),
+        _tool("promociones_vigentes", "Promociones vigentes con descuento y precio final.", {"ciudad": _CIUDAD}),
+        _tool("mis_intereses", "Ciudades y tipos que le interesan al viajero segun su actividad."),
+        _tool(
+            "estimar_paquete",
+            "Costo estimado de hospedaje y/o tours para N personas y noches.",
+            {
+                "hospedaje_id": {"type": "integer"},
+                "noches": {"type": "integer"},
+                "personas": {"type": "integer"},
+                "tour_ids": {"type": "array", "items": {"type": "integer"}},
             },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "detalle_tour",
-            "description": (
-                "Detalle de un tour o experiencia: recorrido, que incluye, punto de encuentro "
-                "y proximas salidas con lugares libres."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {"id": {"type": "integer", "description": "id del tour."}},
-                "required": ["id"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "promociones_vigentes",
-            "description": "Lista las promociones y ofertas vigentes, con su descuento y precio final.",
-            "parameters": {
-                "type": "object",
-                "properties": {"ciudad": {"type": "string", "description": "Filtra por ciudad (opcional)."}},
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "mis_intereses",
-            "description": (
-                "Ciudades y tipos de servicio que le interesan al viajero segun sus favoritos, "
-                "reservas y resenas. Usala para personalizar recomendaciones."
-            ),
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "estimar_paquete",
-            "description": (
-                "Calcula el costo estimado de un paquete con un hospedaje y/o tours para N "
-                "personas y noches. Usala en vez de sumar precios tu mismo."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "hospedaje_id": {"type": "integer"},
-                    "noches": {"type": "integer"},
-                    "personas": {"type": "integer"},
-                    "tour_ids": {"type": "array", "items": {"type": "integer"}},
-                },
-            },
-        },
-    },
+        ),
+    )
 ]
 
 
@@ -259,4 +185,4 @@ def run(name: str, raw_arguments: str | None, collected: Collected, user=None) -
         # modelo recibe el error y puede disculparse o reformular.
         logger.exception("Fallo la herramienta %s del asistente", name)
         result = {"error": "No se pudo consultar la informacion en este momento."}
-    return json.dumps(result, ensure_ascii=False, default=str)
+    return json.dumps(for_model(result), ensure_ascii=False, default=str)

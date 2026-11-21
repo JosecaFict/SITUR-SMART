@@ -19,6 +19,8 @@ from apps.rbac.services import is_superadmin
 from apps.reports.services import build_report, report_scope
 from apps.tenancy.models import Tenant
 
+from .schema import nullable_optionals
+
 TITLES = {
     "plataforma": "Empresas y planes",
     "catalogo": "Catálogo",
@@ -57,6 +59,8 @@ DEFINITION = {
         },
     },
 }
+# gpt-oss manda null en los filtros que no usa: ver schema.nullable_optionals.
+DEFINITION = nullable_optionals(DEFINITION)
 
 
 @dataclass

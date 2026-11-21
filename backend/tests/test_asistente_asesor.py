@@ -74,8 +74,9 @@ class BuscarToursTests(SimpleTestCase):
         self.assertEqual(card["duracion"], "2 h 30 min")
         self.assertEqual(card["dificultad"], "Media")
         self.assertEqual(card["proxima_salida"], "01/12/2026 08:00")
-        self.assertEqual(card["url"], "/marketplace/productos/1")
-        self.assertEqual(list(collected.tours), [1])
+        # El enlace va a la tarjeta de la app, no al modelo: ahorra tokens.
+        self.assertNotIn("url", card)
+        self.assertEqual(collected.tours[1]["url"], "/marketplace/productos/1")
 
     def test_argumentos_invalidos_se_descartan(self):
         with patch.object(travel_tools, "_find_tours", return_value=[]) as find:
@@ -173,8 +174,8 @@ class PromocionesTests(SimpleTestCase):
         self.assertEqual(card["descuento_porcentaje"], "15.00")
         self.assertEqual(card["ciudades"], ["Sucre"])
         self.assertTrue(card["se_puede_reservar"])
-        self.assertEqual(card["url"], "/marketplace/promociones/3")
-        self.assertIn(3, collected.promociones)
+        self.assertNotIn("url", card)
+        self.assertEqual(collected.promociones[3]["url"], "/marketplace/promociones/3")
 
     def test_filtra_por_ciudad(self):
         found = [(promotion(id=1, city="Sucre"), DATA), (promotion(id=2, city="Santa Cruz"), DATA)]
@@ -388,3 +389,40 @@ class ConsultasSqlTests(SimpleTestCase):
         ]
         for query in queries:
             self.assertIn("SELECT", str(query.query))
+
+
+# --- Esquema y tamano ---------------------------------------------------------
+
+
+class EsquemaTests(SimpleTestCase):
+    def test_los_parametros_opcionales_aceptan_null(self):
+        from apps.assistant import report_tool
+
+        definitions = [*tools.DEFINITIONS, report_tool.DEFINITION]
+        for definition in definitions:
+            parameters = definition["function"]["parameters"]
+            required = set(parameters.get("required") or [])
+            for name, spec in parameters["properties"].items():
+                with self.subTest(tool=definition["function"]["name"], parameter=name):
+                    if name in required:
+                        self.assertNotIn("null", spec["type"])
+                    else:
+                        self.assertIn("null", spec["type"])
+                        if "enum" in spec:
+                            self.assertIn(None, spec["enum"])
+
+    def test_null_en_un_filtro_no_rompe_la_herramienta(self):
+        with patch.object(travel_tools, "_find_promotions", return_value=[]):
+            result, _ = call("promociones_vigentes", {"ciudad": None})
+        self.assertEqual(result["resultados"], [])
+        with patch("apps.assistant.tools.recommend", return_value=[]) as recommend:
+            call("buscar_hospedajes", {"ciudad": None, "presupuesto": None, "servicios": None})
+        self.assertIsNone(recommend.call_args.args[0].ciudad)
+
+    def test_el_modelo_no_recibe_campos_de_tarjeta_pero_la_app_si(self):
+        card = {"id": 7, "nombre": "H", "url": "/x", "imagen_url": "/i.jpg", "puntaje": 40}
+        collected = Collected()
+        with patch("apps.assistant.tools.recommend", return_value=[card]):
+            result, _ = call("buscar_hospedajes", {}, collected)
+        self.assertEqual(result["resultados"], [{"id": 7, "nombre": "H"}])
+        self.assertEqual(collected.hospedajes[7]["url"], "/x")
