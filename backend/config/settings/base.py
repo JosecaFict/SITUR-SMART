@@ -239,25 +239,6 @@ IA_MODEL = os.getenv("IA_MODEL", "openai/gpt-oss-120b")
 IA_STT_MODEL = os.getenv("IA_STT_MODEL", "whisper-large-v3-turbo")
 IA_TIMEOUT_SECONDS = int(os.getenv("IA_TIMEOUT_SECONDS", "30"))
 IA_MAX_TOKENS = int(os.getenv("IA_MAX_TOKENS", "1024"))
-
-# Dos perfiles: el turista conversa con IA_CLIENTE_* (Gemini) y el personal de
-# empresas y el SuperAdmin con IA_EMPRESA_* (Groq). Si un proveedor agota su
-# cuota o falla, el otro responde de respaldo. IA_EMPRESA_* toma las IA_* de
-# arriba cuando no se definen, asi un despliegue que solo tiene IA_* sigue igual.
-# REASONING_EFFORT es opcional: con Gemini 2.5 Flash, "none" evita que el
-# razonamiento interno consuma los tokens de la respuesta.
-IA_CLIENTE_BASE_URL = os.getenv("IA_CLIENTE_BASE_URL", "")
-IA_CLIENTE_API_KEY = os.getenv("IA_CLIENTE_API_KEY", "")
-IA_CLIENTE_MODEL = os.getenv("IA_CLIENTE_MODEL", "")
-IA_CLIENTE_MAX_TOKENS = int(os.getenv("IA_CLIENTE_MAX_TOKENS", str(IA_MAX_TOKENS)))
-IA_CLIENTE_REASONING_EFFORT = os.getenv("IA_CLIENTE_REASONING_EFFORT", "")
-IA_EMPRESA_BASE_URL = os.getenv("IA_EMPRESA_BASE_URL", "")
-IA_EMPRESA_API_KEY = os.getenv("IA_EMPRESA_API_KEY", "")
-IA_EMPRESA_MODEL = os.getenv("IA_EMPRESA_MODEL", "")
-IA_EMPRESA_MAX_TOKENS = int(os.getenv("IA_EMPRESA_MAX_TOKENS", str(IA_MAX_TOKENS)))
-IA_EMPRESA_REASONING_EFFORT = os.getenv("IA_EMPRESA_REASONING_EFFORT", "")
-# Segundos que un proveedor que respondio 429 queda en pausa antes de reintentarlo.
-IA_COOLDOWN_SECONDS = int(os.getenv("IA_COOLDOWN_SECONDS", "300"))
 # Espera antes de reintentar una vez un 503 (proveedor saturado).
 IA_RETRY_DELAY_SECONDS = float(os.getenv("IA_RETRY_DELAY_SECONDS", "1"))
 

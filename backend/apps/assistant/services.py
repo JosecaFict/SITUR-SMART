@@ -60,10 +60,6 @@ def reply(*, message: str, history: list[dict], user=None, tenant_id: int | None
     reports = report_tool.context_for(user, tenant_id) if user is not None else None
     system = SYSTEM_PROMPT.format(hoy=timezone.localdate().isoformat())
     definitions = tools.DEFINITIONS
-    # El turista conversa con el proveedor de clientes (Gemini) y quien ve
-    # reportes con el de empresas (Groq); cada uno es respaldo del otro.
-    # Todas las llamadas de este mensaje van al mismo proveedor (ver llm.Session).
-    session = llm.Session(llm.EMPRESA if reports is not None else llm.CLIENTE)
     if reports is not None:
         who = "SuperAdmin de toda la plataforma" if reports.global_scope else "personal de una empresa"
         system += STAFF_PROMPT.format(quien=who)
@@ -76,7 +72,7 @@ def reply(*, message: str, history: list[dict], user=None, tenant_id: int | None
     cards: dict[int, dict] = {}
 
     for _ in range(MAX_TOOL_ROUNDS):
-        answer = session.chat(conversation, tools=definitions)
+        answer = llm.chat(conversation, tools=definitions)
         tool_calls = answer.get("tool_calls") or []
         if not tool_calls:
             break
@@ -95,7 +91,7 @@ def reply(*, message: str, history: list[dict], user=None, tenant_id: int | None
     else:
         # Agoto las rondas pidiendo herramientas: se fuerza una respuesta final
         # sin ellas para no devolver un texto vacio.
-        answer = session.chat(conversation)
+        answer = llm.chat(conversation)
 
     text = (answer.get("content") or "").strip()
     if not text:
