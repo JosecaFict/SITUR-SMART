@@ -113,7 +113,8 @@ def _buscar_hospedajes(args: dict, collected: Collected, **_) -> dict:
             servicios=[s for s in (_text(x, 40) for x in servicios[:6]) if s],
             buscar=_text(args.get("buscar")),
             limite=5,
-        )
+        ),
+        contact=True,
     )
     for card in results:
         collected.hospedajes[card["id"]] = card
@@ -131,7 +132,7 @@ def _detalle_hospedaje(args: dict, collected: Collected, **_) -> dict:
     if lodging is None:
         return {"error": "Ese hospedaje no existe o no esta publicado."}
 
-    card = as_card(lodging)
+    card = as_card(lodging, contact=True)
     collected.hospedajes[card["id"]] = card
     rooms = public_rooms().filter(establishment=lodging).order_by("product__base_price", "id")[:10]
     return {

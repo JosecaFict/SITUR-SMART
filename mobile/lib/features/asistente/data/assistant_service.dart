@@ -13,6 +13,8 @@ class AssistantLodging {
     this.precioDesde,
     this.imagenUrl,
     this.motivos = const [],
+    this.telefono,
+    this.whatsappUrl,
   });
 
   /// Id de establecimiento: abre /hospedaje/{id}.
@@ -27,6 +29,13 @@ class AssistantLodging {
   final String? imagenUrl;
   final List<String> motivos;
 
+  /// Contacto de la empresa. [whatsappUrl] abre el chat con un mensaje ya
+  /// escrito; es null si el telefono no es celular (un fijo solo sirve para llamar).
+  final String? telefono;
+  final String? whatsappUrl;
+
+  bool get hasContact => whatsappUrl != null || telefono != null;
+
   factory AssistantLodging.fromJson(Map<String, dynamic> json) => AssistantLodging(
         id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? 0,
         nombre: json['nombre']?.toString() ?? '',
@@ -38,7 +47,12 @@ class AssistantLodging {
         precioDesde: json['precio_desde']?.toString(),
         imagenUrl: json['imagen_url']?.toString(),
         motivos: [for (final motivo in json['motivos'] as List<dynamic>? ?? const []) motivo.toString()],
+        telefono: _contact(json)?['telefono']?.toString(),
+        whatsappUrl: _contact(json)?['whatsapp_url']?.toString(),
       );
+
+  static Map<String, dynamic>? _contact(Map<String, dynamic> json) =>
+      json['contacto'] is Map<String, dynamic> ? json['contacto'] as Map<String, dynamic> : null;
 }
 
 class AssistantReply {

@@ -18,6 +18,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 
+from .contact import company_contact
 from .recommendations import _plain, as_card
 
 logger = logging.getLogger(__name__)
@@ -135,6 +136,7 @@ def tour_card(product) -> dict:
         "salidas_disponibles": getattr(product, "upcoming_departures", None),
         "imagen_url": product.image_url,
         "url": f"/marketplace/productos/{product.id}",
+        "contacto": company_contact(product.tenant, f'el tour "{product.name}"'),
     }
 
 
@@ -324,7 +326,7 @@ def estimar_paquete(args: dict, collected: Collected, **_) -> dict:
         elif not nights:
             warnings.append("Falta la cantidad de noches para estimar el hospedaje.")
         else:
-            card = as_card(lodging)
+            card = as_card(lodging, contact=True)
             collected.hospedajes[card["id"]] = card
             plan = _room_plan(_rooms(lodging), people)
             if plan is None:

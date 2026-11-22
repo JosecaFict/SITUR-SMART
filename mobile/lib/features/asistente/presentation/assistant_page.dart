@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
@@ -355,7 +356,8 @@ class _Bubble extends StatelessWidget {
           if (message.hospedajes.isNotEmpty) ...[
             const SizedBox(height: 8),
             SizedBox(
-              height: 210,
+              // Mas alto si alguna tarjeta trae el boton de WhatsApp o el telefono.
+              height: message.hospedajes.any((h) => h.hasContact) ? 248 : 210,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: message.hospedajes.length,
@@ -388,7 +390,10 @@ class _LodgingSuggestion extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           side: const BorderSide(color: AppTheme.inputBorder),
         ),
-        child: InkWell(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+        InkWell(
           onTap: () => context.push('/hospedaje/${lodging.id}'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,8 +432,34 @@ class _LodgingSuggestion extends StatelessWidget {
             ],
           ),
         ),
+            if (lodging.whatsappUrl != null)
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  key: const Key('asistente-whatsapp'),
+                  onPressed: () => _openWhatsapp(context, lodging.whatsappUrl!),
+                  icon: const Icon(Icons.chat_outlined, size: 16),
+                  label: const Text('Consultar por WhatsApp', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(foregroundColor: const Color(0xFF15803D)),
+                ),
+              )
+            else if (lodging.telefono != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                child: Text('Tel. ${lodging.telefono}', style: const TextStyle(fontSize: 12)),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _openWhatsapp(BuildContext context, String link) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final opened = await launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
+    if (!opened) {
+      messenger.showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp.')));
+    }
   }
 }
 

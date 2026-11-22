@@ -77,6 +77,34 @@ describe('AsistenteChat', () => {
     expect(tarjeta?.textContent).toContain('Desde Bs 250.00');
   });
 
+  it('muestra el botón de WhatsApp o el teléfono de la empresa en la tarjeta', () => {
+    montar();
+    abrir();
+
+    el().querySelector<HTMLButtonElement>('section button.rounded-full')!.click();
+    const tarjeta = (id: number, contacto: unknown) => ({
+      id, nombre: `Hotel ${id}`, tipo: 'Hotel', ciudad: 'Sucre', localidad: null, empresa: 'X',
+      estrellas: null, precio_desde: null, moneda: 'Bs', servicios: [], imagen_url: null,
+      url: `/marketplace/hospedajes/${id}`, contacto,
+    });
+    const wa = 'https://wa.me/59171234567?text=Hola';
+    http.expectOne(`${base}/chat/`).flush({
+      respuesta: 'Opciones',
+      hospedajes: [
+        tarjeta(1, { telefono: '71234567', whatsapp: true, whatsapp_url: wa, email: null }),
+        tarjeta(2, { telefono: '3-3456789', whatsapp: false, whatsapp_url: null, email: null }),
+        tarjeta(3, null),
+      ],
+    });
+    fixture.detectChanges();
+
+    const botones = el().querySelectorAll<HTMLAnchorElement>('a[data-whatsapp]');
+    expect(botones.length).toBe(1);
+    expect(botones[0].href).toBe(wa);
+    expect(botones[0].target).toBe('_blank');
+    expect(el().textContent).toContain('Tel. 3-3456789');
+  });
+
   it('muestra el error del backend sin romper el chat', () => {
     montar();
     abrir();

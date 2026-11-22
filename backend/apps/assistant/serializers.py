@@ -23,6 +23,15 @@ class ChatRequestSerializer(serializers.Serializer):
         return value[-MAX_HISTORY:]
 
 
+class ContactSerializer(serializers.Serializer):
+    """Contacto de la empresa; ``whatsapp_url`` solo si el telefono es celular."""
+
+    telefono = serializers.CharField(allow_null=True)
+    whatsapp = serializers.BooleanField()
+    whatsapp_url = serializers.CharField(allow_null=True)
+    email = serializers.CharField(allow_null=True)
+
+
 class LodgingCardSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     nombre = serializers.CharField()
@@ -38,6 +47,7 @@ class LodgingCardSerializer(serializers.Serializer):
     url = serializers.CharField()
     puntaje = serializers.IntegerField(required=False)
     motivos = serializers.ListField(child=serializers.CharField(), required=False)
+    contacto = ContactSerializer(allow_null=True, required=False)
 
 
 class GeneratedReportSerializer(serializers.Serializer):
@@ -70,6 +80,7 @@ class TourCardSerializer(serializers.Serializer):
     salidas_disponibles = serializers.IntegerField(allow_null=True)
     imagen_url = serializers.CharField(allow_null=True)
     url = serializers.CharField()
+    contacto = ContactSerializer(allow_null=True, required=False)
 
 
 class PromotionCardSerializer(serializers.Serializer):

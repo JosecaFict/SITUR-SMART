@@ -231,7 +231,7 @@ def lodging_obj(id=11, currency=BS):
 
 class EstimarPaqueteTests(SimpleTestCase):
     def setUp(self):
-        self.card = patch.object(travel_tools, "as_card", side_effect=lambda item: {"id": item.id})
+        self.card = patch.object(travel_tools, "as_card", side_effect=lambda item, **_: {"id": item.id})
         self.card.start()
         self.addCleanup(self.card.stop)
 

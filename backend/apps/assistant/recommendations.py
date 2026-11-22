@@ -117,8 +117,14 @@ def score(lodging, criteria: Criteria) -> tuple[int, list[str]]:
     return points, reasons
 
 
-def as_card(lodging, *, points: int | None = None, reasons: list[str] | None = None) -> dict:
-    """Forma compacta que comparten la API y las herramientas de la IA."""
+def as_card(
+    lodging, *, points: int | None = None, reasons: list[str] | None = None, contact: bool = False
+) -> dict:
+    """Forma compacta que comparten la API y las herramientas de la IA.
+
+    ``contact`` agrega el telefono/WhatsApp de la empresa: solo lo pide el
+    asistente, no la API publica de recomendaciones.
+    """
     card = {
         "id": lodging.id,
         "nombre": lodging.product.name,
@@ -133,15 +139,22 @@ def as_card(lodging, *, points: int | None = None, reasons: list[str] | None = N
         "imagen_url": lodging.product.image_url,
         "url": f"/marketplace/hospedajes/{lodging.id}",
     }
+    if contact:
+        from .contact import company_contact
+
+        card["contacto"] = company_contact(lodging.tenant, f'el hospedaje "{lodging.product.name}"')
     if points is not None:
         card["puntaje"] = points
         card["motivos"] = reasons or []
     return card
 
 
-def recommend(criteria: Criteria) -> list[dict]:
+def recommend(criteria: Criteria, *, contact: bool = False) -> list[dict]:
     scored = [(lodging, *score(lodging, criteria)) for lodging in candidates(criteria)]
     # Empate: el mas economico primero, luego el id para que sea estable.
     scored.sort(key=lambda item: (-item[1], item[0].from_price or Decimal("Infinity"), item[0].id))
     limit = max(1, min(criteria.limite, MAX_RESULTS))
-    return [as_card(lodging, points=points, reasons=reasons) for lodging, points, reasons in scored[:limit]]
+    return [
+        as_card(lodging, points=points, reasons=reasons, contact=contact)
+        for lodging, points, reasons in scored[:limit]
+    ]

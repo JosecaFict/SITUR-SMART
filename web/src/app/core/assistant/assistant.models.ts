@@ -5,6 +5,17 @@ export interface AssistantHistoryItem {
   contenido: string;
 }
 
+/**
+ * Contacto de la empresa. `whatsapp_url` abre el chat con un mensaje ya escrito;
+ * es null si el teléfono no es un celular (un fijo solo sirve para llamar).
+ */
+export interface AssistantContact {
+  telefono: string | null;
+  whatsapp: boolean;
+  whatsapp_url: string | null;
+  email: string | null;
+}
+
 /** Hospedaje que el asistente mencionó, listo para mostrarse como tarjeta. */
 export interface AssistantLodgingCard {
   id: number;
@@ -21,6 +32,7 @@ export interface AssistantLodgingCard {
   url: string;
   puntaje?: number;
   motivos?: string[];
+  contacto?: AssistantContact | null;
 }
 
 export interface AssistantChatResponse {

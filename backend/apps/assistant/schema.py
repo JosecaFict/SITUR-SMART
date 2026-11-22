@@ -5,13 +5,13 @@
   rechaza la llamada entera con un 400. Los manejadores ya tratan ``null`` como
   "sin filtro".
 - Resultados para el modelo sin los campos que solo usan las tarjetas de la app
-  (imagen, enlace, puntaje): cada token cuenta contra la cuota por minuto.
+  (imagen, enlaces, puntaje): cada token cuenta contra la cuota por minuto.
 """
 
 import copy
 
 # Campos que van a las tarjetas pero el modelo no necesita para responder.
-CARD_ONLY_FIELDS = frozenset({"imagen_url", "url", "puntaje"})
+CARD_ONLY_FIELDS = frozenset({"imagen_url", "url", "puntaje", "whatsapp_url"})
 
 
 def nullable_optionals(definition: dict) -> dict:

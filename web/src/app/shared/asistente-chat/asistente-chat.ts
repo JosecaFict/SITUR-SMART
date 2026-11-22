@@ -18,6 +18,7 @@ import {
   LucideFileText,
   LucideLoaderCircle,
   LucideMapPin,
+  LucideMessageCircle,
   LucideMic,
   LucideSend,
   LucideSparkles,
@@ -81,7 +82,7 @@ const MAX_RECORDING_MS = 30_000;
 @Component({
   selector: 'situr-asistente-chat',
   imports: [
-    FormsModule, RouterLink, LucideBot, LucideFileSpreadsheet, LucideFileText, LucideLoaderCircle, LucideMapPin, LucideMic,
+    FormsModule, RouterLink, LucideBot, LucideFileSpreadsheet, LucideFileText, LucideLoaderCircle, LucideMapPin, LucideMessageCircle, LucideMic,
     LucideSend, LucideSparkles, LucideSquare, LucideStar, LucideTrash2, LucideVolume2,
     LucideVolumeX, LucideX,
   ],
