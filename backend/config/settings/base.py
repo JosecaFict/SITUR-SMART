@@ -166,8 +166,8 @@ REST_FRAMEWORK = {
         # varios clics consecutivos compitan por CPU, disco y conexiones.
         "backup": os.getenv("BACKUP_THROTTLE_RATE", "3/hour"),
         # Asistente IA (CU36): cada mensaje consume cuota del proveedor.
-        "asistente": os.getenv("IA_THROTTLE_RATE", "10/min"),
-        "asistente_voz": os.getenv("IA_VOICE_THROTTLE_RATE", "6/min"),
+        "asistente": os.getenv("IA_THROTTLE_RATE", "20/min"),
+        "asistente_voz": os.getenv("IA_VOICE_THROTTLE_RATE", "10/min"),
     },
 }
 
@@ -241,6 +241,18 @@ IA_TIMEOUT_SECONDS = int(os.getenv("IA_TIMEOUT_SECONDS", "30"))
 IA_MAX_TOKENS = int(os.getenv("IA_MAX_TOKENS", "1024"))
 # Espera antes de reintentar una vez un 503 (proveedor saturado).
 IA_RETRY_DELAY_SECONDS = float(os.getenv("IA_RETRY_DELAY_SECONDS", "1"))
+
+# Chat de turistas con Gemini; el proveedor IA_* de arriba (Groq) queda de
+# respaldo y sigue atendiendo al personal y la voz. Sin GEMINI_API_KEY todo va
+# por IA_*. Los limites propios quedan un poco por debajo del plan gratuito
+# (15 pedidos por minuto, 500 por dia) para pasar a Groq antes del 429.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
+GEMINI_TIMEOUT_SECONDS = int(os.getenv("GEMINI_TIMEOUT_SECONDS", "12"))
+GEMINI_MAX_TOKENS = int(os.getenv("GEMINI_MAX_TOKENS", "2048"))
+GEMINI_RPM_LIMIT = int(os.getenv("GEMINI_RPM_LIMIT", "14"))
+GEMINI_RPD_LIMIT = int(os.getenv("GEMINI_RPD_LIMIT", "490"))
 
 # Pagos con Stripe Checkout (reservas del turista)
 #

@@ -8,3 +8,6 @@ DATABASES = {
         "NAME": ":memory:",
     }
 }
+# Un .env local con claves reales no debe hacer que los tests llamen a la IA.
+IA_API_KEY = ""
+GEMINI_API_KEY = ""

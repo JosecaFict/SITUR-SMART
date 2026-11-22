@@ -25,3 +25,6 @@ DATABASES["default"]["TEST"] = {  # noqa: F405
 }
 CORREOS_EN_SEGUNDO_PLANO = False
 PUSH_EN_SEGUNDO_PLANO = False
+# Un .env local con claves reales no debe hacer que los tests llamen a la IA.
+IA_API_KEY = ""
+GEMINI_API_KEY = ""

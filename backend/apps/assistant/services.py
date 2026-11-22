@@ -6,10 +6,13 @@ lo que permite retirarla sin dejar rastro si se elige otro enfoque.
 """
 
 import json
+import logging
 
 from django.utils import timezone
 
 from . import llm, report_tool, tools
+
+logger = logging.getLogger(__name__)
 
 # Rondas maximas de herramientas por mensaje. Cada ronda es una llamada al
 # proveedor y gasta cuota. Un plan completo puede pedir ciudades, buscar tours
@@ -81,6 +84,12 @@ def reply(*, message: str, history: list[dict], user=None, tenant_id: int | None
 
     Si ``user`` puede ver reportes, el modelo tambien recibe la herramienta
     generar_reporte; un turista conversa igual que siempre.
+
+    Los turistas conversan con Gemini mientras tenga cupo. Si Gemini no tiene
+    cupo o falla en cualquier ronda, el mensaje entero se vuelve a responder con
+    el proveedor principal desde el inicio: no se mezclan proveedores dentro de
+    un mensaje (Gemini firma sus llamadas a herramientas y otro modelo no puede
+    continuarlas). Repetir las herramientas solo consulta la base, no gasta IA.
     """
     reports = report_tool.context_for(user, tenant_id) if user is not None else None
     system = SYSTEM_PROMPT.format(hoy=timezone.localdate().isoformat())
@@ -89,18 +98,61 @@ def reply(*, message: str, history: list[dict], user=None, tenant_id: int | None
         who = "SuperAdmin de toda la plataforma" if reports.global_scope else "personal de una empresa"
         system += STAFF_PROMPT.format(quien=who)
         definitions = [*tools.DEFINITIONS, report_tool.DEFINITION]
-    conversation = [
+    start = [
         {"role": "system", "content": system},
         *_history(history),
         {"role": "user", "content": message},
     ]
-    collected = tools.Collected()
 
+    providers = _providers(staff=reports is not None)
+    for index, provider in enumerate(providers):
+        collected = tools.Collected()
+        try:
+            answer = _converse(list(start), definitions, collected, reports, user, provider)
+            break
+        except llm.AssistantUnavailable as exc:
+            if index == len(providers) - 1:
+                raise
+            why = "sin cupo" if isinstance(exc, llm.ProviderSkipped) else (exc.status or "sin respuesta")
+            logger.warning(
+                "Asistente IA: %s no atendio (%s); el mensaje pasa a %s.",
+                _name(provider), why, _name(providers[index + 1]),
+            )
+
+    text = (answer.get("content") or "").strip()
+    if not text:
+        text = "No pude generar una respuesta. ¿Puedes reformular tu pregunta?"
+    return {
+        "respuesta": text,
+        "hospedajes": list(collected.hospedajes.values()),
+        "tours": list(collected.tours.values()),
+        "promociones": list(collected.promociones.values()),
+        "reportes": reports.reports if reports is not None else [],
+    }
+
+
+def _providers(*, staff: bool) -> list[llm.Provider | None]:
+    """Orden de proveedores: Gemini primero para turistas, luego el principal.
+
+    El personal usa siempre el principal. ``None`` es el principal por omision,
+    asi ``llm.chat`` decide igual que siempre.
+    """
+    gemini = None if staff else llm.gemini()
+    if gemini is None:
+        return [None]
+    return [gemini, None] if llm.primary().configured else [gemini]
+
+
+def _name(provider) -> str:
+    return provider.name if provider is not None else llm.primary().name
+
+
+def _converse(conversation, definitions, collected, reports, user, provider) -> dict:
     for _ in range(MAX_TOOL_ROUNDS):
-        answer = llm.chat(conversation, tools=definitions)
+        answer = _chat(conversation, definitions, provider)
         tool_calls = answer.get("tool_calls") or []
         if not tool_calls:
-            break
+            return answer
         conversation.append(
             {"role": "assistant", "content": answer.get("content") or "", "tool_calls": tool_calls}
         )
@@ -113,21 +165,16 @@ def reply(*, message: str, history: list[dict], user=None, tenant_id: int | None
                     "content": _run_tool(function, collected, reports, user),
                 }
             )
-    else:
-        # Agoto las rondas pidiendo herramientas: se fuerza una respuesta final
-        # sin ellas para no devolver un texto vacio.
-        answer = llm.chat(conversation)
+    # Agoto las rondas pidiendo herramientas: se fuerza una respuesta final
+    # sin ellas para no devolver un texto vacio.
+    return _chat(conversation, None, provider)
 
-    text = (answer.get("content") or "").strip()
-    if not text:
-        text = "No pude generar una respuesta. ¿Puedes reformular tu pregunta?"
-    return {
-        "respuesta": text,
-        "hospedajes": list(collected.hospedajes.values()),
-        "tours": list(collected.tours.values()),
-        "promociones": list(collected.promociones.values()),
-        "reportes": reports.reports if reports is not None else [],
-    }
+
+def _chat(conversation, definitions, provider):
+    if provider is None:
+        # Mismo llamado de siempre para el proveedor principal.
+        return llm.chat(conversation, tools=definitions) if definitions else llm.chat(conversation)
+    return llm.chat(conversation, tools=definitions, provider=provider)
 
 
 def _run_tool(function: dict, collected, reports, user=None) -> str:
