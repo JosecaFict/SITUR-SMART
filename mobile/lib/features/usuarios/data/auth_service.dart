@@ -72,7 +72,7 @@ class AuthService {
     if (access == null) return null;
     final user = await _storage.getUser();
     // Sin esperar: el push no debe demorar la entrada a la app.
-    if (!isStaff(user)) unawaited(PushService.instance.registerDevice());
+    unawaited(PushService.instance.registerDevice());
     return user;
   }
 
@@ -116,14 +116,12 @@ class AuthService {
     if (response['user'] is Map<String, dynamic>) {
       await _storage.saveUser(response['user'] as Map<String, dynamic>);
     }
-    // Los avisos (reservas) son del turista; el personal no los recibe aquí.
-    if (!isStaff(response['user'] as Map<String, dynamic>?)) {
-      unawaited(PushService.instance.registerDevice());
-    }
+    // Turistas y personal reciben sus avisos y comunicaciones en el celular.
+    unawaited(PushService.instance.registerDevice());
   }
 
   /// La app es del turista. El personal de empresas y el SuperAdmin
-  /// administran desde el panel web; aquí solo ven cómo llegar a él.
+  /// administran desde el panel web y reciben comunicaciones en la app.
   static bool isStaff(Map<String, dynamic>? user) {
     final roles = user?['roles'];
     final tenants = user?['tenants'];

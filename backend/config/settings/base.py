@@ -283,3 +283,16 @@ API_PUBLIC_URL = os.getenv("API_PUBLIC_URL", "https://situr-smart-production.up.
 # Esquema con el que la pagina de retorno de Stripe vuelve a abrir la app movil
 # (AndroidManifest: intent-filter situr-smart://app).
 APP_DEEP_LINK = os.getenv("APP_DEEP_LINK", "situr-smart://app")
+
+# Configuración pública del cliente Firebase para push de navegador.
+# No confundir con la cuenta de servicio privada usada por el backend.
+FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_WEB_API_KEY", "")
+FIREBASE_WEB_AUTH_DOMAIN = os.getenv("FIREBASE_WEB_AUTH_DOMAIN", "")
+FIREBASE_WEB_PROJECT_ID = os.getenv("FIREBASE_WEB_PROJECT_ID", "")
+FIREBASE_WEB_MESSAGING_SENDER_ID = os.getenv("FIREBASE_WEB_MESSAGING_SENDER_ID", "")
+FIREBASE_WEB_APP_ID = os.getenv("FIREBASE_WEB_APP_ID", "")
+FIREBASE_WEB_VAPID_KEY = os.getenv("FIREBASE_WEB_VAPID_KEY", "")
+
+# Publicidad: ventana móvil de 24 h, compartida por campañas y ofertas automáticas.
+COMMUNICATION_PROMOTIONS_PER_SENDER = int(os.getenv("COMMUNICATION_PROMOTIONS_PER_SENDER", "1"))
+COMMUNICATION_PROMOTIONS_PER_DAY = int(os.getenv("COMMUNICATION_PROMOTIONS_PER_DAY", "3"))

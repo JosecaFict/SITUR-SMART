@@ -7,7 +7,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routes/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../notificaciones/data/push_service.dart';
 import '../../data/auth_service.dart';
 
 
@@ -37,10 +39,12 @@ class _LoginPageState extends State<LoginPage> {
 
 
   String? _errorMessage;
+  VoidCallback? _cancelHomeNavigation;
 
 
   @override
   void dispose() {
+    _cancelHomeNavigation?.call();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -72,7 +76,12 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      context.go(AuthService.homeRouteFor(response['user'] as Map<String, dynamic>?));
+      _cancelHomeNavigation?.call();
+      _cancelHomeNavigation = AppRouter.openHome(
+        GoRouter.of(context),
+        response['user'] as Map<String, dynamic>?,
+        pendingRoute: PushService.instance.takePendingRoute(),
+      );
 
 
     } catch (e) {

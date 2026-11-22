@@ -1,6 +1,7 @@
 /** Modelos del área del viajero (me/reservas, me/favoritos, me/itinerarios, me/notificaciones). */
 
 import { BookingPromotionSnapshot, PromotionDiscount } from '../promotions/promotions.models';
+import { CommunicationSender } from '../communications/communications.models';
 
 export interface TravelerBooking {
   id: number;
@@ -160,7 +161,7 @@ export interface AppNotification {
   tipo: string;
   titulo: string;
   mensaje: string;
-  datos: { reserva_id?: number; codigo?: string; promocion_id?: number; motivo?: string; afinidad?: number };
+  datos: { reserva_id?: number; codigo?: string; promocion_id?: number; motivo?: string; afinidad?: number; remitente?: CommunicationSender | null; comunicacion_id?: number; tipo_comunicacion?: string; vence_en?: string };
   leida: boolean;
   creado_en: string;
 }

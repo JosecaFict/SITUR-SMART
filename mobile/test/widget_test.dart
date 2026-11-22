@@ -58,5 +58,6 @@ void main() {
     expect(find.text('La administración se hace desde el panel web'), findsOneWidget);
     expect(find.text('Abrir el panel web'), findsOneWidget);
     expect(find.text('Cerrar sesión'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

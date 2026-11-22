@@ -1,4 +1,5 @@
-import { Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
   LucideBedDouble,
@@ -14,6 +15,7 @@ import {
   LucideLogOut,
   LucideLuggage,
   LucideMap,
+  LucideMail,
   LucideMenu,
   LucideMapPinned,
   LucidePackageOpen,
@@ -29,11 +31,12 @@ import {
 import { AuthService } from '../../auth/auth.service';
 import { MyPlanService } from '../../subscription/my-plan.service';
 import { TravelerService } from '../../traveler/traveler.service';
+import { WebPushService } from '../../notifications/web-push.service';
 
 interface NavItem {
   label: string;
   path: string;
-  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'packages' | 'promotions' | 'lodging' | 'tours' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings' | 'trips' | 'itinerary' | 'favorites' | 'notifications';
+  icon: 'dashboard' | 'companies' | 'locations' | 'backups' | 'products' | 'packages' | 'promotions' | 'lodging' | 'tours' | 'roles' | 'users' | 'audit' | 'reports' | 'profile' | 'explore' | 'plan' | 'bookings' | 'trips' | 'itinerary' | 'favorites' | 'notifications' | 'communications';
   superAdminOnly?: boolean;
   anyPermission?: string[];
   anyRole?: string[];
@@ -64,6 +67,7 @@ interface NavItem {
     LucideLogOut,
     LucideLuggage,
     LucideMap,
+    LucideMail,
     LucideMenu,
     LucideMapPinned,
     LucidePackageOpen,
@@ -85,19 +89,23 @@ export class AppShell implements OnDestroy {
 
   private readonly myPlan = inject(MyPlanService);
   private readonly traveler = inject(TravelerService);
+  private readonly webPush = inject(WebPushService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  /** Avisos sin leer del turista (contador del menú). */
+  /** Avisos sin leer de la cuenta (contador del menú). */
   protected readonly unread = this.traveler.unread;
   private unreadTimer: ReturnType<typeof setInterval> | null = null;
 
   protected readonly session = this.auth.session;
   protected readonly menuOpen = signal(false);
+  protected readonly loggingOut = signal(false);
 
   /** Aviso arriba de todo cuando el plan de la empresa vence pronto o ya venció. */
   protected readonly planAlert = signal<{ message: string; restricted: boolean } | null>(null);
 
   constructor() {
     this.watchUnread();
+    void this.webPush.restore();
     const user = this.session()?.user;
     const tenantId = user && !user.roles.includes('SUPER_ADMIN') ? user.tenants[0]?.id : undefined;
     if (tenantId === undefined) return;
@@ -127,7 +135,11 @@ export class AppShell implements OnDestroy {
     { label: 'Mis pagos', path: '/mis-pagos', icon: 'bookings', customerOnly: true },
     { label: 'Itinerarios', path: '/itinerarios', icon: 'itinerary', customerOnly: true },
     { label: 'Favoritos', path: '/favoritos', icon: 'favorites', customerOnly: true },
-    { label: 'Notificaciones', path: '/notificaciones', icon: 'notifications', customerOnly: true },
+    { label: 'Notificaciones', path: '/notificaciones', icon: 'notifications' },
+    {
+      label: 'Comunicaciones', path: '/comunicaciones', icon: 'communications',
+      anyPermission: ['COMUNICACIONES_GESTIONAR'], anyRole: ['TENANT_ADMIN'],
+    },
     { label: 'Mi Perfil', path: '/perfil', icon: 'profile' },
     {
       label: 'Empresas',
@@ -265,13 +277,13 @@ export class AppShell implements OnDestroy {
     });
   });
 
-  /** El turista ve cuántos avisos tiene sin leer; se pone al día cada minuto. */
+  /** Cada cuenta ve sus avisos sin leer; se pone al día cada minuto. */
   private watchUnread(): void {
     const user = this.session()?.user;
-    const isCustomer = !!user && !user.roles.includes('SUPER_ADMIN') && user.tenants.length === 0;
-    if (!isCustomer) return;
-    const refresh = () => this.traveler.refreshUnread().subscribe({ error: () => undefined });
+    if (!user) return;
+    const refresh = () => this.traveler.refreshUnread().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
     refresh();
+    this.webPush.foregroundMessages$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(refresh);
     this.unreadTimer = setInterval(refresh, 60_000);
   }
 
@@ -288,9 +300,13 @@ export class AppShell implements OnDestroy {
     this.menuOpen.update((open) => !open);
   }
 
-  protected logout(): void {
+  protected async logout(): Promise<void> {
+    if (this.loggingOut()) return;
+    this.loggingOut.set(true);
     this.closeMenu();
+    await this.webPush.deactivate().catch(() => false);
     this.auth.logout();
-    this.router.navigateByUrl('/login');
+    await this.router.navigateByUrl('/login');
+    this.loggingOut.set(false);
   }
 }

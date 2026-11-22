@@ -59,6 +59,13 @@ export const anyPermissionGuard = (permissions: string[]): CanActivateFn => () =
   return router.createUrlTree(['/dashboard']);
 };
 
+/** TENANT_ADMIN es el propietario de empresa; el backend valida el ámbito efectivo. */
+export const communicationsGuard: CanActivateFn = () => {
+  const user = inject(AuthService).session()?.user;
+  return user && (user.roles.includes('SUPER_ADMIN') || user.roles.includes('TENANT_ADMIN') || user.permisos.includes('COMUNICACIONES_GESTIONAR'))
+    ? true : inject(Router).createUrlTree(['/dashboard']);
+};
+
 export const companyRegistryGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);

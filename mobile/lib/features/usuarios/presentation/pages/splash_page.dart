@@ -17,6 +17,14 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
+  VoidCallback? _cancelHomeNavigation;
+
+  @override
+  void dispose() {
+    _cancelHomeNavigation?.call();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -35,10 +43,11 @@ class _SplashPageState extends State<SplashPage> {
       context.go('/login');
       return;
     }
-    context.go(AuthService.homeRouteFor(user));
-    // La app se abrió tocando un push: se abre esa reserva sobre el inicio.
-    final pushRoute = PushService.instance.takePendingRoute();
-    if (pushRoute != null) AppRouter.router.push(pushRoute);
+    _cancelHomeNavigation = AppRouter.openHome(
+      GoRouter.of(context),
+      user,
+      pendingRoute: PushService.instance.takePendingRoute(),
+    );
   }
 
   @override

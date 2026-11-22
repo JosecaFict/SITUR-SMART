@@ -129,6 +129,9 @@
             @case ('notifications') {
               <svg lucideBell class="h-5 w-5" [strokeWidth]="2"></svg>
             }
+            @case ('communications') {
+              <svg lucideMail class="h-5 w-5" [strokeWidth]="2"></svg>
+            }
           }
           {{ item.label }}
           @if (item.icon === 'notifications' && unread() > 0) {
@@ -162,6 +165,7 @@
           <button
             type="button"
             (click)="logout()"
+            [disabled]="loggingOut()"
             class="rounded-lg p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
             aria-label="Cerrar sesión"
             title="Cerrar sesión"

@@ -5,6 +5,7 @@ manda por push a los celulares del usuario. Los modulos que avisan (reservas,
 pagos) no saben nada de Firebase.
 """
 
+from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 from rest_framework.exceptions import NotFound
@@ -17,7 +18,11 @@ def notify(*, user, kind: str, title: str, message: str, data: dict | None = Non
     notification = Notification.objects.create(
         user=user, kind=kind, title=title[:150], message=message, data=data or {}
     )
-    push.push_notification(notification)
+    def send_after_commit():
+        from .marketing import suppression_reason
+        if suppression_reason(notification) is None:
+            push.push_notification(notification)
+    transaction.on_commit(send_after_commit)
     return notification
 
 

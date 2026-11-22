@@ -35,7 +35,7 @@ void _showForegroundPush(String title, String body, String? route) {
         content: Text(body.isEmpty ? title : '$title\n$body'),
         action: route == null
             ? null
-            : SnackBarAction(label: 'Ver', onPressed: () => AppRouter.router.push(route)),
+            : SnackBarAction(label: 'Ver', onPressed: () => PushService.instance.openRoute(route)),
       ),
     );
 }

@@ -12,7 +12,7 @@ import 'notifications_store.dart';
 /// Con la app cerrada o en segundo plano, Android muestra el aviso solo (canal
 /// "situr_avisos", ver MainActivity.kt). Con la app abierta llega a
 /// [onForegroundMessage] y se avisa dentro de la app. Al tocar el aviso se
-/// abre la reserva.
+/// abre la reserva o la bandeja de comunicaciones.
 ///
 /// El token del celular se registra en el backend (me/dispositivos/) al
 /// iniciar sesión y se quita al cerrarla, para que el celular no siga
@@ -22,11 +22,12 @@ class PushService {
 
   static final PushService instance = PushService._();
 
-  /// Abre una ruta de la app (la reserva del aviso tocado).
+  /// Abre la ruta del aviso tocado.
   static void Function(String route)? onOpenRoute;
 
   /// Aviso recibido con la app abierta: Android no lo muestra solo.
-  static void Function(String title, String body, String? route)? onForegroundMessage;
+  static void Function(String title, String body, String? route)?
+  onForegroundMessage;
 
   final ApiClient _api = ApiClient();
   bool _ready = false;
@@ -43,8 +44,19 @@ class PushService {
     return route;
   }
 
-  /// La reserva a la que lleva un aviso, según los datos que manda el backend.
+  /// Si se necesita iniciar sesión, se conserva el destino para después.
+  Future<void> openRoute(String route) async {
+    final access = await _api.getAccessToken();
+    if (access == null || access.isEmpty || onOpenRoute == null) {
+      _pendingRoute = route;
+      return;
+    }
+    onOpenRoute?.call(route);
+  }
+
+  /// Las comunicaciones se leen en la bandeja, incluso si tienen reserva.
   static String? routeFor(Map<String, dynamic> data) {
+    if (data['tipo'] == 'COMUNICACION') return '/notificaciones';
     final id = int.tryParse('${data['reserva_id'] ?? ''}');
     return id == null ? null : '/reserva/$id';
   }
@@ -73,7 +85,7 @@ class PushService {
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       NotificationsStore.instance.refresh();
       final route = routeFor(message.data);
-      if (route != null) onOpenRoute?.call(route);
+      if (route != null) openRoute(route);
     });
     try {
       final initial = await FirebaseMessaging.instance.getInitialMessage();
@@ -100,13 +112,18 @@ class PushService {
 
   /// Al cerrar sesión, antes de revocar los tokens de la API.
   Future<void> unregisterDevice() async {
+    _pendingRoute = null;
     if (!_ready) return;
     await _tokenRefresh?.cancel();
     _tokenRefresh = null;
     try {
-      final token = _registeredToken ?? await FirebaseMessaging.instance.getToken();
+      final token =
+          _registeredToken ?? await FirebaseMessaging.instance.getToken();
       if (token != null) {
-        await _api.postAuthEmpty('me/dispositivos/quitar/', body: {'token': token});
+        await _api.postAuthEmpty(
+          'me/dispositivos/quitar/',
+          body: {'token': token},
+        );
       }
     } catch (_) {
       // Sin red o sesión vencida: el backend lo reasigna en el próximo login.
@@ -116,10 +133,15 @@ class PushService {
 
   Future<void> _send(String token) async {
     try {
-      await _api.postAuthEmpty('me/dispositivos/', body: {
-        'token': token,
-        'plataforma': defaultTargetPlatform == TargetPlatform.iOS ? 'IOS' : 'ANDROID',
-      });
+      await _api.postAuthEmpty(
+        'me/dispositivos/',
+        body: {
+          'token': token,
+          'plataforma': defaultTargetPlatform == TargetPlatform.iOS
+              ? 'IOS'
+              : 'ANDROID',
+        },
+      );
       _registeredToken = token;
     } catch (error) {
       debugPrint('El backend no registró el celular para push: $error');
