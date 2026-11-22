@@ -5,6 +5,7 @@ import {
   anyPermissionGuard,
   companyRegistryGuard,
   companyPermissionGuard,
+  communicationsGuard,
   guestGuard,
   notCustomerGuard,
   permissionGuard,
@@ -143,6 +144,26 @@ export const routes: Routes = [
       {
         path: 'notificaciones',
         loadComponent: () => import('./features/viajero/notificaciones').then((m) => m.Notificaciones),
+      },
+      {
+        path: 'comunicaciones',
+        canActivate: [communicationsGuard],
+        loadComponent: () => import('./features/admin/comunicaciones/comunicaciones').then((m) => m.Comunicaciones),
+      },
+      {
+        path: 'comunicaciones/nueva',
+        canActivate: [communicationsGuard],
+        loadComponent: () => import('./features/admin/comunicaciones/comunicacion-editor').then((m) => m.ComunicacionEditor),
+      },
+      {
+        path: 'comunicaciones/:id/editar',
+        canActivate: [communicationsGuard],
+        loadComponent: () => import('./features/admin/comunicaciones/comunicacion-editor').then((m) => m.ComunicacionEditor),
+      },
+      {
+        path: 'comunicaciones/:id',
+        canActivate: [communicationsGuard],
+        loadComponent: () => import('./features/admin/comunicaciones/comunicacion-editor').then((m) => m.ComunicacionEditor),
       },
       {
         path: 'perfil',

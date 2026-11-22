@@ -22,6 +22,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
@@ -31,6 +32,7 @@ from apps.bookings.services import OCCUPYING_STATES
 from apps.catalog.models import ROOM_PRODUCT_CODE, ProductReview
 from apps.favorites.models import Favorite
 
+from . import marketing
 from .models import Notification
 from .services import notify
 
@@ -298,16 +300,20 @@ def notify_interested(promotion) -> int:
     sent = 0
     for user_id, user in users.items():
         reason = reasons[user_id][1]
-        notify(
-            user=user,
-            kind=OFFER_KIND,
-            title=f"{percentage}% de descuento en {promotion.name}"[:150],
-            message=f"Te avisamos porque {reason}. Válido hasta el {until}.",
-            data={
-                "promocion_id": promotion.id,
-                "afinidad": round(scores[user_id], 2),
-                "motivo": reason,
-            },
-        )
-        sent += 1
+        with transaction.atomic():
+            User.objects.select_for_update().get(pk=user_id)
+            if user_id not in marketing.eligible_ids([user_id], promotion.tenant_id):
+                continue
+            if Notification.objects.filter(user_id=user_id, kind=OFFER_KIND, data__promocion_id=promotion.id).exists():
+                continue
+            notify(
+                user=user, kind=OFFER_KIND,
+                title=f"{percentage}% de descuento en {promotion.name}"[:150],
+                message=f"Te avisamos porque {reason}. Válido hasta el {until}.",
+                data={"promocion_id": promotion.id, "empresa_id": promotion.tenant_id,
+                      "remitente": promotion.tenant.trade_name,
+                      "vence_en": promotion.ends_at.isoformat(), "tipo_comunicacion": "PROMOCIONAL",
+                      "afinidad": round(scores[user_id], 2), "motivo": reason},
+            )
+            sent += 1
     return sent

@@ -1,0 +1,106 @@
+<section class="communications-workspace">
+  <a routerLink="/comunicaciones" [queryParams]="{ empresa: tenantId() }" class="back-link">Volver a comunicaciones</a>
+  <header class="workspace-header">
+    <div><p class="eyebrow">{{ scopeLabel() }}</p><h1>{{ current() && current()?.estado !== 'BORRADOR' ? 'Tu mensaje, en detalle' : current() ? 'Dale forma a tu mensaje' : 'Conecta con las personas de tu viaje' }}</h1><p class="header-description">{{ current() && current()?.estado !== 'BORRADOR' ? 'Contenido confirmado y seguimiento de cada canal, en un solo lugar.' : 'Elige a quién acompañar, prepara el contenido y revisa antes de enviar.' }}</p></div>
+    <span class="scope-chip">{{ isGlobal && tenantId() === undefined ? 'Administración de plataforma' : 'Comunicación de empresa' }}</span>
+  </header>
+  @if (error(); as text) { <div role="alert" class="error-message">{{ text }}</div> }
+  @if (success(); as text) { <div role="status" class="success-message">{{ text }}</div> }
+  @if (loading()) { <div class="communication-card loading-state" role="status">Preparando tu espacio de comunicación…</div> }
+  @if (!loading() && !ready()) { <button type="button" class="secondary-action" (click)="load()">Reintentar</button> }
+  @if (ready()) {
+    @if (current(); as item) {
+      <section class="delivery-overview" aria-label="Seguimiento de la comunicación">
+        <div><span class="status-badge" [class.published]="item.estado === 'PUBLICADA'">{{ item.estado === 'BORRADOR' ? 'En preparación' : item.estado === 'PROGRAMADA' ? 'Envío programado' : item.estado === 'REVISION' ? 'Necesita tu atención' : item.estado === 'PUBLICADA' ? 'Publicada' : item.estado === 'CANCELADA' ? 'Cancelada' : 'Vencida' }}</span><p class="muted">{{ senderName(item.remitente) }} · Creada el {{ item.creado_en | date:'dd/MM/yyyy HH:mm' }}</p></div>
+        <button type="button" class="secondary-action" (click)="load()" [disabled]="working()">Recargar detalle</button>
+        @if (item.estado === 'PUBLICADA') {
+          <dl class="channel-metrics"><div><dt>Personas</dt><dd>{{ item.total_destinatarios }}</dd></div><div><dt>Lecturas en la app</dt><dd>{{ item.leidas }}</dd></div><div><dt>Push aceptados</dt><dd>{{ item.push_aceptados }}</dd></div><div><dt>Correos aceptados</dt><dd>{{ item.correos_aceptados || 0 }}</dd></div></dl>
+          <p class="metric-note">La aceptación del proveedor no confirma entrega ni lectura del correo. La lectura se registra en la bandeja.</p>
+          <details class="channel-details"><summary>Ver pendientes e incidencias por canal</summary><div class="channel-detail-grid"><div><h3>Notificaciones push</h3><p>{{ item.push_pendientes }} pendientes · {{ item.push_fallidos }} fallidas · {{ item.sin_dispositivo }} sin dispositivo</p></div><div><h3>Correo electrónico</h3><p>{{ item.correos_pendientes || 0 }} pendientes · {{ item.correos_fallidos || 0 }} fallidos · {{ item.correos_revision || 0 }} por revisar · {{ item.correos_omitidos || 0 }} omitidos</p></div></div></details>
+        }
+        @if (item.programado_en) { <p class="muted">Envío previsto: {{ item.programado_en | date:'dd/MM/yyyy HH:mm' }}</p> }
+        @if (item.vence_en) { <p class="muted">Válido hasta: {{ item.vence_en | date:'dd/MM/yyyy HH:mm' }} {{ item.vencida ? '· Vencida' : '' }}</p> }
+        @if (item.error_envio) { <p role="alert" class="warning-note">{{ item.error_envio }}</p> }
+        @if (item.programados || item.omitidos) { <p class="muted">{{ item.programados || 0 }} programados · {{ item.omitidos || 0 }} omitidos por elegibilidad o vencimiento.</p> }
+        @if (item.estado === 'PROGRAMADA' || item.estado === 'REVISION') { <button type="button" class="secondary-action" (click)="cancelSchedule()" [disabled]="working()">Cancelar envío pendiente</button> }
+      </section>
+    }
+    <div class="composer-layout">
+      <div class="composer-main">
+        <form [formGroup]="form" (ngSubmit)="save()" class="composer-form">
+          <fieldset [disabled]="working() || (current() !== null && current()?.estado !== 'BORRADOR')">
+            <legend class="sr-only">Contenido y audiencia</legend>
+            <section class="communication-card">
+              <div class="section-heading"><span class="section-icon" aria-hidden="true">✦</span><div><h2>¿Qué quieres comunicar?</h2><p>Empieza con una plantilla y hazla tuya.</p></div></div>
+              <div class="template-grid">@for (template of templates; track template.id) { <button type="button" class="template-card" (click)="useTemplate(template.id)"><strong>{{ template.label }}</strong><span>{{ template.description }}</span></button> }</div>
+              <label class="field-label">Propósito del mensaje<select class="communication-input" formControlName="tipo"><option value="INTERNA">Equipo · comunicación interna</option><option value="OPERATIVA">Viaje · información operativa</option><option value="PROMOCIONAL">Ofertas · con consentimiento</option></select></label>
+            </section>
+            <section class="communication-card">
+              <div class="section-heading"><span class="section-icon" aria-hidden="true">◎</span><div><h2>Las personas correctas</h2><p>{{ isGlobal ? 'Toda la plataforma o las empresas que elijas.' : 'Solo personas vinculadas a tu empresa.' }}</p></div></div>
+              @if (isGlobal) {
+                <div class="scope-toggle" aria-label="Alcance del mensaje"><button type="button" [class.selected]="!showCompanies()" (click)="setCompanyMode(false)">Toda la plataforma</button><button type="button" [class.selected]="showCompanies()" (click)="setCompanyMode(true)">Elegir empresas</button></div>
+                @if (showCompanies()) {
+                  <label class="field-label">Buscar empresas<input type="search" class="communication-input" aria-label="Buscar empresas destinatarias" placeholder="Nombre de la empresa" [value]="searches().empresa_ids" (input)="search('empresa_ids', $event)"></label>
+                  <div class="selector-list company-list" aria-label="Empresas destinatarias">@for (option of choices('empresas', 'empresa_ids'); track option.id) { <label class="selector-option"><input type="checkbox" [checked]="form.controls.empresa_ids.value.includes(option.id)" (change)="toggle('empresa_ids', option.id)"><span>{{ option.nombre }}</span></label> }</div>
+                  <p class="muted">{{ form.controls.empresa_ids.value.length }} empresas seleccionadas.</p>
+                }
+              }
+              <label class="field-label">¿A quién va dirigido?<select class="communication-input" formControlName="grupo">@for (group of groups(); track group.value) { <option [value]="group.value">{{ group.label }}</option> }</select></label>
+              <div class="audience-explanation">{{ form.controls.tipo.value === 'INTERNA' ? 'Los avisos internos llegan al personal, incluidos los guías que correspondan a la audiencia.' : form.controls.tipo.value === 'PROMOCIONAL' ? 'Las ofertas solo llegan a quienes aceptaron promociones de este remitente y cumplen el límite de frecuencia.' : 'Los avisos operativos ayudan a clientes y personal a organizar su experiencia.' }}</div>
+              @if (audienceNote(); as text) { <p role="status" class="warning-note">{{ text }}</p> }
+              @if (audienceLoading()) { <p role="status" class="muted">Actualizando las opciones de la audiencia…</p> }
+              <details class="advanced-audience" [open]="form.controls.grupo.value === 'USUARIOS' || form.controls.rol_ids.value.length > 0 || form.controls.usuario_ids.value.length > 0"><summary>Afinar por roles o personas <span>Opcional</span></summary><p class="muted">Estos filtros reducen la audiencia; no suman listas independientes. Déjalos vacíos para incluir a todo el grupo elegido.</p>
+                <div class="advanced-grid">@for (selector of selectors; track selector.key) { @if (selector.key !== 'empresa_ids') { <div>
+                  <label class="field-label">{{ selector.label }}<input type="search" class="communication-input" [attr.aria-label]="'Buscar ' + selector.label.toLowerCase()" placeholder="Buscar por nombre" [value]="searches()[selector.key]" (input)="search(selector.key, $event)"></label>
+                  <div class="selector-list" [attr.aria-label]="selector.label">@for (option of choices(selector.source, selector.key); track option.id) { <label class="selector-option"><input type="checkbox" [checked]="form.controls[selector.key].value.includes(option.id)" (change)="toggle(selector.key, option.id)"><span>{{ option.nombre }} @if (option.email) { <small>{{ option.email }}</small> }</span></label> } @empty { <p class="muted">Sin coincidencias en esta audiencia.</p> }</div>
+                  <div class="selected-chips">@for (id of form.controls[selector.key].value; track id) { <button type="button" (click)="toggle(selector.key, id)" [attr.aria-label]="'Quitar ' + optionLabel(selector.source, id)">{{ optionLabel(selector.source, id) }} ×</button> }</div>
+                  <p class="muted">{{ form.controls[selector.key].value.length }} seleccionados.</p>
+                  @if (selector.key === 'usuario_ids') { @if (searching().usuarios) { <p role="status" class="muted">Buscando personas…</p> } @if (searchErrors().usuarios; as text) { <p role="alert" class="error-message">{{ text }}</p> } }
+                </div> } }</div>
+              </details>
+              <details class="advanced-audience"><summary>Relacionar una reserva o salida <span>Opcional</span></summary><p class="muted">Al vincular una reserva o salida, el aviso se limita a sus clientes.</p><div class="advanced-grid">@for (selector of linkedSelectors; track selector.source) { <div>
+                <label class="field-label">Buscar {{ selector.source }}<input type="search" class="communication-input" [attr.aria-label]="'Buscar ' + selector.source" [placeholder]="selector.source === 'reservas' ? 'Código o nombre del cliente' : 'Nombre del tour'" (input)="searchRelated(selector.source, $event)"></label>
+                <label class="field-label">{{ selector.label }}<select class="communication-input" [formControlName]="selector.control"><option [ngValue]="null">{{ selector.placeholder }}</option>@for (option of relatedOptions(selector.source, form.controls[selector.control].value); track option.id) { <option [ngValue]="option.id">{{ option.nombre }}</option> }</select></label>
+                @if (searchErrors()[selector.source]; as text) { <p role="alert" class="error-message">{{ text }}</p> }
+              </div> }</div></details>
+            </section>
+            <section class="communication-card">
+              <div class="section-heading"><span class="section-icon" aria-hidden="true">✎</span><div><h2>Un mensaje que acompaña</h2><p>Claro, cercano y con la información que importa.</p></div></div>
+              <label class="field-label">Título<input class="communication-input title-input" formControlName="titulo" placeholder="Por ejemplo: Todo listo para tu próxima aventura" maxlength="150" required></label>
+              <div class="field-meta"><span>{{ form.controls.titulo.touched && form.controls.titulo.invalid ? 'Escribe un título de hasta 150 caracteres.' : 'Será el asunto del correo y el título de la notificación.' }}</span><span>{{ form.controls.titulo.value.length }}/150</span></div>
+              <label class="field-label">Mensaje<textarea id="message-body" class="communication-input message-input" formControlName="mensaje" rows="9" placeholder="Saluda a tu audiencia, explica lo importante y cierra con el siguiente paso." maxlength="10000" required></textarea></label>
+              <div class="variable-tools"><span>Personalizar:</span><button type="button" (click)="insertVariable('nombre')">Nombre del destinatario</button><button type="button" (click)="insertVariable('empresa')">Nombre del remitente</button></div>
+              @if (form.controls.mensaje.touched && form.controls.mensaje.invalid) { <p class="error-message">Escribe el mensaje antes de continuar.</p> }
+              @if (form.controls.tipo.value === 'PROMOCIONAL') { <label class="field-label">Oferta relacionada (opcional)<input type="search" class="communication-input" aria-label="Buscar oferta" placeholder="Buscar una oferta por nombre" (input)="searchRelated('promociones', $event)"><select class="communication-input" formControlName="promocion_id"><option [ngValue]="null">Sin oferta vinculada</option>@for (option of relatedOptions('promociones', form.controls.promocion_id.value); track option.id) { <option [ngValue]="option.id">{{ option.nombre }}</option> }</select></label> }
+            </section>
+            <section class="communication-card">
+              <div class="section-heading"><span class="section-icon" aria-hidden="true">◷</span><div><h2>Un mensaje, un solo envío</h2><p>Al publicar se generan juntos la notificación y el correo electrónico.</p></div></div>
+              <div class="channel-choice"><span class="channel-symbol" aria-hidden="true">✉</span><div><strong>Notificación + correo electrónico</strong><p>El mismo aviso en la bandeja web y móvil, por push y al correo registrado del destinatario, incluido Gmail. El push depende de los permisos del dispositivo.</p></div><span class="included-label">Incluidos</span></div>
+              @if (options()?.correo_disponible === false) { <p class="warning-note">Falta activar el servicio de correo. La publicación genera la notificación y deja el correo en la cola de envío; revisa su estado en el detalle.</p> }
+              <div class="advanced-grid"><label class="field-label">Enviar el (opcional)<input class="communication-input" type="datetime-local" formControlName="programado_en"><span class="muted">Hora de tu dispositivo. Vacío: envío inmediato.</span></label><label class="field-label">Válido hasta {{ form.controls.tipo.value === 'PROMOCIONAL' ? '(obligatorio)' : '(opcional)' }}<input class="communication-input" type="datetime-local" formControlName="vence_en"></label></div>
+            </section>
+          </fieldset>
+          @if (!current() || current()?.estado === 'BORRADOR') {
+            <div class="composer-actions"><div><strong>{{ changed() ? 'Tienes cambios por guardar' : 'Borrador listo para revisar' }}</strong><p>{{ changed() ? 'Guarda los cambios para previsualizar.' : 'Comprueba los destinatarios antes de confirmar.' }}</p></div><div><button type="submit" class="secondary-action" [disabled]="working() || !changed()">{{ working() ? 'Procesando…' : 'Guardar borrador' }}</button><button type="button" class="primary-action" (click)="previewAudience()" [disabled]="working() || changed() || conflict() || !current()">Previsualizar destinatarios</button></div></div>
+          }
+        </form>
+        @if (preview(); as audience) {
+          <article class="communication-card audience-review" aria-labelledby="audience-title"><div class="review-header"><div><p class="eyebrow">Revisar destinatarios</p><h2 id="audience-title" tabindex="-1" class="publication-step">{{ audience.total }} destinatarios</h2></div>@if (!confirming()) { <button type="button" class="primary-action" (click)="preparePublish()" aria-controls="publish-confirmation" [disabled]="working() || !audience.huella || audience.total <= 0">{{ payload().programado_en ? 'Continuar para programar' : 'Continuar para publicar' }}</button> }</div><p class="muted">El envío se confirma en el siguiente paso. Esta lista corresponde al contenido y la audiencia guardados.</p>
+            <div class="recipient-table"><table><thead><tr><th>Nombre</th><th>Correo</th></tr></thead><tbody>@for (recipient of audience.destinatarios; track recipient.id) { <tr><td>{{ recipient.nombre }}</td><td>{{ recipient.email }}</td></tr> }</tbody></table></div>
+            @if (audience.excluidos_promociones) { <p class="warning-note">{{ audience.excluidos_promociones }} personas excluidas por preferencias o límite de frecuencia.</p> }
+            @if (!audience.total) { <p role="status" class="warning-note">No hay destinatarios. Ajusta la audiencia y guarda el borrador.</p> }
+          </article>
+          @if (confirming()) {
+            <section id="publish-confirmation" class="publish-confirmation" aria-labelledby="publish-title"><p class="eyebrow">Último vistazo</p><h2 id="publish-title" tabindex="-1" class="publication-step">{{ payload().programado_en ? 'Confirmar programación' : 'Confirmar publicación' }}</h2><p>Vas a compartir <strong>{{ payload().titulo }}</strong> con <strong>{{ audience.total }} destinatarios</strong> en <strong>{{ scopeLabel() }}</strong>.</p><p class="muted">Remitente: {{ senderName(current()?.remitente) }} · Notificación y correo electrónico incluidos</p>
+              @if (payload().programado_en) { <p>Envío programado: {{ payload().programado_en | date:'dd/MM/yyyy HH:mm' }} (hora local).</p> } @if (payload().vence_en) { <p>Válida hasta: {{ payload().vence_en | date:'dd/MM/yyyy HH:mm' }}.</p> }
+              <p class="confirmation-message">{{ payload().mensaje }}</p><p class="muted">Después de confirmar no podrás editar el contenido. Si programaste el envío, puedes cancelarlo antes del despacho.</p><div class="confirmation-actions"><button type="button" class="primary-action" (click)="publish()" [disabled]="working()">{{ working() ? 'Publicando…' : (payload().programado_en ? 'Programar para ' : 'Publicar para ') + audience.total + ' destinatarios' }}</button><button type="button" class="secondary-action" (click)="cancelPublish()" [disabled]="working()">Volver a destinatarios</button></div>
+            </section>
+          }
+        }
+      </div>
+      <aside class="message-preview" aria-label="Vista previa del mensaje"><div class="preview-kicker"><span class="preview-dot"></span> Así se verá tu mensaje</div><div class="preview-brand"><span class="brand-mark">S</span><div><strong>SITUR·SMART</strong><span>{{ form.controls.tipo.value === 'INTERNA' ? 'Para nuestro equipo' : form.controls.tipo.value === 'PROMOCIONAL' ? 'Una nueva experiencia te espera' : 'Información para tu viaje' }}</span></div></div><div class="preview-body"><span class="preview-category">{{ form.controls.tipo.value === 'INTERNA' ? 'Equipo' : form.controls.tipo.value === 'PROMOCIONAL' ? 'Descubre' : 'Tu viaje' }}</span><h2>{{ visualMessage(form.controls.titulo.value) || 'Un título que invite a leer' }}</h2><p class="preview-copy">{{ visualMessage(form.controls.mensaje.value) || 'Tu mensaje aparecerá aquí mientras lo escribes. Cuenta lo importante con un tono cercano y termina con un siguiente paso claro.' }}</p>@if (form.controls.vence_en.value) { <p class="preview-expiry">Válido hasta {{ form.controls.vence_en.value | date:'dd/MM/yyyy HH:mm' }}</p> }<span class="preview-cta">{{ form.controls.promocion_id.value ? 'Descubrir la oferta' : form.controls.reserva_id.value ? 'Consultar mi reserva' : 'Abrir mi bandeja' }}</span></div><p class="preview-footnote">Ejemplo visual con el nombre María. Cada destinatario recibe su propio saludo.</p>
+        <div class="email-preview-controls"><strong>Vista del correo incluido</strong><p>Revisa el diseño con tu nombre como ejemplo. La previsualización no envía mensajes.</p><button type="button" class="secondary-action" (click)="previewEmail()" [disabled]="!current() || changed() || emailLoading()">{{ emailLoading() ? 'Preparando correo…' : 'Ver correo de ejemplo' }}</button>@if (changed() || !current()) { <small>Guarda el borrador para ver el correo.</small> }@if (emailError(); as text) { <p role="alert" class="error-message">{{ text }}</p> }@if (emailHtml(); as html) { <iframe title="Vista previa segura del correo" sandbox="" [srcdoc]="html" class="email-frame"></iframe> }</div>
+      </aside>
+    </div>
+  }
+</section>
