@@ -426,3 +426,53 @@ class EsquemaTests(SimpleTestCase):
             result, _ = call("buscar_hospedajes", {}, collected)
         self.assertEqual(result["resultados"], [{"id": 7, "nombre": "H"}])
         self.assertEqual(collected.hospedajes[7]["url"], "/x")
+
+
+class AlternativasRealesTests(SimpleTestCase):
+    """Una busqueda vacia trae las ciudades que si tienen oferta, para no inventarlas."""
+
+    CONTEOS = ({"Sucre": 1, "La Paz": 3}, {"Santa Cruz": 2})
+
+    def test_tours_vacios_traen_las_ciudades_con_tours(self):
+        with (
+            patch.object(travel_tools, "_find_tours", return_value=[]),
+            patch.object(travel_tools, "_city_counts", return_value=self.CONTEOS),
+        ):
+            result, _ = call("buscar_tours", {"ciudad": "Uyuni"})
+        self.assertEqual(result["ciudades_con_tours"], ["Santa Cruz"])
+        self.assertIn("usa solo las de ciudades_con_tours", result["nota"])
+
+    def test_hospedajes_vacios_traen_las_ciudades_con_hospedajes(self):
+        with (
+            patch("apps.assistant.tools.recommend", return_value=[]),
+            patch.object(travel_tools, "_city_counts", return_value=self.CONTEOS),
+        ):
+            result, _ = call("buscar_hospedajes", {"ciudad": "Oruro"})
+        self.assertEqual(result["ciudades_con_hospedajes"], ["La Paz", "Sucre"])
+
+    def test_si_falla_la_consulta_responde_igual_sin_la_lista(self):
+        with (
+            patch.object(travel_tools, "_find_tours", return_value=[]),
+            patch.object(travel_tools, "_city_counts", side_effect=RuntimeError("db")),
+            self.assertLogs("apps.assistant.travel_tools", level="WARNING"),
+        ):
+            result, _ = call("buscar_tours", {"ciudad": "Uyuni"})
+        self.assertEqual(result["resultados"], [])
+        self.assertNotIn("ciudades_con_tours", result)
+
+
+class PromptTests(SimpleTestCase):
+    """Reglas que corrigen fallas vistas en pruebas reales."""
+
+    def test_reglas_del_asesor(self):
+        prompt = services.SYSTEM_PROMPT
+        for regla in (
+            "busca enseguida",  # no hacer tantas preguntas antes de buscar
+            "confírmala con listar_ciudades",  # no nombrar ciudades sin verificar
+            "No supongas otros",  # no inventar servicios del hotel
+            "fuera de SITUR-SMART",  # no guias ni agencias externas
+            "incluye en esa misma respuesta la altura",  # aviso de altura
+            "no lo ofrezcas",  # no ofrecer reservar
+        ):
+            self.assertIn(regla, prompt)
+        prompt.format(hoy="2026-11-22")  # sin llaves sueltas

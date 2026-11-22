@@ -10,6 +10,7 @@ el armado de las respuestas en funciones puras, para poder probarlas sin base.
 
 from __future__ import annotations
 
+import logging
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -18,6 +19,8 @@ from decimal import Decimal
 from django.utils import timezone
 
 from .recommendations import _plain, as_card
+
+logger = logging.getLogger(__name__)
 
 MAX_RESULTS = 5
 MAX_DEPARTURES = 6
@@ -147,10 +150,13 @@ def buscar_tours(args: dict, collected: Collected, *, user=None, limit=MAX_RESUL
     ciudad = str(args.get("ciudad") or "").strip()[:80] or None
     found = [tour for tour in found if _matches_city(tour, ciudad)][:limit]
     if not found:
-        return {
-            "resultados": [],
-            "nota": "No hay tours ni experiencias con salidas abiertas que cumplan esos criterios.",
-        }
+        return with_alternatives(
+            {
+                "resultados": [],
+                "nota": "No hay tours ni experiencias con salidas abiertas que cumplan esos criterios.",
+            },
+            "tours",
+        )
     cards = [tour_card(tour) for tour in found]
     for card in cards:
         collected.tours[card["id"]] = card
@@ -384,6 +390,25 @@ def _city_counts() -> tuple[dict, dict]:
         _public_tours().filter(upcoming_departures__gt=0).order_by().values_list("city__name", flat=True)
     )
     return dict(lodgings), dict(tours)
+
+
+def with_alternatives(result: dict, kind: str) -> dict:
+    """Agrega a una busqueda vacia las ciudades que si tienen esa oferta.
+
+    Asi el modelo propone alternativas reales sin otra ronda (y sin inventar
+    ciudades). ``kind`` es "tours" u "hospedajes". Si la consulta falla, la
+    respuesta sale igual, sin la lista.
+    """
+    try:
+        lodgings, tours = _city_counts()
+    except Exception:
+        logger.warning("No se pudieron listar las ciudades con oferta para sugerir alternativas.")
+        return result
+    counts = tours if kind == "tours" else lodgings
+    key = "ciudades_con_tours" if kind == "tours" else "ciudades_con_hospedajes"
+    result[key] = sorted(counts, key=_plain)
+    result["nota"] += f" Si propones otra ciudad, usa solo las de {key}."
+    return result
 
 
 def listar_ciudades(args: dict, collected: Collected, **_) -> dict:

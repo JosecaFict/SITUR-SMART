@@ -118,7 +118,10 @@ def _buscar_hospedajes(args: dict, collected: Collected, **_) -> dict:
     for card in results:
         collected.hospedajes[card["id"]] = card
     if not results:
-        return {"resultados": [], "nota": "No hay hospedajes publicados que cumplan esos criterios."}
+        return travel_tools.with_alternatives(
+            {"resultados": [], "nota": "No hay hospedajes publicados que cumplan esos criterios."},
+            "hospedajes",
+        )
     return {"resultados": results}
 
 
