@@ -823,3 +823,38 @@ def test_concurrent_discounted_bookings_preserve_price_and_capacity(
     assert sorted(outcomes) == [201, 409]
     snapshot = BookingPromotionSnapshot.objects.get(promotion_id=data["id"])
     assert snapshot.total == stripe.created[0]["amount"] == Decimal("80.00")
+
+
+def test_publishing_pushes_once_to_every_installed_app(
+    company, firebase, django_capture_on_commit_callbacks
+):
+    """Toda app instalada (con o sin sesión) recibe un solo aviso por oferta."""
+    data = create(company)
+    with django_capture_on_commit_callbacks(execute=True):
+        published = publish(company, data)
+    assert published["difundida"] is True
+    [message] = [m for m in firebase.enviados if m.get("topic")]
+    assert message["topic"] == "promociones"
+    assert "token" not in message
+    assert message["notification"]["title"] == "20% de descuento en Oferta CU51"
+    assert message["data"] == {
+        "tipo": "PROMOCION",
+        "promocion_id": str(data["id"]),
+        "empresa_id": str(company.tenant_id),
+    }
+    assert message["android"]["notification"]["tag"] == f"promo_{data['id']}"
+
+    # Desactivar y volver a publicar no repite el aviso.
+    company.client.post(f"{BASE}{data['id']}/desactivar/")
+    with django_capture_on_commit_callbacks(execute=True):
+        assert publish(company, data)["difundida"] is False
+    assert len([m for m in firebase.enviados if m.get("topic")]) == 1
+
+
+def test_scheduled_promotion_is_not_pushed_to_everyone(
+    company, firebase, django_capture_on_commit_callbacks
+):
+    data = create(company, inicio=(timezone.now() + timedelta(days=1)).isoformat())
+    with django_capture_on_commit_callbacks(execute=True):
+        assert publish(company, data)["difundida"] is False
+    assert not [m for m in firebase.enviados if m.get("topic")]

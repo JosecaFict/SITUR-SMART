@@ -14,10 +14,16 @@ from . import push
 from .models import Notification, PushDevice
 
 
-def notify(*, user, kind: str, title: str, message: str, data: dict | None = None) -> Notification:
+def notify(
+    *, user, kind: str, title: str, message: str, data: dict | None = None, push_enabled: bool = True
+) -> Notification:
+    """``push_enabled=False`` deja el aviso solo en la bandeja (el push ya salio por otro lado)."""
     notification = Notification.objects.create(
         user=user, kind=kind, title=title[:150], message=message, data=data or {}
     )
+    if not push_enabled:
+        return notification
+
     def send_after_commit():
         from .marketing import suppression_reason
         if suppression_reason(notification) is None:

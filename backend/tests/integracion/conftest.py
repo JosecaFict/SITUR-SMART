@@ -174,7 +174,8 @@ def firebase(monkeypatch):
 
     def enviar(message):
         falso.enviados.append(message["message"])
-        return falso.rechazos.get(message["message"]["token"])
+        # Los avisos a un tema (todas las apps instaladas) no llevan token.
+        return falso.rechazos.get(message["message"].get("token"))
 
     monkeypatch.setattr(push, "is_configured", lambda: True)
     monkeypatch.setattr(push, "send_one", enviar)

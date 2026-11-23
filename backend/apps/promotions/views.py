@@ -103,14 +103,30 @@ class PromotionPublishView(CompanyView):
         promotion = services.set_enabled(*self.scope(request), pk, self.enabled, request=request)
         data = _result(promotion)
         if self.enabled:
-            data["notificados"] = _notify_interested(promotion)
+            # Primero el push a todos los celulares con la app; si salió, el
+            # aviso personalizado queda solo en la bandeja (sin push repetido).
+            data["difundida"] = _broadcast(request, promotion)
+            data["notificados"] = _notify_interested(
+                promotion, push_enabled=not data["difundida"]
+            )
         return Response(data)
 
 
-def _notify_interested(promotion) -> int:
+def _broadcast(request, promotion) -> bool:
+    """Publicar nunca falla por un aviso."""
+    try:
+        return services.broadcast(request.user, promotion, request=request)
+    except Exception:
+        logger.exception("No se pudo difundir la promocion %s", promotion.id)
+        return False
+
+
+def _notify_interested(promotion, *, push_enabled=True) -> int:
     """Avisa a los turistas interesados. Publicar nunca falla por un aviso."""
     try:
-        return interests.notify_interested(services.queryset().get(id=promotion.id))
+        return interests.notify_interested(
+            services.queryset().get(id=promotion.id), push_enabled=push_enabled
+        )
     except Exception:
         logger.exception("No se pudo avisar a los interesados en la promocion %s", promotion.id)
         return 0

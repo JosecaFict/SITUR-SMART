@@ -7,10 +7,12 @@ from django.db.models import Exists, OuterRef, Prefetch, Q
 from django.utils import timezone
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 
+from apps.audit.models import AuditLog
 from apps.audit.services import record_audit
 from apps.bookings import services as bookings
 from apps.catalog import departures
 from apps.catalog.models import ROOM_PRODUCT_CODE, TourismProduct
+from apps.notifications import push
 from apps.rbac.services import require_permission, require_tenant_access
 from apps.tenancy.subscriptions import require_active_plan, restricted_tenant_ids
 
@@ -499,6 +501,46 @@ def set_enabled(actor, tenant_id, promotion_id, enabled, request=None):
         request,
     )
     return promotion
+
+
+BROADCAST_ACTION = "PROMOCION_DIFUNDIR"
+
+
+def broadcast(actor, promotion, request=None) -> bool:
+    """Avisa por push a todo celular con la app instalada, con o sin sesión.
+
+    Sale una sola vez por promoción: desactivarla y volver a publicarla no
+    repite el aviso. La marca es el registro de auditoría, así no hace falta
+    cambiar la tabla. Solo se difunde una oferta vigente, porque el aviso lleva
+    a su detalle público. Devuelve True si el aviso salió por este medio.
+    """
+    if promotion.state_at() != "VIGENTE" or not push.is_configured():
+        return False
+    with transaction.atomic():
+        # Dos clics seguidos en "Publicar" no mandan dos avisos.
+        Promotion.objects.select_for_update().filter(pk=promotion.pk).first()
+        if AuditLog.objects.filter(
+            action=BROADCAST_ACTION,
+            entity="promocion_comercial",
+            entity_id=str(promotion.pk),
+        ).exists():
+            return False
+        _audit(actor, promotion, BROADCAST_ACTION, request)
+        percentage = f"{promotion.percentage.normalize():f}"
+        until = timezone.localtime(promotion.ends_at).strftime("%d/%m/%Y")
+        message = push.build_topic_message(
+            push.PROMOTIONS_TOPIC,
+            title=f"{percentage}% de descuento en {promotion.name}",
+            body=f"{promotion.tenant.trade_name} · Válido hasta el {until}. ¡Tócala para verla!",
+            data={
+                "tipo": "PROMOCION",
+                "promocion_id": promotion.pk,
+                "empresa_id": promotion.tenant_id,
+            },
+            tag=f"promo_{promotion.pk}",
+        )
+        transaction.on_commit(lambda: push.send_to_topic(message))
+    return True
 
 
 def _save_component(promotion, values, component=None):

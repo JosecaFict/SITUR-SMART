@@ -40,7 +40,18 @@ class _SplashPageState extends State<SplashPage> {
     }
     if (!mounted) return;
     if (user == null) {
-      context.go('/login');
+      // Una oferta tocada sin sesión se abre igual, encima del login.
+      final offer = PushService.instance.takePublicPendingRoute();
+      if (offer == null) {
+        context.go('/login');
+        return;
+      }
+      _cancelHomeNavigation = AppRouter.openHome(
+        GoRouter.of(context),
+        null,
+        pendingRoute: offer,
+        homeRoute: '/login',
+      );
       return;
     }
     _cancelHomeNavigation = AppRouter.openHome(

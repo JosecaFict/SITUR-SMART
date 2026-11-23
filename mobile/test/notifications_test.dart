@@ -173,6 +173,24 @@ void main() {
     expect(PushService.routeFor({'reserva_id': 'x'}), isNull);
   });
 
+  test('un push de oferta abre su detalle, también sin sesión', () {
+    expect(
+      PushService.routeFor({'tipo': 'PROMOCION', 'promocion_id': '7'}),
+      '/promocion/7',
+    );
+    expect(
+      PushService.routeFor({'tipo': 'OFERTA_INTERES', 'promocion_id': '8'}),
+      '/promocion/8',
+    );
+    // Una comunicación con oferta se sigue leyendo en la bandeja.
+    expect(
+      PushService.routeFor({'tipo': 'COMUNICACION', 'promocion_id': '9'}),
+      '/notificaciones',
+    );
+    expect(PushService.isPublicRoute('/promocion/7'), isTrue);
+    expect(PushService.isPublicRoute('/reserva/7'), isFalse);
+  });
+
   testWidgets(
     'si falla marcar leída conserva estado y contador, y permite reintentar',
     (tester) async {

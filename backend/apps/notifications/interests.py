@@ -260,8 +260,12 @@ def _eligible_users(promotion, user_ids: set[int]) -> dict[int, User]:
     return {user.id: user for user in users}
 
 
-def notify_interested(promotion) -> int:
-    """Avisa a los turistas a los que les encaja la promocion. Devuelve cuantos."""
+def notify_interested(promotion, *, push_enabled: bool = True) -> int:
+    """Avisa a los turistas a los que les encaja la promocion. Devuelve cuantos.
+
+    Si la oferta ya se difundio por push a todos los celulares (topic), el aviso
+    queda solo en la bandeja para que nadie reciba dos push de la misma oferta.
+    """
     if promotion.state_at() not in ("VIGENTE", "PROGRAMADA"):
         return 0
     targets = _promotion_items(promotion)
@@ -314,6 +318,7 @@ def notify_interested(promotion) -> int:
                       "remitente": promotion.tenant.trade_name,
                       "vence_en": promotion.ends_at.isoformat(), "tipo_comunicacion": "PROMOCIONAL",
                       "afinidad": round(scores[user_id], 2), "motivo": reason},
+                push_enabled=push_enabled,
             )
             sent += 1
     return sent

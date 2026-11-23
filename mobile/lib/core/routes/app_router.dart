@@ -9,6 +9,7 @@ import '../../features/itinerarios/presentation/itinerary_detail_page.dart';
 import '../../features/marketplace/presentation/explore_page.dart';
 import '../../features/marketplace/presentation/lodging_detail_page.dart';
 import '../../features/marketplace/presentation/product_detail_page.dart';
+import '../../features/marketplace/presentation/promotion_detail_page.dart';
 import '../../features/notificaciones/presentation/notifications_page.dart';
 import '../../features/pagos/presentation/my_payments_page.dart';
 import '../../features/perfil/presentation/profile_page.dart';
@@ -33,8 +34,9 @@ class AppRouter {
     GoRouter router,
     Map<String, dynamic>? user, {
     String? pendingRoute,
+    String? homeRoute,
   }) {
-    final home = AuthService.homeRouteFor(user);
+    final home = homeRoute ?? AuthService.homeRouteFor(user);
     if (pendingRoute == null) {
       router.go(home);
       return () {};
@@ -195,6 +197,15 @@ class AppRouter {
         name: 'producto',
         builder: (context, state) => ProductDetailPage(
           productId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+        ),
+      ),
+
+      // Oferta abierta desde su push; pública, sirve sin sesión.
+      GoRoute(
+        path: '/promocion/:id',
+        name: 'promocion',
+        builder: (context, state) => PromotionDetailPage(
+          promotionId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
 

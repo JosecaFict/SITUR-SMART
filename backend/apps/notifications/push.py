@@ -32,6 +32,9 @@ FCM_TIMEOUT_SECONDS = 10
 STALE_TOKEN_ERRORS = {"UNREGISTERED", "SENDER_ID_MISMATCH"}
 # Canal de Android que crea la app; si no existe, Android usa uno generico.
 ANDROID_CHANNEL_ID = "situr_avisos"
+# Tema al que se suscribe toda app instalada, con o sin sesion: ofertas del
+# marketplace para cualquiera que tenga el APK.
+PROMOTIONS_TOPIC = "promociones"
 
 
 @lru_cache(maxsize=1)
@@ -116,6 +119,44 @@ def _error_code(response) -> str:
         if detail.get("errorCode"):
             return detail["errorCode"]
     return error.get("status") or str(response.status_code)
+
+
+def build_topic_message(topic: str, *, title: str, body: str, data: dict, tag: str) -> dict:
+    """Un mensaje para todos los celulares suscritos al tema, con o sin sesion.
+
+    ``tag`` hace que Android reemplace un aviso con el mismo tag en vez de
+    apilar otro: la misma oferta nunca se ve dos veces.
+    """
+    return {
+        "message": {
+            "topic": topic,
+            "notification": {"title": title[:150], "body": body},
+            "data": {key: str(value) for key, value in data.items() if value is not None},
+            "android": {
+                "priority": "HIGH",
+                "notification": {"channel_id": ANDROID_CHANNEL_ID, "tag": tag},
+            },
+        }
+    }
+
+
+def send_to_topic(message: dict) -> None:
+    """Envia un mensaje de tema; Firebase lo reparte a cada celular una sola vez."""
+    if not is_configured():
+        return
+    if getattr(settings, "PUSH_EN_SEGUNDO_PLANO", True):
+        threading.Thread(target=_send_topic_in_thread, args=(message,), daemon=True).start()
+    else:
+        send_one(message)
+
+
+def _send_topic_in_thread(message: dict) -> None:
+    try:
+        error = send_one(message)
+        if error:
+            logger.warning("Firebase no acepto el aviso al tema %s: %s", message["message"]["topic"], error)
+    except Exception:
+        logger.exception("Fallo el envio del aviso al tema.")
 
 
 def push_notification(notification: Notification) -> None:

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
@@ -123,25 +122,9 @@ class _NotificationsInboxPageState extends State<NotificationsInboxPage> {
                 },
           onOpenOffer: item.promotionId == null || item.expired
               ? null
-              : () async {
-                  if (item.expired) return;
-                  const webUrl = String.fromEnvironment(
-                    'WEB_URL',
-                    defaultValue: 'https://situr-smart-web.vercel.app',
-                  );
-                  final opened = await launchUrl(
-                    Uri.parse(
-                      '$webUrl/marketplace/promociones/${item.promotionId}',
-                    ),
-                    mode: LaunchMode.externalApplication,
-                  );
-                  if (!opened && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('No se pudo abrir la oferta.'),
-                      ),
-                    );
-                  }
+              : () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/promocion/${item.promotionId}');
                 },
         ),
       );

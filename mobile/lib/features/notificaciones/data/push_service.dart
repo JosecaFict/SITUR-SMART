@@ -12,7 +12,10 @@ import 'notifications_store.dart';
 /// Con la app cerrada o en segundo plano, Android muestra el aviso solo (canal
 /// "situr_avisos", ver MainActivity.kt). Con la app abierta llega a
 /// [onForegroundMessage] y se avisa dentro de la app. Al tocar el aviso se
-/// abre la reserva o la bandeja de comunicaciones.
+/// abre la reserva, la oferta o la bandeja de comunicaciones.
+///
+/// Toda app instalada se suscribe al tema "promociones" al arrancar, haya o
+/// no sesión: así cualquier celular con el APK se entera de las ofertas.
 ///
 /// El token del celular se registra en el backend (me/dispositivos/) al
 /// iniciar sesión y se quita al cerrarla, para que el celular no siga
@@ -21,6 +24,9 @@ class PushService {
   PushService._();
 
   static final PushService instance = PushService._();
+
+  /// Mismo nombre que PROMOTIONS_TOPIC en backend/apps/notifications/push.py.
+  static const promotionsTopic = 'promociones';
 
   /// Abre la ruta del aviso tocado.
   static void Function(String route)? onOpenRoute;
@@ -44,10 +50,23 @@ class PushService {
     return route;
   }
 
+  /// Sin sesión solo se toma un destino público (una oferta); los demás se
+  /// guardan para después del login.
+  String? takePublicPendingRoute() {
+    final route = _pendingRoute;
+    if (route == null || !isPublicRoute(route)) return null;
+    _pendingRoute = null;
+    return route;
+  }
+
+  /// Destinos que se pueden abrir sin sesión.
+  static bool isPublicRoute(String route) => route.startsWith('/promocion/');
+
   /// Si se necesita iniciar sesión, se conserva el destino para después.
   Future<void> openRoute(String route) async {
     final access = await _api.getAccessToken();
-    if (access == null || access.isEmpty || onOpenRoute == null) {
+    final loggedIn = access != null && access.isNotEmpty;
+    if (onOpenRoute == null || (!loggedIn && !isPublicRoute(route))) {
       _pendingRoute = route;
       return;
     }
@@ -55,8 +74,11 @@ class PushService {
   }
 
   /// Las comunicaciones se leen en la bandeja, incluso si tienen reserva.
+  /// Una oferta abre su detalle público.
   static String? routeFor(Map<String, dynamic> data) {
     if (data['tipo'] == 'COMUNICACION') return '/notificaciones';
+    final promotion = int.tryParse('${data['promocion_id'] ?? ''}');
+    if (promotion != null) return '/promocion/$promotion';
     final id = int.tryParse('${data['reserva_id'] ?? ''}');
     return id == null ? null : '/reserva/$id';
   }
@@ -91,6 +113,19 @@ class PushService {
       final initial = await FirebaseMessaging.instance.getInitialMessage();
       _pendingRoute = initial == null ? null : routeFor(initial.data);
     } catch (_) {}
+    // Sin await: el diálogo de permiso no debe frenar el arranque.
+    unawaited(_subscribeToPromotions());
+  }
+
+  /// Toda app instalada recibe las ofertas del marketplace, con o sin sesión.
+  /// Android 13+ pide el permiso aquí la primera vez que se abre la app.
+  Future<void> _subscribeToPromotions() async {
+    try {
+      await FirebaseMessaging.instance.requestPermission();
+      await FirebaseMessaging.instance.subscribeToTopic(promotionsTopic);
+    } catch (error) {
+      debugPrint('No se pudo suscribir a las ofertas: $error');
+    }
   }
 
   /// Pide permiso (Android 13+ muestra el diálogo la primera vez) y registra
