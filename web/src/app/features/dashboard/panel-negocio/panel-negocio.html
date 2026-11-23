@@ -1,0 +1,472 @@
+<section class="space-y-6" aria-labelledby="panel-negocio-title">
+  <!-- Encabezado y selector de empresas (SuperAdmin) -->
+  <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <p class="text-xs font-semibold tracking-wider text-accent-dark uppercase">Indicadores de negocio</p>
+      <h2 id="panel-negocio-title" class="mt-1 font-heading text-xl font-bold text-title">
+        @if (comparing()) { Comparación de empresas } @else if (platform()) { Ventas y reservas de la plataforma } @else { Ventas, reservas y opinión de tus clientes }
+      </h2>
+      @if (stats(); as data) {
+        <p class="mt-1 text-xs text-text-secondary">Mes en curso: {{ data.mes }} · importes en Bs · actualizado {{ data.generado | date: 'HH:mm' }}</p>
+      }
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      @if (platform() && companies().length) {
+        <div class="relative">
+          <button type="button" (click)="pickerOpen.set(!pickerOpen())" data-testid="empresas-picker"
+            class="flex items-center gap-2 rounded-xl border border-input-border bg-white px-3.5 py-2 text-xs font-semibold text-label shadow-sm transition hover:border-accent-dark">
+            <svg lucideBuilding2 class="h-4 w-4 text-accent-dark"></svg>
+            {{ selected().length ? selected().length + ' empresa' + (selected().length > 1 ? 's' : '') : 'Todas las empresas' }}
+          </button>
+          @if (pickerOpen()) {
+            <div class="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-input-border bg-white p-2 shadow-xl">
+              <p class="px-2 py-1.5 text-[11px] text-text-secondary">Elige 1 empresa para ver solo sus datos, o de 2 a {{ maxCompared }} para compararlas.</p>
+              <div class="max-h-64 overflow-y-auto">
+                @for (company of companies(); track company.id) {
+                  <label class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-label hover:bg-gray-50"
+                    [class.opacity-50]="!isSelected(company.id) && selected().length >= maxCompared">
+                    <input type="checkbox" [checked]="isSelected(company.id)" (change)="toggleCompany(company.id)"
+                      [disabled]="!isSelected(company.id) && selected().length >= maxCompared" class="accent-teal-700" />
+                    <span class="truncate">{{ company.name }}</span>
+                  </label>
+                }
+              </div>
+              <div class="mt-1 flex justify-between border-t border-input-border px-2 pt-2">
+                <button type="button" (click)="clearSelection()" class="text-xs font-semibold text-text-secondary hover:text-title">Ver todas</button>
+                <button type="button" (click)="pickerOpen.set(false)" class="text-xs font-semibold text-accent-dark">Listo</button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+      <button type="button" (click)="load()" [disabled]="loading()" aria-label="Actualizar indicadores"
+        class="flex h-9 w-9 items-center justify-center rounded-xl border border-input-border bg-white text-label shadow-sm transition hover:text-accent-dark disabled:opacity-50">
+        <svg lucideRefreshCw class="h-4 w-4" [class.animate-spin]="loading()"></svg>
+      </button>
+    </div>
+  </div>
+
+  @if (platform() && selectedNames().length) {
+    <div class="flex flex-wrap gap-2">
+      @for (company of selectedNames(); track company.id; let i = $index) {
+        <span class="flex items-center gap-1.5 rounded-full border border-input-border bg-white py-1 pr-1.5 pl-3 text-xs font-semibold text-label">
+          @if (selectedNames().length > 1) { <i class="h-2.5 w-2.5 rounded-full" [style.background]="colors[i]"></i> }
+          {{ company.name }}
+          <button type="button" (click)="toggleCompany(company.id)" [attr.aria-label]="'Quitar ' + company.name"
+            class="rounded-full p-0.5 text-text-secondary hover:bg-gray-100 hover:text-title"><svg lucideX class="h-3 w-3"></svg></button>
+        </span>
+      }
+    </div>
+  }
+
+  @if (error(); as message) {
+    <div class="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <svg lucideCircleAlert class="h-5 w-5 shrink-0"></svg>{{ message }}
+    </div>
+  } @else if (loading() && !stats()) {
+    <div class="flex items-center justify-center gap-2 rounded-2xl border border-input-border bg-white p-10 text-sm text-text-secondary">
+      <svg lucideLoaderCircle class="h-5 w-5 animate-spin"></svg> Calculando indicadores…
+    </div>
+  } @else if (stats(); as data) {
+    <!-- Tarjetas principales -->
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" [class.opacity-60]="loading()">
+      <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between text-xs font-medium text-text-secondary">
+          {{ platform() ? 'Monto procesado del mes' : 'Ingreso neto del mes' }}
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-demo-bg text-accent-dark"><svg lucideCreditCard class="h-4 w-4"></svg></span>
+        </div>
+        <p class="mt-2 font-heading text-2xl font-bold text-title tabular-nums" data-testid="kpi-dinero">Bs {{ money(platform() ? data.finanzas.cobrado : data.finanzas.neto) }}</p>
+        <p class="mt-1 text-xs text-text-secondary">
+          @if (platform()) {
+            Neto Bs {{ money(data.finanzas.neto) }} · reembolsado Bs {{ money(data.finanzas.reembolsado) }}
+          } @else {
+            Cobrado Bs {{ money(data.finanzas.cobrado) }} · reembolsado <span class="text-red-600">Bs {{ money(data.finanzas.reembolsado) }}</span>
+          }
+        </p>
+        @if (data.finanzas.variacion_neto !== null) {
+          <p class="mt-1 flex items-center gap-1 text-xs font-semibold" [class]="data.finanzas.variacion_neto >= 0 ? 'text-emerald-700' : 'text-red-600'">
+            @if (data.finanzas.variacion_neto >= 0) { <svg lucideArrowUp class="h-3 w-3"></svg> } @else { <svg lucideArrowDown class="h-3 w-3"></svg> }
+            {{ data.finanzas.variacion_neto | number: '1.0-1' }} % neto vs. mes anterior
+          </p>
+        }
+      </div>
+
+      <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between text-xs font-medium text-text-secondary">
+          Reservas del mes
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-demo-bg text-accent-dark"><svg lucideCalendarCheck class="h-4 w-4"></svg></span>
+        </div>
+        <p class="mt-2 font-heading text-2xl font-bold text-title tabular-nums">{{ data.reservas.total }}</p>
+        <p class="mt-1 text-xs text-text-secondary">{{ data.reservas.canceladas }} canceladas</p>
+        @if (data.reservas.variacion !== null) {
+          <p class="mt-1 flex items-center gap-1 text-xs font-semibold" [class]="data.reservas.variacion >= 0 ? 'text-emerald-700' : 'text-red-600'">
+            @if (data.reservas.variacion >= 0) { <svg lucideArrowUp class="h-3 w-3"></svg> } @else { <svg lucideArrowDown class="h-3 w-3"></svg> }
+            {{ data.reservas.variacion | number: '1.0-1' }} % vs. mes anterior
+          </p>
+        }
+      </div>
+
+      @if (platform() && data.plataforma; as people) {
+        <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between text-xs font-medium text-text-secondary">
+            Turistas registrados
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-demo-bg text-accent-dark"><svg lucideUsers class="h-4 w-4"></svg></span>
+          </div>
+          <p class="mt-2 font-heading text-2xl font-bold text-title tabular-nums">{{ people.turistas.total }}</p>
+          <p class="mt-1 text-xs text-text-secondary">
+            <span class="font-semibold text-emerald-700">+{{ people.turistas.nuevos_mes }}</span> este mes ·
+            {{ people.turistas.con_compra }} con compra{{ people.turistas.porcentaje_compra !== null ? ' (' + (people.turistas.porcentaje_compra | number: '1.0-1') + ' %)' : '' }}
+          </p>
+        </div>
+      } @else {
+        <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between text-xs font-medium text-text-secondary">
+            Ocupación del mes
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-demo-bg text-accent-dark"><svg lucideBedDouble class="h-4 w-4"></svg></span>
+          </div>
+          <p class="mt-2 font-heading text-2xl font-bold text-title tabular-nums">
+            {{ data.ocupacion.porcentaje !== null ? (data.ocupacion.porcentaje | number: '1.0-1') + ' %' : '—' }}
+          </p>
+          <p class="mt-1 text-xs text-text-secondary">{{ data.ocupacion.vendidos }} de {{ data.ocupacion.capacidad }} cupos abiertos vendidos</p>
+        </div>
+      }
+
+      <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between text-xs font-medium text-text-secondary">
+          Calificación de clientes
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-500"><svg lucideStar class="h-4 w-4 fill-current"></svg></span>
+        </div>
+        <p class="mt-2 flex items-center gap-2 font-heading text-2xl font-bold text-title tabular-nums">
+          {{ data.calificacion.promedio !== null ? (data.calificacion.promedio | number: '1.1-1') : '—' }}
+          <span class="flex text-amber-400">
+            @for (on of stars(data.calificacion.promedio); track $index) {
+              <svg lucideStar class="h-3.5 w-3.5" [class.fill-current]="on" [class.text-gray-300]="!on"></svg>
+            }
+          </span>
+        </p>
+        <p class="mt-1 text-xs text-text-secondary">{{ data.calificacion.total }} reseñas · <span class="font-semibold text-emerald-700">+{{ data.calificacion.nuevas_mes }}</span> este mes</p>
+      </div>
+    </div>
+
+    <!-- Gráfico de 6 meses + reservas por estado o alertas -->
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
+      <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+        <h3 class="font-heading text-base font-bold text-title">
+          @if (comparing()) { Ingreso neto por empresa } @else if (platform()) { Ingresos y reembolsos } @else { Ingresos y reservas }
+        </h3>
+        <p class="text-xs text-text-secondary">Últimos 6 meses</p>
+        <div class="mt-5 flex h-52 items-end gap-3 border-b border-input-border px-1" role="img"
+          [attr.aria-label]="'Gráfico de barras de los últimos 6 meses'">
+          @for (bar of bars(); track bar.label) {
+            <div class="flex h-full flex-1 items-end justify-center gap-1">
+              @for (item of bar.values; track $index) {
+                <div class="flex h-full flex-col items-center justify-end gap-1" [title]="item.title">
+                  <span class="text-[10px] font-semibold text-label tabular-nums">{{ item.text }}</span>
+                  <div class="w-3 rounded-t-md sm:w-5" [style.height.%]="item.height * 0.85" [style.background]="item.color"></div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+        <div class="flex gap-3 px-1 pt-2">
+          @for (bar of bars(); track bar.label) {
+            <span class="flex-1 text-center text-xs text-text-secondary">{{ bar.label }}</span>
+          }
+        </div>
+        <div class="mt-3 flex flex-wrap gap-4 text-xs text-text-secondary">
+          @for (item of legend(); track item.label) {
+            <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-sm" [style.background]="item.color"></i>{{ item.label }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        @if (!platform()) {
+          <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+            <h3 class="font-heading text-base font-bold text-title">Reservas por estado</h3>
+            <p class="text-xs text-text-secondary">Este mes</p>
+            <div class="mt-3 space-y-3">
+              @for (row of data.reservas.por_estado; track row.estado) {
+                <div>
+                  <div class="flex justify-between text-xs text-label"><span>{{ row.etiqueta }}</span><b class="tabular-nums">{{ row.total }}</b></div>
+                  <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                    <div class="h-full rounded-full" [style.width.%]="row.porcentaje" [style.background]="stateColor(row.estado)"></div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <h3 class="font-heading text-base font-bold text-title">Requieren atención</h3>
+          @if (data.alertas.length) {
+            <div class="mt-3 space-y-2">
+              @for (alert of data.alertas; track alert.clave) {
+                <a [routerLink]="alert.ruta" class="flex items-center gap-3 rounded-xl border px-3 py-2.5 transition hover:brightness-95" [class]="alertClass(alert.nivel)">
+                  <span class="min-w-7 text-center font-heading text-lg font-bold tabular-nums">{{ alert.total }}</span>
+                  <span class="min-w-0 flex-1 text-xs"><b class="block text-[13px]">{{ alert.titulo }}</b>{{ alert.detalle }}</span>
+                  <svg lucideArrowRight class="h-4 w-4 shrink-0 opacity-60"></svg>
+                </a>
+              }
+            </div>
+          } @else {
+            <p class="mt-3 rounded-xl bg-emerald-50 p-3 text-xs font-medium text-emerald-700">Todo en orden: no hay pagos, reembolsos ni reservas pendientes.</p>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparación lado a lado (SuperAdmin con 2 a 4 empresas) -->
+    @if (comparing()) {
+      <div class="overflow-x-auto rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+        <h3 class="font-heading text-base font-bold text-title">Comparación del mes</h3>
+        <p class="text-xs text-text-secondary">Mismos indicadores para cada empresa elegida</p>
+        <table class="mt-4 w-full min-w-[40rem] text-sm" data-testid="tabla-comparacion">
+          <thead>
+            <tr class="border-b border-input-border text-left text-[11px] tracking-wide text-text-secondary uppercase">
+              <th class="pb-2 font-semibold">Empresa</th>
+              <th class="pb-2 text-right font-semibold">Cobrado</th>
+              <th class="pb-2 text-right font-semibold">Reembolsado</th>
+              <th class="pb-2 text-right font-semibold">Neto</th>
+              <th class="pb-2 text-right font-semibold">Reservas</th>
+              <th class="pb-2 text-right font-semibold">Canceladas</th>
+              <th class="pb-2 text-right font-semibold">Ocupación</th>
+              <th class="pb-2 text-right font-semibold">Calificación</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of data.comparacion; track row.id; let i = $index) {
+              <tr class="border-b border-gray-100 text-label">
+                <td class="py-2.5 font-semibold text-title"><span class="flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full" [style.background]="colors[i]"></i>{{ row.nombre }}</span></td>
+                <td class="py-2.5 text-right tabular-nums">Bs {{ money(row.cobrado) }}</td>
+                <td class="py-2.5 text-right tabular-nums text-red-600">Bs {{ money(row.reembolsado) }}</td>
+                <td class="py-2.5 text-right font-semibold tabular-nums text-title">Bs {{ money(row.neto) }}</td>
+                <td class="py-2.5 text-right tabular-nums">{{ row.reservas }}</td>
+                <td class="py-2.5 text-right tabular-nums">{{ row.canceladas }}</td>
+                <td class="py-2.5 text-right tabular-nums">{{ row.ocupacion !== null ? (row.ocupacion | number: '1.0-1') + ' %' : '—' }}</td>
+                <td class="py-2.5 text-right tabular-nums">@if (row.calificacion !== null) { <span class="text-amber-500">★</span> {{ row.calificacion | number: '1.1-1' }} } @else { — }</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (platform()) {
+      <!-- SuperAdmin: ranking, suscripciones, ciudades y últimas reservas -->
+      <div class="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
+        <div class="overflow-x-auto rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <h3 class="font-heading text-base font-bold text-title">Ranking de empresas</h3>
+          <p class="text-xs text-text-secondary">Este mes · ordenado por monto cobrado</p>
+          @if (data.ranking?.length) {
+            <table class="mt-4 w-full min-w-[32rem] text-sm">
+              <thead>
+                <tr class="border-b border-input-border text-left text-[11px] tracking-wide text-text-secondary uppercase">
+                  <th class="pb-2 font-semibold">#</th><th class="pb-2 font-semibold">Empresa</th>
+                  <th class="pb-2 text-right font-semibold">Reservas</th><th class="pb-2 text-right font-semibold">Cobrado</th>
+                  <th class="pb-2 text-right font-semibold">Calificación</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of data.ranking; track row.id; let i = $index) {
+                  <tr class="border-b border-gray-100 text-label">
+                    <td class="py-2.5">{{ i + 1 }}</td>
+                    <td class="py-2.5 font-semibold text-title">{{ row.nombre }}</td>
+                    <td class="py-2.5 text-right tabular-nums">{{ row.reservas }}</td>
+                    <td class="py-2.5 text-right font-semibold tabular-nums text-title">Bs {{ money(row.cobrado) }}</td>
+                    <td class="py-2.5 text-right tabular-nums">@if (row.calificacion !== null) { <span class="text-amber-500">★</span> {{ row.calificacion | number: '1.1-1' }} } @else { — }</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="mt-4 text-sm text-text-secondary">Todavía no hay ventas este mes.</p>
+          }
+        </div>
+
+        <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <h3 class="font-heading text-base font-bold text-title">Empresas y suscripciones</h3>
+          @if (data.plataforma; as people) {
+            <p class="text-xs text-text-secondary">{{ people.empresas.activas }} de {{ people.empresas.total }} empresas activas
+              @if (people.empresas.tasa_activacion !== null) { ({{ people.empresas.tasa_activacion | number: '1.0-1' }} %) }</p>
+          }
+          <div class="mt-3 space-y-3">
+            @for (plan of data.suscripciones ?? []; track plan.plan) {
+              <div>
+                <div class="flex justify-between text-xs text-label"><span>Plan {{ plan.plan }}</span><b>{{ plan.empresas }} {{ plan.empresas === 1 ? 'empresa' : 'empresas' }}</b></div>
+                <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full bg-accent-dark" [style.width.%]="(plan.empresas / planMax()) * 100"></div></div>
+              </div>
+            } @empty {
+              <p class="text-xs text-text-secondary">No hay suscripciones activas.</p>
+            }
+            <div class="pt-1">
+              <div class="flex justify-between text-xs text-label"><span>Productos publicados</span><b>{{ data.catalogo.publicados }} de {{ data.catalogo.total }}</b></div>
+              <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full bg-accent" [style.width.%]="data.catalogo.total ? (data.catalogo.publicados / data.catalogo.total) * 100 : 0"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
+        <div class="overflow-x-auto rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <h3 class="font-heading text-base font-bold text-title">Últimas reservas</h3>
+          @if (data.ultimas_reservas?.length) {
+            <table class="mt-4 w-full min-w-[32rem] text-sm">
+              <thead>
+                <tr class="border-b border-input-border text-left text-[11px] tracking-wide text-text-secondary uppercase">
+                  <th class="pb-2 font-semibold">Código</th><th class="pb-2 font-semibold">Empresa</th><th class="pb-2 font-semibold">Cliente</th>
+                  <th class="pb-2 text-right font-semibold">Monto</th><th class="pb-2 text-right font-semibold">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of data.ultimas_reservas; track row.reserva) {
+                  <tr class="border-b border-gray-100 text-label">
+                    <td class="py-2.5 font-semibold text-title">{{ row.reserva }}</td>
+                    <td class="py-2.5">{{ row.empresa }}</td>
+                    <td class="py-2.5">{{ row.cliente }}</td>
+                    <td class="py-2.5 text-right tabular-nums">{{ row.moneda === 'BOB' ? 'Bs' : row.moneda }} {{ money(row.monto) }}</td>
+                    <td class="py-2.5 text-right"><span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" [class]="stateBadge(row.estado)">{{ stateLabel(row.estado) }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="mt-4 text-sm text-text-secondary">Todavía no hay reservas.</p>
+          }
+        </div>
+
+        <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <h3 class="font-heading text-base font-bold text-title">Ciudades con más demanda</h3>
+          <p class="text-xs text-text-secondary">Reservas del mes por destino</p>
+          <div class="mt-3 space-y-3">
+            @for (city of data.ciudades ?? []; track city.ciudad) {
+              <div>
+                <div class="flex justify-between text-xs text-label"><span class="flex items-center gap-1"><svg lucideMapPin class="h-3 w-3"></svg>{{ city.ciudad }}</span><b class="tabular-nums">{{ city.reservas }}</b></div>
+                <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full bg-accent-dark" [style.width.%]="(city.reservas / cityMax()) * 100"></div></div>
+              </div>
+            } @empty {
+              <p class="text-xs text-text-secondary">Sin reservas este mes.</p>
+            }
+          </div>
+        </div>
+      </div>
+    } @else {
+      <!-- Empresa: próximas llegadas y reseñas -->
+      <div class="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
+        <div class="overflow-x-auto rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <h3 class="font-heading text-base font-bold text-title">Próximas llegadas y salidas</h3>
+          <p class="text-xs text-text-secondary">Reservas pagadas que empiezan en los próximos 7 días</p>
+          @if (data.proximas?.length) {
+            <table class="mt-4 w-full min-w-[34rem] text-sm">
+              <thead>
+                <tr class="border-b border-input-border text-left text-[11px] tracking-wide text-text-secondary uppercase">
+                  <th class="pb-2 font-semibold">Fecha</th><th class="pb-2 font-semibold">Cliente</th><th class="pb-2 font-semibold">Producto</th>
+                  <th class="pb-2 text-right font-semibold">Días</th><th class="pb-2 text-right font-semibold">Monto</th><th class="pb-2 text-right font-semibold">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of data.proximas; track row.reserva) {
+                  <tr class="border-b border-gray-100 text-label">
+                    <td class="py-2.5 font-semibold text-title">{{ shortDate(row.inicio, true) }}</td>
+                    <td class="py-2.5">{{ row.cliente }}</td>
+                    <td class="py-2.5">{{ row.producto }}</td>
+                    <td class="py-2.5 text-right tabular-nums">{{ row.dias }}</td>
+                    <td class="py-2.5 text-right tabular-nums">Bs {{ money(row.monto) }}</td>
+                    <td class="py-2.5 text-right"><span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" [class]="stateBadge(row.estado)">{{ stateLabel(row.estado) }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="mt-4 text-sm text-text-secondary">No hay llegadas ni salidas en los próximos 7 días.</p>
+          }
+        </div>
+
+        <div class="rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <h3 class="font-heading text-base font-bold text-title">Últimas reseñas</h3>
+          <p class="text-xs text-text-secondary">Lo que opinan tus clientes</p>
+          <div class="mt-2 divide-y divide-gray-100">
+            @for (review of data.calificacion.ultimas ?? []; track $index) {
+              <div class="py-2.5 text-xs text-label">
+                <div class="flex items-center justify-between font-semibold text-title">
+                  <span>{{ review.autor }} <span class="font-normal text-text-secondary">· {{ review.producto }}</span></span>
+                  <span class="flex text-amber-400">
+                    @for (on of stars(review.calificacion); track $index) {
+                      <svg lucideStar class="h-3 w-3" [class.fill-current]="on" [class.text-gray-300]="!on"></svg>
+                    }
+                  </span>
+                </div>
+                <p class="mt-1">{{ review.comentario }}</p>
+              </div>
+            } @empty {
+              <p class="py-3 text-xs text-text-secondary">Todavía no tienes reseñas.</p>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Productos y promociones -->
+    <div [class]="platform() ? 'grid gap-6' : 'grid gap-6 xl:grid-cols-2'">
+      <div class="overflow-x-auto rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+        <h3 class="font-heading text-base font-bold text-title">Productos más vendidos</h3>
+        <p class="text-xs text-text-secondary">Este mes · por ingreso</p>
+        @if (data.productos_top.length) {
+          <table class="mt-4 w-full min-w-[26rem] text-sm">
+            <thead>
+              <tr class="border-b border-input-border text-left text-[11px] tracking-wide text-text-secondary uppercase">
+                <th class="pb-2 font-semibold">Producto</th><th class="pb-2 font-semibold">Ciudad</th>
+                <th class="pb-2 text-right font-semibold">Reservas</th><th class="pb-2 text-right font-semibold">Ingreso</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of data.productos_top; track row.id) {
+                <tr class="border-b border-gray-100 text-label">
+                  <td class="py-2.5 font-semibold text-title">{{ row.nombre }}</td>
+                  <td class="py-2.5">{{ row.ciudad }}</td>
+                  <td class="py-2.5 text-right tabular-nums">{{ row.reservas }}</td>
+                  <td class="py-2.5 text-right tabular-nums">Bs {{ money(row.ingreso) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="mt-4 text-sm text-text-secondary">Todavía no hay ventas este mes.</p>
+        }
+      </div>
+
+      @if (!platform()) {
+        <div class="overflow-x-auto rounded-2xl border border-input-border bg-white p-5 shadow-sm">
+          <h3 class="flex items-center gap-2 font-heading text-base font-bold text-title"><svg lucideTag class="h-4 w-4 text-accent-dark"></svg>Promociones activas</h3>
+          <p class="text-xs text-text-secondary">Vigencia y reservas que las usaron</p>
+          @if (data.promociones?.length) {
+            <table class="mt-4 w-full min-w-[24rem] text-sm">
+              <thead>
+                <tr class="border-b border-input-border text-left text-[11px] tracking-wide text-text-secondary uppercase">
+                  <th class="pb-2 font-semibold">Promoción</th><th class="pb-2 text-right font-semibold">Descuento</th>
+                  <th class="pb-2 text-right font-semibold">Usos</th><th class="pb-2 text-right font-semibold">Vence</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of data.promociones; track row.id) {
+                  <tr class="border-b border-gray-100 text-label">
+                    <td class="py-2.5 font-semibold text-title">{{ row.nombre }}
+                      @if (!row.vigente) { <span class="ml-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">Programada</span> }
+                    </td>
+                    <td class="py-2.5 text-right tabular-nums">{{ row.porcentaje }} %</td>
+                    <td class="py-2.5 text-right tabular-nums">{{ row.usos }}</td>
+                    <td class="py-2.5 text-right">{{ shortDate(row.vence) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="mt-4 text-sm text-text-secondary">No tienes promociones activas.</p>
+          }
+        </div>
+      }
+    </div>
+  }
+</section>

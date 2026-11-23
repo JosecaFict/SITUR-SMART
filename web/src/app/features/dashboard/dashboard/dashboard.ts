@@ -4,7 +4,6 @@ import { RouterLink } from '@angular/router';
 import {
   LucideArrowRight,
   LucideBuilding2,
-  LucideCalendarClock,
   LucideCheck,
   LucideCheckCircle2,
   LucideCircleAlert,
@@ -38,6 +37,7 @@ import { Role } from '../../../core/rbac/rbac.models';
 import { RbacService } from '../../../core/rbac/rbac.service';
 import { TenantUser } from '../../../core/users/users.models';
 import { UsersService } from '../../../core/users/users.service';
+import { PanelCompany, PanelNegocio } from '../panel-negocio/panel-negocio';
 
 export interface CompanyChoice {
   id: number;
@@ -63,9 +63,9 @@ export interface CategorySummary {
   imports: [
     DatePipe,
     RouterLink,
+    PanelNegocio,
     LucideArrowRight,
     LucideBuilding2,
-    LucideCalendarClock,
     LucideCheck,
     LucideCheckCircle2,
     LucideCircleAlert,
@@ -137,6 +137,15 @@ export class Dashboard implements OnInit {
   );
   protected readonly canManageRoles = computed(
     () => this.session()?.user.permisos.includes('ROLES_GESTIONAR') ?? false,
+  );
+  /** Ventas y reservas: lo ven quienes pueden consultar reportes de su empresa. */
+  protected readonly canSeeSales = computed(
+    () => this.session()?.user.permisos.includes('REPORTES_TENANT') ?? false,
+  );
+  protected readonly panelCompanies = computed<PanelCompany[]>(() =>
+    this.companies()
+      .map((company) => ({ id: company.id, name: company.nombre_comercial }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es')),
   );
   protected readonly canReadAudit = computed(
     () => this.session()?.user.permisos.includes('BITACORA_LEER') ?? false,

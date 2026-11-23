@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from apps.audit.services import record_audit
 from apps.rbac.views import tenant_id_from_request
 
+from .dashboard import build_dashboard
 from .exporters import build_csv, build_pdf, build_xlsx
 from .services import build_report
 
@@ -20,6 +21,21 @@ class ReportView(APIView):
             params=request.query_params,
         )
         return Response(report)
+
+
+class DashboardView(APIView):
+    """Indicadores del dashboard; ``?empresas=1,2`` filtra o compara (SuperAdmin)."""
+
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        return Response(
+            build_dashboard(
+                user=request.user,
+                tenant_id=tenant_id_from_request(request),
+                params=request.query_params,
+            )
+        )
 
 
 class ReportCsvView(APIView):
